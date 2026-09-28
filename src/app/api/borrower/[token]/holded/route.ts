@@ -9,8 +9,7 @@
  * (Supabase Edge Function / Inngest) once real books exceed the limit.
  */
 import { NextResponse } from "next/server";
-import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
+import { audit, borrowerRoute } from "@/lib/borrower/access";
 import { HoldedClient, HoldedError, verifyHoldedKey } from "@/lib/connectors/holded";
 import { runHoldedSync, WARNING_SEVERITY } from "@/lib/connectors/holded-sync";
 import { seal } from "@/lib/crypto/token";
@@ -18,30 +17,23 @@ import { seal } from "@/lib/crypto/token";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const admin = () =>
-  createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { persistSession: false },
-  });
-
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const { token } = await ctx.params;
+  const r = await borrowerRoute((await ctx.params).token);
+  if (r.response) return r.response;
+  const { db, access } = r;
   const body = (await req.json().catch(() => null)) as { apiKey?: string; consent?: boolean; mode?: "one_time" | "refresh" } | null;
   if (!body?.apiKey || body.consent !== true) {
     return NextResponse.json({ error: "Falta la clave de API o el consentimiento." }, { status: 400 });
   }
   const mode = body.mode === "refresh" ? "refresh" : "one_time";
-  const db = admin();
 
-  // 1. Resolve the case from the magic-link token.
-  const tokenHash = createHash("sha256").update(token).digest("hex");
+  // 1. The case behind the magic link (company or gestoría link, validated by borrowerRoute).
   const { data: kase } = await db
     .from("cases")
-    .select("id, lender_id, fiscal_year_end, borrower_token_expires_at")
-    .eq("borrower_token_hash", tokenHash)
+    .select("id, lender_id, fiscal_year_end")
+    .eq("id", access.caseId)
     .single();
-  if (!kase || (kase.borrower_token_expires_at && new Date(kase.borrower_token_expires_at) < new Date())) {
-    return NextResponse.json({ error: "Enlace no válido o caducado." }, { status: 404 });
-  }
+  if (!kase) return NextResponse.json({ error: "Enlace no válido o caducado." }, { status: 404 });
   if (!kase.fiscal_year_end) {
     return NextResponse.json({ error: "El prestamista aún no ha indicado el cierre del ejercicio." }, { status: 409 });
   }
@@ -72,7 +64,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       token_tag: `\\x${s.tag.toString("hex")}`,
     }).eq("id", conn.id);
   }
-  await audit(db, kase, "holded.connected", { mode, last4: client.keyLast4 });
+  await audit(db, access, "holded.connected", { mode, last4: client.keyLast4 });
 
   // 4. Pull, normalise, compute.
   try {
@@ -119,8 +111,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     }
 
     await db.from("holded_connections").update({ status: "synced", last_sync_at: new Date().toISOString() }).eq("id", conn.id);
-    await audit(db, kase, "holded.synced", { requests: result.requestCount, periods: result.periods.map((p) => p.period) });
-    if (mode === "one_time") await audit(db, kase, "holded.token_discarded", {});
+    await audit(db, access, "holded.synced", { requests: result.requestCount, periods: result.periods.map((p) => p.period) });
+    if (mode === "one_time") await audit(db, access, "holded.token_discarded", {});
 
     return NextResponse.json({
       ok: true,
@@ -131,11 +123,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     const code = e instanceof HoldedError ? e.code : "error";
     const status = code === "invalid_key" ? "invalid_key" : code === "missing_scope" ? "missing_scope" : "error";
     await db.from("holded_connections").update({ status, last_error: code }).eq("id", conn.id);
-    await audit(db, kase, "holded.sync_failed", { code });
+    await audit(db, access, "holded.sync_failed", { code });
     return NextResponse.json({ error: "No se pudieron importar los datos de Holded. Inténtalo de nuevo o sube el sumas y saldos." }, { status: 502 });
   }
-}
-
-async function audit(db: ReturnType<typeof admin>, kase: { id: string; lender_id: string }, action: string, detail: Record<string, unknown>) {
-  await db.from("audit_log").insert({ lender_id: kase.lender_id, case_id: kase.id, actor: "borrower", action, detail });
 }

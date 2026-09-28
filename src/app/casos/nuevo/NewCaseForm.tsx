@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { PRODUCTS } from "@/content/products.es";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { createCase, type CreateCaseState } from "./actions";
-import { CopyLink } from "./CopyLink";
+import { CopyLink } from "@/components/CopyLink";
 
 const inputCls = "h-11 w-full rounded-lg border border-line-strong bg-surface px-3 text-base font-normal aria-[invalid=true]:border-high-icon";
 
