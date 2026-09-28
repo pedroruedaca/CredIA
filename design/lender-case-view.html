@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>credIA · Vista de caso (prestamista)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F4EF;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#17191E}
+a{color:#0E5A61;text-decoration:none}a:hover{color:#083B40;text-decoration:underline}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1240px; box-sizing: border-box; background: #F5F4EF; display: flex; flex-direction: column;">
+
+<header style="height: 64px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; gap: 40px; background: #17191E; color: #F5F4EF;">
+<div style="font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">cred<span style="color: #7FC4C9;">IA</span></div>
+<nav style="display: flex; gap: 28px; font-size: 14px;">
+<a href="#" style="color: #FFFFFF; font-weight: 600;">Casos</a>
+<a href="#" style="color: #C9CBD1;">Plantillas de solicitud</a>
+<a href="#" style="color: #C9CBD1;">Ajustes</a>
+</nav>
+<div style="flex-grow: 1;"></div>
+<div style="font-size: 13px; color: #C9CBD1;">Fondo Ejemplo Capital</div>
+<div style="width: 32px; height: 32px; border-radius: 16px; background: #0E5A61; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;">AN</div>
+</header>
+
+<section style="padding: 28px 40px 24px; display: flex; align-items: flex-end; gap: 24px; border-bottom: 1px solid #E3E1D8; background: #FFFFFF;">
+<div style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+<div style="font-size: 13px; color: #5E626B;"><a href="#">Casos</a> / CASO-2026-014</div>
+<div style="display: flex; align-items: center; gap: 14px;">
+<h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-size: 34px; font-weight: 600; letter-spacing: -0.01em;">Distribuciones Ejemplo SL</h1>
+<span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #E6F2EA; color: #1F6135;">Listo para revisión</span>
+</div>
+<div style="display: flex; gap: 24px; font-size: 14px; color: #4A4E57;">
+<span>CIF <span style="font-family: 'IBM Plex Mono', monospace;">B00000000</span></span>
+<span>Solicitud: póliza de circulante · <b style="color: #17191E;">250.000 €</b> · 24 meses</span>
+<span>Paquete generado hoy, 17:02</span>
+</div>
+</div>
+<div style="display: flex; gap: 10px;">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #C9C6BA; background: #FFFFFF; color: #17191E; font-size: 14px; font-weight: 500;">Pedir documento</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #C9C6BA; background: #FFFFFF; color: #17191E; font-size: 14px; font-weight: 500;">Exportar JSON / Excel</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: #0E5A61; color: #FFFFFF; font-size: 14px; font-weight: 600;">Exportar paquete PDF</button>
+</div>
+</section>
+
+<div style="flex-grow: 1; padding: 28px 40px 40px; display: flex; gap: 28px; box-sizing: border-box;">
+
+<main style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: baseline; gap: 12px;">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600;">Alertas de verificación cruzada</h2>
+<span style="font-size: 13px; color: #5E626B;">1 alta · 2 medias · 1 informativa · 3 correctas</span>
+</div>
+
+<div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: #FBEAE6;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A32A1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 14px; font-weight: 600; color: #7E1F16;">CIRBE muestra 85.000 € más de deuda que la contabilidad</div>
+<div style="font-size: 13px; color: #4A4E57;">CIRBE (ago 2026): 245.000 € dispuestos en 4 entidades · Contabilidad (16x/17x/5x): 160.000 €. Posible préstamo ICO no registrado.</div>
+</div>
+<a href="#" style="font-size: 13px; font-weight: 500; white-space: nowrap;">Ver evidencia</a>
+</div>
+
+<div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: #FBF0DC;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 14px; font-weight: 600; color: #6B3F00;">Cobros bancarios un 31 % por debajo de las ventas + IVA</div>
+<div style="font-size: 13px; color: #4A4E57;">Norma 43 (2 cuentas, 12 meses): 834.900 € de entradas · Ventas 2025 × 1,21: 1.210.000 €. Puede haber cuentas bancarias no aportadas.</div>
+</div>
+<a href="#" style="font-size: 13px; font-weight: 500; white-space: nowrap;">Ver evidencia</a>
+</div>
+
+<div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: #FBF0DC;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 14px; font-weight: 600; color: #6B3F00;">Cuenta bancaria en descubierto reclasificada como deuda</div>
+<div style="font-size: 13px; color: #4A4E57;">572·00002 Banco B: saldo acreedor de 20.000 € (póliza dispuesta) → deuda financiera a corto plazo.</div>
+</div>
+<a href="#" style="font-size: 13px; font-weight: 500; white-space: nowrap;">Ver cuenta</a>
+</div>
+
+<div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: #E8EFF9;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E4E8C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<div style="font-size: 14px; font-weight: 600; color: #163B6B;">Saldos de apertura 2026 reconstruidos desde el histórico de Holded</div>
+<div style="font-size: 13px; color: #4A4E57;">La empresa no ha cerrado 2025 en Holded. Balance cuadrado; conviene confirmar con el Modelo 200 cuando se presente.</div>
+</div>
+</div>
+
+<div style="display: flex; gap: 18px; font-size: 13px; color: #1F6135; padding: 2px 2px 0;">
+<span>✓ Modelo 200 2024 coincide con contabilidad</span>
+<span>✓ Certificados AEAT y TGSS vigentes</span>
+<span>✓ Sin actos adversos en BORME</span>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; align-items: baseline; gap: 12px;">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600;">Indicadores</h2>
+<span style="font-size: 13px; color: #5E626B;">YTD anualizado a 12 meses · pulsa un valor para ver fórmula y cuentas</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+<div style="border: 1px solid #E3E1D8; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="font-size: 12px; font-weight: 500; color: #5E626B; text-transform: uppercase; letter-spacing: 0.04em;">EBITDA</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 500;">110.000 €</div>
+<div style="font-size: 12px; color: #4A4E57;">YTD 2026: 118.200 € · margen 11,0 %</div>
+</div>
+<div style="border: 1px solid #E3E1D8; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="font-size: 12px; font-weight: 500; color: #5E626B; text-transform: uppercase; letter-spacing: 0.04em;">DSCR</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 500;">1,59x</div>
+<div style="font-size: 12px; color: #4A4E57;">YTD 2026: 1,48x · principal = deuda CP</div>
+</div>
+<div style="border: 1px solid #E3E1D8; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="font-size: 12px; font-weight: 500; color: #5E626B; text-transform: uppercase; letter-spacing: 0.04em;">Deuda fin. neta</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 500;">−14.000 €</div>
+<div style="font-size: 12px; color: #4A4E57;">Con CIRBE: 71.000 € · 0,65x EBITDA</div>
+</div>
+<div style="border: 1px solid #E3E1D8; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+<div style="font-size: 12px; font-weight: 500; color: #5E626B; text-transform: uppercase; letter-spacing: 0.04em;">Liquidez</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 500;">1,91x</div>
+<div style="font-size: 12px; color: #4A4E57;">Prueba ácida 1,66x</div>
+</div>
+</div>
+
+<table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+<thead>
+<tr style="text-align: left; color: #5E626B; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;">
+<th style="padding: 10px 0; border-bottom: 1px solid #E3E1D8; font-weight: 500;">Indicador</th>
+<th style="padding: 10px 0; border-bottom: 1px solid #E3E1D8; font-weight: 500; text-align: right;">Ejercicio 2025</th>
+<th style="padding: 10px 0; border-bottom: 1px solid #E3E1D8; font-weight: 500; text-align: right;">YTD 2026 (8,9 m)</th>
+<th style="padding: 10px 0 10px 24px; border-bottom: 1px solid #E3E1D8; font-weight: 500;">Cálculo</th>
+</tr>
+</thead>
+<tbody style="font-family: 'IBM Plex Mono', monospace;">
+<tr><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif;">Ingresos</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">1.000.000 €</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">1.084.000 €</td><td style="padding: 9px 0 9px 24px; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #4A4E57;">Σ grupo 70</td></tr>
+<tr><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif;">Cobertura de intereses</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">12,2x</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">11,1x</td><td style="padding: 9px 0 9px 24px; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #4A4E57;">EBITDA / (661+662+665)</td></tr>
+<tr><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif;">Deuda / patrimonio neto</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">0,72x</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">0,69x</td><td style="padding: 9px 0 9px 24px; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #4A4E57;">Deuda financiera / grupos 10–13 + resultado</td></tr>
+<tr><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif;">DSO</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">45 días</td><td style="padding: 9px 0; border-bottom: 1px solid #EFEDE6; text-align: right;">52 días</td><td style="padding: 9px 0 9px 24px; border-bottom: 1px solid #EFEDE6; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #4A4E57;">430–436 / (ventas × 1,21) × 365</td></tr>
+<tr><td style="padding: 9px 0; font-family: 'IBM Plex Sans', sans-serif;">DPO</td><td style="padding: 9px 0; text-align: right;">42 días</td><td style="padding: 9px 0; text-align: right;">39 días</td><td style="padding: 9px 0 9px 24px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #4A4E57;">40/41 / ((60+61+62) × 1,21) × 365</td></tr>
+</tbody>
+</table>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: baseline; gap: 12px;">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600;">Balance normalizado (PGC) · 31/12/2025</h2>
+<span style="font-size: 13px; color: #5E626B;">Cada cifra enlaza con su cuenta y documento de origen</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; font-size: 14px;">
+<div style="display: flex; flex-direction: column;">
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Inmovilizado neto</span><span style="font-family: 'IBM Plex Mono', monospace;">140.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Existencias</span><span style="font-family: 'IBM Plex Mono', monospace;">50.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Clientes</span><span style="font-family: 'IBM Plex Mono', monospace;">150.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Otros deudores</span><span style="font-family: 'IBM Plex Mono', monospace;">5.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Tesorería</span><span style="font-family: 'IBM Plex Mono', monospace;">174.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 600;"><span>Total activo</span><span style="font-family: 'IBM Plex Mono', monospace;">519.000</span></div>
+</div>
+<div style="display: flex; flex-direction: column;">
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Patrimonio neto</span><span style="font-family: 'IBM Plex Mono', monospace;">221.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Deuda financiera LP</span><span style="font-family: 'IBM Plex Mono', monospace;">100.000</span></div>
+<div style="display: flex; flex-direction: column; padding: 8px 10px; margin: 0 -10px; background: #F1F6F6; border-radius: 8px;">
+<div style="display: flex; justify-content: space-between; font-weight: 600;"><span>Deuda financiera CP ▾</span><span style="font-family: 'IBM Plex Mono', monospace;">60.000</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #4A4E57; padding-top: 6px;"><span><span style="font-family: 'IBM Plex Mono', monospace;">520·00001</span> Préstamo CP Banco A · <a href="#">Holded, libro diario 2025</a></span><span style="font-family: 'IBM Plex Mono', monospace;">40.000</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #4A4E57; padding-top: 4px;"><span><span style="font-family: 'IBM Plex Mono', monospace;">572·00002</span> Banco B (póliza) · <a href="#">Holded, libro diario 2025</a></span><span style="font-family: 'IBM Plex Mono', monospace;">20.000</span></div>
+</div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>C/c socios (55x)</span><span style="font-family: 'IBM Plex Mono', monospace;">25.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE6;"><span>Proveedores y otros pasivos</span><span style="font-family: 'IBM Plex Mono', monospace;">113.000</span></div>
+<div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: 600;"><span>Total PN y pasivo</span><span style="font-family: 'IBM Plex Mono', monospace;">519.000</span></div>
+</div>
+</div>
+</section>
+</main>
+
+<aside style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px;">
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Documentación</h2>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>Contabilidad · Holded</div><div style="font-size: 12px; color: #5E626B;">2025 cerrado + 2026 hasta hoy · 1.284 apuntes</div></div></div>
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>Norma 43</div><div style="font-size: 12px; color: #5E626B;">2 cuentas · oct 2025 – sep 2026</div></div></div>
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>CIRBE</div><div style="font-size: 12px; color: #5E626B;">Declaración agosto 2026</div></div></div>
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>Modelo 200 · 2024</div><div style="font-size: 12px; color: #5E626B;">2025 aún no presentado</div></div></div>
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>Certificados AEAT y TGSS</div><div style="font-size: 12px; color: #5E626B;">Emitidos 22 sep 2026</div></div></div>
+<div style="display: flex; gap: 10px; align-items: flex-start;"><span style="color: #1F6135; font-weight: 600;">✓</span><div style="flex-grow: 1;"><div>BORME</div><div style="font-size: 12px; color: #5E626B;">Consulta automática</div></div></div>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Empresa</h2>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5E626B;">Forma</span><span>Sociedad limitada</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5E626B;">Constitución</span><span>[AÑO]</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5E626B;">Administración</span><span>Administrador único</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5E626B;">CNAE</span><span>4690 · Comercio al por mayor</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: #5E626B;">Último acto BORME</span><span>[FECHA] · Nombramientos</span></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E3E1D8; border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Actividad</h2>
+<div style="display: flex; gap: 10px;"><span style="font-family: 'IBM Plex Mono', monospace; color: #5E626B;">17:02</span><span>Paquete generado</span></div>
+<div style="display: flex; gap: 10px;"><span style="font-family: 'IBM Plex Mono', monospace; color: #5E626B;">16:58</span><span>El solicitante conectó Holded (clave de un solo uso, no guardada)</span></div>
+<div style="display: flex; gap: 10px;"><span style="font-family: 'IBM Plex Mono', monospace; color: #5E626B;">16:41</span><span>CIRBE y Norma 43 subidos</span></div>
+<div style="display: flex; gap: 10px;"><span style="font-family: 'IBM Plex Mono', monospace; color: #5E626B;">Ayer</span><span>Caso creado por A. N.</span></div>
+</section>
+
+<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #5E626B;">credIA prepara y verifica la información. No emite puntuación ni recomendación de crédito: la decisión corresponde al prestamista.</p>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
