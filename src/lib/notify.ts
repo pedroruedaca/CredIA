@@ -7,6 +7,7 @@
 import { lenderRecipients } from "./email/recipients.ts";
 import { sendWithResend } from "./email/resend.ts";
 import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail } from "./email/templates.ts";
+import { normaliseBaseUrl } from "./base-url.ts";
 import { MAGIC_LINK_TTL_DAYS } from "./magic-link.ts";
 
 export interface BorrowerInvite {
@@ -117,7 +118,7 @@ export function isEmailConfigured(): boolean {
 export function getNotifier(): Notifier {
   const key = process.env.RESEND_API_KEY;
   if (key) {
-    return resendNotifier(key, { from: process.env.CREDIA_EMAIL_FROM, replyTo: process.env.CREDIA_EMAIL_REPLY_TO, appUrl: process.env.NEXT_PUBLIC_APP_URL });
+    return resendNotifier(key, { from: process.env.CREDIA_EMAIL_FROM, replyTo: process.env.CREDIA_EMAIL_REPLY_TO, appUrl: normaliseBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ?? undefined });
   }
   return process.env.NODE_ENV === "development" ? devConsoleNotifier : noopNotifier;
 }
