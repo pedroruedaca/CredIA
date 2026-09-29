@@ -5,6 +5,9 @@ import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ConnectHolded } from "@/components/ConnectHolded";
+import { buttonClass } from "@/components/ui/Button";
+import { Pill, TogglePill } from "@/components/ui/Pill";
+import type { Tone } from "@/components/ui/SeverityDot";
 import { RichText } from "@/components/RichText";
 import { BANKS, N43_FALLBACK } from "@/content/banks.es";
 import { ITEM_COPY } from "@/content/borrower-portal.es";
@@ -25,11 +28,11 @@ interface Props {
   readOnly?: boolean;
 }
 
-const CHIP: Record<ItemState, { label: string; className: string }> = {
-  pending: { label: "Pendiente", className: "bg-info-bg text-info" },
-  in_progress: { label: "En curso", className: "bg-info-bg text-info" },
-  attention: { label: "Revisar", className: "bg-warn-bg text-warn" },
-  done: { label: "Completado", className: "bg-ok-bg text-ok" },
+const CHIP: Record<ItemState, { label: string; tone: Tone }> = {
+  pending: { label: "Pendiente", tone: "neutral" },
+  in_progress: { label: "En curso", tone: "info" },
+  attention: { label: "Revisar", tone: "warn" },
+  done: { label: "Completado", tone: "ok" },
 };
 
 export function Checklist({ token, actor, lenderName, today, items, firstIncomplete, readOnly = false }: Props) {
@@ -57,7 +60,7 @@ export function Checklist({ token, actor, lenderName, today, items, firstIncompl
   }, [items]);
 
   return (
-    <div className="flex flex-col rounded-card border border-line bg-surface">
+    <div className="flex flex-col">
       {items.map((item, idx) => (
         <Item
           key={item.kind}
@@ -80,10 +83,10 @@ export function Checklist({ token, actor, lenderName, today, items, firstIncompl
 function StateIcon({ state, index, open }: { state: ItemState; index: number; open: boolean }) {
   const base = "flex h-7 w-7 shrink-0 items-center justify-center rounded-full";
   if (state === "done") return <span className={`${base} bg-ok-bg text-ok`}><Check size={16} strokeWidth={2.5} aria-hidden /></span>;
-  if (state === "attention") return <span className={`${base} bg-warn-bg text-warn-icon`}><AlertCircle size={16} strokeWidth={2.5} aria-hidden /></span>;
-  if (state === "in_progress") return <span className={`${base} bg-info-bg text-info-icon`}><Loader2 size={16} className="animate-spin" aria-hidden /></span>;
+  if (state === "attention") return <span className={`${base} bg-warn-bg text-warn-dot`}><AlertCircle size={16} strokeWidth={2.5} aria-hidden /></span>;
+  if (state === "in_progress") return <span className={`${base} bg-info-bg text-info-dot`}><Loader2 size={16} className="animate-spin" aria-hidden /></span>;
   return (
-    <span className={`${base} border-2 text-[13px] font-semibold ${open ? "border-accent text-accent" : "border-line-strong text-muted"}`} aria-hidden>
+    <span className={`${base} border-2 font-mono text-[13px] font-medium ${open ? "border-accent text-accent" : "border-track text-muted"}`} aria-hidden>
       {index}
     </span>
   );
@@ -111,7 +114,7 @@ function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, t
   const subtitle = item.state === "attention" ? item.fix : open || item.state === "pending" ? copy.description : (item.summary ?? copy.description);
 
   return (
-    <div id={panelId} className={`scroll-mt-4 border-b border-line-row last:border-0 ${open ? "bg-surface-subtle" : ""}`}>
+    <div id={panelId} className={`-mx-4 scroll-mt-4 rounded-row transition-colors duration-150 ease-out ${open ? "bg-soft" : "hover:bg-soft"}`}>
       <div className="flex items-start gap-3 px-4 py-4 sm:gap-4 sm:px-[22px]">
         <button
           type="button"
@@ -135,14 +138,14 @@ function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, t
           <button
             type="button"
             onClick={onOpen}
-            className="h-10 shrink-0 rounded-lg border border-line-strong bg-surface px-3.5 text-[13px] font-medium hover:bg-surface-subtle"
+            className={buttonClass("secondary", "sm", "shrink-0")}
           >
             {item.kind === "trial_balance" ? "Resolver" : "Subir uno nuevo"}
           </button>
         )}
         {(item.state === "pending" || item.state === "in_progress" || (open && item.state !== "attention")) && (
-          <span aria-hidden className={`mt-1 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${CHIP[item.state].className}`}>
-            {CHIP[item.state].label}
+          <span aria-hidden className="mt-1">
+            <Pill tone={CHIP[item.state].tone}>{CHIP[item.state].label}</Pill>
           </span>
         )}
       </div>
@@ -190,7 +193,7 @@ function Panel({ item, token, lenderName, today }: { item: ChecklistItem; token:
     return (
       <div className="grid gap-4 lg:grid-cols-2">
         <ConnectHolded token={token} />
-        <div className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
+        <div className="flex flex-col gap-3 rounded-panel bg-soft p-6">
           <div>
             <h3 className="text-[15px] font-semibold">O sube el sumas y saldos</h3>
             <p className="mt-0.5 text-sm text-ink-2">Desde cualquier programa de contabilidad.</p>
@@ -221,20 +224,11 @@ function Norma43Panel({ token, today }: { token: string; today: string }) {
   const bank = BANKS.find((b) => b.id === bankId)!;
   return (
     <>
-      <div role="radiogroup" aria-label="Tu banco" className="flex flex-wrap gap-2">
+      <div role="group" aria-label="Tu banco" className="flex flex-wrap gap-2">
         {BANKS.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            role="radio"
-            aria-checked={b.id === bankId}
-            onClick={() => setBankId(b.id)}
-            className={`h-11 rounded-full border px-3.5 text-[13px] sm:h-9 ${
-              b.id === bankId ? "border-accent bg-accent font-medium text-white" : "border-line-strong bg-surface text-ink hover:bg-surface-subtle"
-            }`}
-          >
+          <TogglePill key={b.id} pressed={b.id === bankId} onClick={() => setBankId(b.id)}>
             {b.name}
-          </button>
+          </TogglePill>
         ))}
       </div>
       <Steps steps={bank.steps} />
@@ -261,11 +255,11 @@ function RevokeHolded({ token }: { token: string }) {
           if (!res?.ok) return setError(true);
           router.refresh();
         }}
-        className="min-h-11 text-[13px] text-accent underline hover:text-accent-hover disabled:opacity-60"
+        className={buttonClass("link", "sm")}
       >
         Revocar acceso
       </button>
-      {error && <span role="alert" className="text-xs text-high">No se pudo revocar. Inténtalo de nuevo.</span>}
+      {error && <span role="alert" className="text-[13px] text-high">No se pudo revocar. Inténtalo de nuevo.</span>}
     </span>
   );
 }

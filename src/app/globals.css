@@ -1,53 +1,81 @@
 @import "tailwindcss";
 
-/* Design tokens from design/lender-case-view.html and design/borrower-checklist.html. */
+/*
+ * Design language v2: no cards, no borders as structure. Hierarchy from type, whitespace and soft tinted
+ * surfaces; hairlines only inside data tables and panels; elevation only on floating layers.
+ */
 @theme {
-  --color-ground: #f5f4ef;
   --color-surface: #ffffff;
-  --color-surface-subtle: #fbfaf7;
-  --color-line: #e3e1d8;
-  --color-line-row: #efede6;
-  --color-line-strong: #c9c6ba;
-  --color-line-dashed: #9fa3aa;
-  --color-disabled: #c9cbd1;
-  --color-on-disabled: #3a3d44;
+  --color-soft: #f6f6f3;
+  --color-soft-control: #f2f2ee;
+  --color-hairline: #ecebe6;
+  --color-track: #dddcd6;
 
-  --color-ink: #17191e;
-  --color-ink-2: #4a4e57;
-  --color-muted: #5e626b;
-  --color-on-dark: #f5f4ef;
-  --color-on-dark-muted: #c9cbd1;
-  --color-brand-ia: #7fc4c9;
+  --color-ink: #111315;
+  --color-ink-2: #4b4f56;
+  --color-muted: #6b6f76;
+  --color-faint: #9a9ea5; /* decorative only, never body text */
 
   --color-accent: #0e5a61;
   --color-accent-hover: #083b40;
-  --color-accent-tint: #eef4f4;
+  --color-accent-tint: #eef4f3;
+  --color-accent-ring: #dcebea;
 
-  --color-high: #7e1f16;
-  --color-high-icon: #a32a1f;
+  --color-high: #8e2a1b;
+  --color-high-dot: #c2412d;
   --color-high-bg: #fbeae6;
-  --color-warn: #6b3f00;
-  --color-warn-icon: #8a5200;
-  --color-warn-bg: #fbf0dc;
-  --color-info: #163b6b;
-  --color-info-icon: #1e4e8c;
+  --color-warn: #7a4a00;
+  --color-warn-dot: #c98a1b;
+  --color-warn-bg: #f6e3bf;
+  --color-info: #2f6db5;
+  --color-info-dot: #2f6db5;
   --color-info-bg: #e8eff9;
   --color-ok: #1f6135;
-  --color-ok-bg: #e6f2ea;
+  --color-ok-dot: #2e7d4f;
+  --color-ok-bg: #eaf4ee;
 
-  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
-  --font-serif: var(--font-newsreader), Georgia, serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --color-chart-asset-1: #d9e6e4;
+  --color-chart-asset-2: #9dc2be;
+  --color-chart-asset-3: #0e5a61;
+  --color-chart-debt-1: #e7b9af;
+  --color-chart-debt-2: #d98c7c;
+  --color-chart-related: #efd9b5;
+  --color-chart-other: #e4e3de;
 
-  --radius-card: 12px;
-  --radius-block: 10px;
-  --radius-button: 8px;
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-input: 14px;
+  --radius-row: 16px;
+  --radius-zone: 24px;
+  --radius-panel: 28px;
+
+  --shadow-float: 0 1px 2px rgba(17, 19, 21, 0.06), 0 24px 64px rgba(17, 19, 21, 0.12);
+  --shadow-tile: 0 1px 2px rgba(17, 19, 21, 0.06), 0 2px 8px rgba(17, 19, 21, 0.06);
+}
+
+/* Page heading: 44–48px, 600, tight tracking. */
+@utility heading-page {
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  @media (width >= 64rem) {
+    font-size: 48px;
+    letter-spacing: -0.04em;
+  }
+}
+@utility heading-section {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 body {
-  background: var(--color-ground);
+  background: var(--color-surface);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: 15px;
 }
 
 a {
@@ -60,4 +88,27 @@ a:hover {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes rise-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

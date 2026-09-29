@@ -5,11 +5,11 @@ import { SUPPORT_EMAIL } from "@/content/borrower-portal.es";
 export function PortalMessage({ title, children, lenderName }: { title: string; children: React.ReactNode; lenderName?: string }) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-card border border-line bg-surface p-8">
-        <Logo className="text-ink [&>span]:text-accent" />
-        <h1 className="mt-4 font-serif text-2xl font-semibold leading-tight">{title}</h1>
-        <div className="mt-2 flex flex-col gap-2 text-sm leading-relaxed text-ink-2">{children}</div>
-        <p className="mt-4 text-sm text-ink-2">
+      <div className="flex w-full max-w-md flex-col gap-3">
+        <Logo />
+        <h1 className="heading-page mt-4">{title}</h1>
+        <div className="flex flex-col gap-2 text-[17px] leading-relaxed text-ink-2">{children}</div>
+        <p className="mt-2 text-[15px] text-ink-2">
           {SUPPORT_EMAIL ? (
             <>¿Dudas? Escríbenos a <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</>
           ) : (

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Pill } from "@/components/ui/Pill";
 import { createClient } from "@/lib/supabase/browser";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "sent"; email: string } | { kind: "error"; message: string };
@@ -20,8 +23,9 @@ export function LoginForm({ next }: { next: string }) {
 
   if (state.kind === "sent") {
     return (
-      <div role="status" className="rounded-[10px] bg-ok-bg p-4 text-sm text-ok">
-        Te hemos enviado un enlace de acceso a <b>{state.email}</b>. Ábrelo desde este mismo navegador.
+      <div role="status" className="flex flex-col items-start gap-2 text-[15px] text-ink-2">
+        <Pill tone="ok">Enlace enviado</Pill>
+        <p>Te hemos enviado un enlace de acceso a <b className="text-ink">{state.email}</b>. Ábrelo desde este mismo navegador.</p>
       </div>
     );
   }
@@ -30,23 +34,12 @@ export function LoginForm({ next }: { next: string }) {
     <form onSubmit={submit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Correo electrónico
-        <input
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="h-11 rounded-lg border border-line-strong bg-surface px-3 text-base font-normal"
-        />
+        <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="font-normal" />
       </label>
       {state.kind === "error" && <p role="alert" className="text-sm text-high">{state.message}</p>}
-      <button
-        type="submit"
-        disabled={state.kind === "sending"}
-        className="h-11 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-      >
+      <Button type="submit" disabled={state.kind === "sending"}>
         {state.kind === "sending" ? "Enviando…" : "Enviar enlace de acceso"}
-      </button>
+      </Button>
     </form>
   );
 }

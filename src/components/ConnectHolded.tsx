@@ -4,6 +4,9 @@
  * Borrower-facing "Conectar Holded" card, shown next to "Subir sumas y saldos" on the magic-link page.
  * Spanish copy: the borrower is a Spanish SME. Permission labels must match Holded's UI (verify).
  */
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Pill } from "@/components/ui/Pill";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -38,18 +41,18 @@ export function ConnectHolded({ token, allowRefresh = false }: { token: string; 
 
   if (state.kind === "done") {
     return (
-      <div role="status" className="rounded-[10px] bg-ok-bg p-4 text-sm text-ok">
-        <p className="font-semibold">Datos contables importados de Holded.</p>
-        {state.hint && <p className="mt-1">{state.hint}</p>}
+      <div role="status" className="flex flex-col items-start gap-2 text-sm text-ink-2">
+        <Pill tone="ok">Datos contables importados de Holded</Pill>
+        {state.hint && <p>{state.hint}</p>}
       </div>
     );
   }
 
   const busy = state.kind === "submitting";
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4 text-sm">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-panel bg-soft p-6 text-sm">
       <div>
-        <h3 className="text-[15px] font-semibold">Conectar Holded</h3>
+        <h3 className="heading-section">Conectar Holded</h3>
         <p className="mt-0.5 text-ink-2">Importamos tu contabilidad directamente, sin exportar ficheros. Solo lectura.</p>
       </div>
 
@@ -60,7 +63,7 @@ export function ConnectHolded({ token, allowRefresh = false }: { token: string; 
       </ol>
 
       <label htmlFor="holded-key" className="sr-only">Clave de API de Holded</label>
-      <input
+      <Input
         id="holded-key"
         type="password"
         autoComplete="off"
@@ -68,7 +71,7 @@ export function ConnectHolded({ token, allowRefresh = false }: { token: string; 
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="Clave de API de Holded"
-        className="h-11 w-full rounded-lg border border-line-strong bg-surface px-3 font-mono text-sm"
+        className="bg-surface font-mono text-sm"
       />
 
       <label className="flex items-start gap-2.5 text-ink-2">
@@ -82,18 +85,14 @@ export function ConnectHolded({ token, allowRefresh = false }: { token: string; 
           <span>Permitir actualizaciones posteriores (la clave se guarda cifrada; puedes revocarla en cualquier momento).</span>
         </label>
       )}
-      {!refresh && <p className="text-xs text-muted">La clave se usa una sola vez y no se guarda. Después puedes eliminarla en Holded.</p>}
+      {!refresh && <p className="text-[13px] text-muted">La clave se usa una sola vez y no se guarda. Después puedes eliminarla en Holded.</p>}
 
-      {state.kind === "error" && <p role="alert" className="rounded-lg bg-high-bg p-3 text-high">{state.message}</p>}
+      {state.kind === "error" && <p role="alert" className="flex items-start gap-2 text-ink-2"><Pill tone="high">Error</Pill>{state.message}</p>}
 
-      <button
-        type="submit"
-        disabled={!apiKey || !consent || busy}
-        className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-lg bg-accent px-4 font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-on-disabled"
-      >
+      <Button type="submit" disabled={!apiKey || !consent || busy} className="self-start">
         {busy && <Loader2 size={16} className="animate-spin" aria-hidden />}
         {busy ? "Importando… puede tardar un par de minutos" : "Conectar e importar"}
-      </button>
+      </Button>
     </form>
   );
 }

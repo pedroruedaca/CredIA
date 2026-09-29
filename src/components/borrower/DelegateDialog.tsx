@@ -1,8 +1,12 @@
 "use client";
 
-import { Loader2, Mail, X } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { useRef, useState } from "react";
 import { CopyLink } from "@/components/CopyLink";
+import { Button } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { Pill } from "@/components/ui/Pill";
 
 type State =
   | { kind: "idle" }
@@ -40,70 +44,41 @@ export function DelegateDialog({ token, lenderName }: { token: string; lenderNam
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-2">
-        <Mail size={16} aria-hidden />
+        <Mail size={16} strokeWidth={1.8} aria-hidden />
         <span>¿Lo gestiona tu asesoría?</span>
-        <button type="button" onClick={() => ref.current?.showModal()} className="min-h-11 text-accent underline hover:text-accent-hover">
+        <Button variant="link" size="sm" onClick={() => ref.current?.showModal()}>
           Enviar esta petición a mi gestoría
-        </button>
+        </Button>
       </div>
 
-      <dialog
-        ref={ref}
-        aria-labelledby="delegate-title"
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card border border-line bg-surface p-0 text-ink backdrop:bg-ink/40"
-        onClose={() => state.kind === "sent" && setState({ kind: "idle" })}
-      >
-        <div className="flex flex-col gap-4 p-6">
-          <div className="flex items-start gap-3">
-            <h2 id="delegate-title" className="grow font-serif text-[22px] font-semibold leading-tight">Enviar a tu gestoría</h2>
-            <button type="button" onClick={close} aria-label="Cerrar" className="-m-2 flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-subtle">
-              <X size={18} aria-hidden />
-            </button>
+      <Modal ref={ref} title="Enviar a tu gestoría" onClose={() => state.kind === "sent" && setState({ kind: "idle" })}>
+        {state.kind === "sent" ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-[15px] text-ink-2">
+              {state.emailSent
+                ? `Hemos enviado el enlace a ${state.email}. `
+                : `No hemos podido enviar el correo automáticamente: copia el enlace y envíaselo a ${state.email}. `}
+              Con él podrá subir los documentos de esta solicitud, pero no enviarla a otras personas ni retirar tu consentimiento.
+            </p>
+            <CopyLink link={state.link} label="Enlace para tu gestoría" />
+            <Button variant="secondary" onClick={close} className="self-start">Hecho</Button>
           </div>
-
-          {state.kind === "sent" ? (
-            <>
-              <p className="text-sm text-ink-2">
-                {state.emailSent
-                  ? `Hemos enviado el enlace a ${state.email}. `
-                  : `No hemos podido enviar el correo automáticamente: copia el enlace y envíaselo a ${state.email}. `}
-                Con él podrá subir los documentos de esta solicitud, pero no enviarla a otras personas ni retirar tu consentimiento.
-              </p>
-              <CopyLink link={state.link} label="Enlace para tu gestoría" />
-              <button type="button" onClick={close} className="h-11 self-start rounded-lg border border-line-strong px-4 text-sm font-medium hover:bg-surface-subtle">
-                Hecho
-              </button>
-            </>
-          ) : (
-            <form onSubmit={submit} className="flex flex-col gap-4">
-              <p className="text-sm text-ink-2">
-                Tu gestoría recibirá un enlace a esta misma lista para subir los documentos por ti. Solo {lenderName} verá lo que se suba.
-              </p>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="delegate-email" className="text-sm font-medium">Correo de tu gestoría</label>
-                <input
-                  id="delegate-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 w-full rounded-lg border border-line-strong bg-surface px-3 text-base"
-                />
-              </div>
-              {state.kind === "error" && <p role="alert" className="rounded-lg bg-high-bg p-3 text-sm text-high">{state.message}</p>}
-              <button
-                type="submit"
-                disabled={state.kind === "sending"}
-                className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-              >
-                {state.kind === "sending" && <Loader2 size={16} className="animate-spin" aria-hidden />}
-                Enviar enlace
-              </button>
-            </form>
-          )}
-        </div>
-      </dialog>
+        ) : (
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <p className="text-[15px] text-ink-2">
+              Tu gestoría recibirá un enlace a esta misma lista para subir los documentos por ti. Solo {lenderName} verá lo que se suba.
+            </p>
+            <Field id="delegate-email" label="Correo de tu gestoría">
+              <Input id="delegate-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </Field>
+            {state.kind === "error" && <p role="alert" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Error</Pill>{state.message}</p>}
+            <Button type="submit" disabled={state.kind === "sending"} className="self-start">
+              {state.kind === "sending" && <Loader2 size={16} className="animate-spin" aria-hidden />}
+              Enviar enlace
+            </Button>
+          </form>
+        )}
+      </Modal>
     </>
   );
 }

@@ -1,7 +1,10 @@
+import { cx } from "./ui/cx";
+
+/** Wordmark: "cred" in ink, "IA" in accent. */
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <span className={`font-serif text-2xl font-semibold tracking-tight ${className}`}>
-      cred<span className="text-brand-ia">IA</span>
+    <span className={cx("text-[22px] font-semibold tracking-[-0.04em] text-ink", className)}>
+      cred<span className="text-accent">IA</span>
     </span>
   );
 }

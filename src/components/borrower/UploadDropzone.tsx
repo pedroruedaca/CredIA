@@ -10,6 +10,7 @@ import { useId, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import type { RequirementKind } from "@/lib/cases/requirements";
 import { checkDeclaredFile, UPLOAD_RULES } from "@/lib/borrower/upload-rules";
+import { Input } from "@/components/ui/Input";
 
 type FileState = { key: string; name: string; status: "uploading" | "done" | "duplicate" | "error"; message?: string };
 
@@ -95,14 +96,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
       {needsIssueDate && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">Fecha de emisión que aparece en el documento</label>
-          <input
-            id={dateId}
-            type="date"
-            max={today}
-            value={issuedOn}
-            onChange={(e) => setIssuedOn(e.target.value)}
-            className="h-11 w-full max-w-[220px] rounded-lg border border-line-strong bg-surface px-3 text-base"
-          />
+          <Input id={dateId} type="date" max={today} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} className="max-w-[220px] font-mono" />
         </div>
       )}
 
@@ -119,12 +113,14 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
           void handle(e.dataTransfer.files);
         }}
         aria-disabled={blocked || undefined}
-        className={`relative flex flex-col items-center gap-2 rounded-[10px] border-[1.5px] border-dashed p-6 text-center transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
-          blocked ? "cursor-not-allowed border-line bg-surface-subtle opacity-70" : dragOver ? "cursor-pointer border-accent bg-accent-tint" : "cursor-pointer border-line-dashed bg-surface"
+        className={`relative flex flex-col items-center gap-2 rounded-panel px-6 py-8 text-center transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+          blocked ? "cursor-not-allowed bg-soft opacity-70" : dragOver ? "cursor-pointer bg-accent-ring" : "cursor-pointer bg-accent-tint hover:bg-accent-ring"
         }`}
       >
-        {busy ? <Loader2 size={24} className="animate-spin text-accent" aria-hidden /> : <Upload size={24} className="text-accent" aria-hidden />}
-        <span className="text-sm font-medium">
+        <span className="flex size-12 items-center justify-center rounded-full bg-surface">
+          {busy ? <Loader2 size={22} className="animate-spin text-accent" aria-hidden /> : <Upload size={22} strokeWidth={1.8} className="text-accent" aria-hidden />}
+        </span>
+        <span className="text-[15px] font-medium">
           {blocked ? (
             "Indica primero la fecha de emisión"
           ) : (
@@ -134,7 +130,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
             </>
           )}
         </span>
-        <span className="text-xs text-muted">{rule.acceptLabel}</span>
+        <span className="text-[13px] text-muted">{rule.acceptLabel}</span>
         <input
           ref={inputRef}
           id={inputId}
@@ -153,7 +149,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
             <li key={f.key} className="flex items-start gap-2">
               {f.status === "uploading" && <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin text-muted" aria-hidden />}
               {(f.status === "done" || f.status === "duplicate") && <Check size={16} className="mt-0.5 shrink-0 text-ok" aria-hidden />}
-              {f.status === "error" && <AlertCircle size={16} className="mt-0.5 shrink-0 text-high-icon" aria-hidden />}
+              {f.status === "error" && <AlertCircle size={16} className="mt-0.5 shrink-0 text-high-dot" aria-hidden />}
               <span className="min-w-0">
                 <span className="break-all font-medium">{f.name}</span>
                 <span className={f.status === "error" ? "text-high" : "text-ink-2"}>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Eye, Plus } from "lucide-react";
+import { ButtonLink, buttonClass } from "@/components/ui/Button";
+import { Pill } from "@/components/ui/Pill";
 import { StatusChip } from "@/components/StatusChip";
 import { completeness } from "@/lib/cases/requirements";
 import { caseRef, formatDate } from "@/lib/format";
@@ -36,45 +38,42 @@ export default async function CasosPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-10">
       <div className="mb-6 flex items-end gap-4">
         <div className="grow">
-          <h1 className="font-serif text-[34px] font-semibold tracking-tight">Casos</h1>
-          <p className="text-sm text-ink-2">Solicitudes en curso y documentación recibida.</p>
+          <h1 className="heading-page">Casos</h1>
+          <p className="mt-2 text-[17px] text-ink-2">Solicitudes en curso y documentación recibida.</p>
         </div>
-        <Link
-          href="/casos/nuevo"
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover hover:text-white hover:no-underline"
-        >
-          <Plus size={18} aria-hidden /> Nuevo caso
-        </Link>
+        <ButtonLink href="/casos/nuevo">
+          <Plus size={18} strokeWidth={2} aria-hidden /> Nuevo caso
+        </ButtonLink>
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-card bg-high-bg p-5 text-sm text-high">
-          No hemos podido cargar los casos. Recarga la página; si sigue fallando, avísanos.
-        </div>
+        <p role="alert" className="flex items-center gap-2 text-[15px] text-ink-2">
+          <Pill tone="high">Error</Pill> No hemos podido cargar los casos. Recarga la página; si sigue fallando, avísanos.
+        </p>
       ) : cases.length === 0 ? (
-        <div className="rounded-card border border-line bg-surface p-10 text-center">
-          <h2 className="text-[17px] font-semibold">Aún no tienes casos</h2>
-          <p className="mt-1 text-sm text-ink-2">Crea un caso para enviar a la empresa su enlace de documentación.</p>
-          <Link href="/casos/nuevo" className="mt-4 inline-block text-sm font-medium">Crear el primer caso</Link>
+        <div className="rounded-panel bg-soft px-8 py-14 text-center">
+          <h2 className="heading-section">Aún no tienes casos</h2>
+          <p className="mt-1 text-[15px] text-ink-2">Crea un caso para enviar a la empresa su enlace de documentación.</p>
+          <ButtonLink href="/casos/nuevo" variant="link">Crear el primer caso</ButtonLink>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
+        <div className="-mx-4 overflow-x-auto px-4">
           <table className="w-full min-w-[960px] border-collapse text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-[0.04em] text-muted">
-                <th className="border-b border-line px-5 py-3 font-medium">Empresa</th>
-                <th className="border-b border-line px-5 py-3 font-medium">CIF</th>
-                <th className="border-b border-line px-5 py-3 font-medium">Estado</th>
-                <th className="border-b border-line px-5 py-3 font-medium">Documentos</th>
-                <th className="border-b border-line px-5 py-3 font-medium">Actualizado</th>
-                <th className="border-b border-line px-5 py-3 font-medium"><span className="sr-only">Acciones</span></th>
+              <tr className="text-left text-[13px] text-muted">
+                <th className="border-b border-hairline px-5 py-3 font-medium">Empresa</th>
+                <th className="border-b border-hairline px-5 py-3 font-medium">CIF</th>
+                <th className="border-b border-hairline px-5 py-3 font-medium">Estado</th>
+                <th className="border-b border-hairline px-5 py-3 font-medium">Documentos</th>
+                <th className="border-b border-hairline px-5 py-3 font-medium">Actualizado</th>
+                <th className="border-b border-hairline px-5 py-3 font-medium"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
               {cases.map((c) => {
                 const p = completeness(c.case_requirements, c.documents, c.holded_connections);
                 return (
-                  <tr key={c.id} className="border-b border-line-row last:border-0">
+                  <tr key={c.id} className="border-b border-hairline transition-colors last:border-0 hover:bg-soft">
                     <td className="px-5 py-3">
                       <div className="font-medium">{c.borrower_name ?? "—"}</div>
                       <div className="font-mono text-xs text-muted">{caseRef(c.id)}</div>
@@ -84,14 +83,14 @@ export default async function CasosPage() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className="h-1.5 w-24 overflow-hidden rounded-full bg-line-row"
+                          className="h-1 w-24 overflow-hidden rounded-full bg-track"
                           role="progressbar"
                           aria-valuenow={p.pct}
                           aria-valuemin={0}
                           aria-valuemax={100}
                           aria-label={`${p.done} de ${p.total} documentos obligatorios`}
                         >
-                          <div className="h-full bg-accent" style={{ width: `${p.pct}%` }} />
+                          <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
                         </div>
                         <span className="font-mono text-xs text-ink-2">{p.pct} %</span>
                       </div>
@@ -101,9 +100,9 @@ export default async function CasosPage() {
                       <div className="flex justify-end gap-2">
                         <Link
                           href={`/casos/${c.id}/vista-empresa`}
-                          className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-subtle hover:text-ink hover:no-underline"
+                          className={buttonClass("secondary", "sm")}
                         >
-                          <Eye size={15} aria-hidden /> Ver como la empresa
+                          <Eye size={15} strokeWidth={1.8} aria-hidden /> Ver como la empresa
                           <span className="sr-only"> ({c.borrower_name ?? c.borrower_cif})</span>
                         </Link>
                         {canEdit && <NewLinkButton caseId={c.id} companyName={c.borrower_name ?? c.borrower_cif} />}

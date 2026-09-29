@@ -1,15 +1,18 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Pill } from "@/components/ui/Pill";
 import type { ChecklistHolded } from "@/lib/borrower/checklist";
 
 /** "Qué compartimos y con quién" (right column). */
 export function SharingCard({ token, lenderName, holded, canWithdraw }: { token: string; lenderName: string; holded: ChecklistHolded[]; canWithdraw: boolean }) {
   return (
-    <section aria-labelledby="sharing-title" className="flex flex-col gap-3 rounded-card border border-line bg-surface px-[22px] py-5 text-sm leading-normal">
-      <h2 id="sharing-title" className="text-base font-semibold">Qué compartimos y con quién</h2>
+    <section aria-labelledby="sharing-title" className="flex flex-col gap-3 rounded-panel bg-soft px-6 py-5 text-sm leading-normal">
+      <h2 id="sharing-title" className="heading-section">Qué compartimos y con quién</h2>
       <div>
         <div className="text-[13px] text-muted">Destinatario</div>
         <div>Solo {lenderName}</div>
@@ -56,21 +59,11 @@ function WithdrawConsent({ token, lenderName }: { token: string; lenderName: str
 
   return (
     <>
-      <button type="button" onClick={() => ref.current?.showModal()} className="min-h-11 self-start text-[13px] text-accent underline hover:text-accent-hover">
+      <Button variant="link" size="sm" onClick={() => ref.current?.showModal()} className="self-start">
         Retirar consentimiento
-      </button>
-      <dialog
-        ref={ref}
-        aria-labelledby="withdraw-title"
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card border border-line bg-surface p-0 text-ink backdrop:bg-ink/40"
-      >
-        <div className="flex flex-col gap-4 p-6 text-sm">
-          <div className="flex items-start gap-3">
-            <h2 id="withdraw-title" className="grow font-serif text-[22px] font-semibold leading-tight">¿Retirar tu consentimiento?</h2>
-            <button type="button" onClick={() => ref.current?.close()} aria-label="Cerrar" className="-m-2 flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-subtle">
-              <X size={18} aria-hidden />
-            </button>
-          </div>
+      </Button>
+      <Modal ref={ref} title="¿Retirar tu consentimiento?">
+        <div className="flex flex-col gap-4 text-[15px]">
           <ul className="list-disc space-y-1 pl-5 text-ink-2">
             <li>No se podrán subir más documentos ni importar datos de Holded en esta solicitud.</li>
             <li>Borraremos cualquier clave de Holded guardada y desactivaremos los enlaces enviados a tu gestoría.</li>
@@ -78,23 +71,16 @@ function WithdrawConsent({ token, lenderName }: { token: string; lenderName: str
             <li>Para que se eliminen los documentos ya compartidos, pídeselo directamente a {lenderName}.</li>
           </ul>
           <p className="text-ink-2">No se puede deshacer: si cambias de opinión, {lenderName} tendrá que enviarte un enlace nuevo.</p>
-          {error && <p role="alert" className="rounded-lg bg-high-bg p-3 text-high">{error}</p>}
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={confirm}
-              disabled={busy}
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-high-icon px-4 font-semibold text-white hover:bg-high disabled:opacity-60"
-            >
+          {error && <p role="alert" className="flex items-center gap-2 text-ink-2"><Pill tone="high">Error</Pill>{error}</p>}
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" onClick={() => ref.current?.close()}>Cancelar</Button>
+            <Button onClick={confirm} disabled={busy}>
               {busy && <Loader2 size={16} className="animate-spin" aria-hidden />}
               Retirar consentimiento
-            </button>
-            <button type="button" onClick={() => ref.current?.close()} className="h-11 rounded-lg border border-line-strong px-4 font-medium hover:bg-surface-subtle">
-              Cancelar
-            </button>
+            </Button>
           </div>
         </div>
-      </dialog>
+      </Modal>
     </>
   );
 }

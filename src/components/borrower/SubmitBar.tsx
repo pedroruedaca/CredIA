@@ -3,6 +3,8 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Pill } from "@/components/ui/Pill";
 
 interface Props {
   token: string;
@@ -20,9 +22,9 @@ export function SubmitBar({ token, allRequiredDone, missingCount, submittedAt, s
 
   if (submittedAt) {
     return (
-      <div role="status" className="rounded-[10px] bg-ok-bg p-4 text-sm text-ok">
-        <p className="font-semibold">Documentación enviada el {submittedLabel}.</p>
-        <p className="mt-0.5">{lenderName} ya puede revisarla. Si te piden algo más, aparecerá en esta misma lista.</p>
+      <div role="status" className="flex flex-col items-start gap-2 text-[15px] text-ink-2">
+        <Pill tone="ok">Documentación enviada el {submittedLabel}</Pill>
+        <p>{lenderName} ya puede revisarla. Si te piden algo más, aparecerá en esta misma lista.</p>
       </div>
     );
   }
@@ -41,23 +43,17 @@ export function SubmitBar({ token, allRequiredDone, missingCount, submittedAt, s
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button
-          type="button"
-          onClick={submit}
-          disabled={disabled}
-          aria-describedby="submit-hint"
-          className="inline-flex h-12 items-center gap-2 rounded-lg bg-accent px-[22px] text-[15px] font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-on-disabled"
-        >
+        <Button onClick={submit} disabled={disabled} aria-describedby="submit-hint">
           {busy && <Loader2 size={18} className="animate-spin" aria-hidden />}
           Enviar documentación
-        </button>
+        </Button>
         <span id="submit-hint" className="text-[13px] text-ink-2">
           {allRequiredDone
             ? `Todo listo. Al enviarla, ${lenderName} podrá revisarla.`
             : `Falta${missingCount === 1 ? "" : "n"} ${missingCount} documento${missingCount === 1 ? "" : "s"}. Tu progreso se guarda automáticamente.`}
         </span>
       </div>
-      {error && <p role="alert" className="text-sm text-high">{error}</p>}
+      {error && <p role="alert" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Error</Pill>{error}</p>}
     </div>
   );
 }

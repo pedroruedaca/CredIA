@@ -4,6 +4,8 @@
 import { ArrowRight, MessageSquareText } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { RichText } from "@/components/RichText";
+import { fieldClass } from "@/components/ui/Input";
+import { cx } from "@/components/ui/cx";
 import { ASSISTANT_COPY } from "@/content/assistant.es";
 import { splitStepTokens } from "@/lib/assistant/conversation";
 import { OPEN_STEP_EVENT, visibleAnswer } from "@/lib/assistant/protocol";
@@ -149,15 +151,15 @@ export function AssistantPanel({ token, lenderName, opening, suggestions, histor
   return (
     <section
       aria-label={ASSISTANT_COPY.title}
-      className="flex h-[640px] max-h-[80vh] min-h-[420px] flex-col overflow-hidden rounded-card border border-line bg-surface lg:h-auto lg:max-h-none lg:grow"
+      className="flex h-[640px] max-h-[80vh] min-h-[420px] flex-col overflow-hidden rounded-panel bg-soft lg:h-auto lg:max-h-none lg:grow"
     >
-      <div className="flex items-center gap-3 border-b border-line-row bg-accent-tint px-[18px] py-4">
+      <div className="flex items-center gap-3 px-5 pb-2 pt-5">
         <div className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-accent">
-          <MessageSquareText size={18} className="text-white" aria-hidden />
+          <MessageSquareText size={18} strokeWidth={1.8} className="text-white" aria-hidden />
         </div>
         <div className="grow">
-          <h2 className="text-[15px] font-semibold">{ASSISTANT_COPY.title}</h2>
-          <div className="text-xs text-ink-2">{ASSISTANT_COPY.subtitle}</div>
+          <h2 className="heading-section">{ASSISTANT_COPY.title}</h2>
+          <div className="text-[13px] text-ink-2">{ASSISTANT_COPY.subtitle}</div>
         </div>
       </div>
 
@@ -170,13 +172,13 @@ export function AssistantPanel({ token, lenderName, opening, suggestions, histor
       >
         {messages.map((m, i) =>
           m.role === "user" ? (
-            <div key={i} className="max-w-[85%] self-end whitespace-pre-wrap break-words rounded-[12px_12px_4px_12px] bg-accent px-3 py-2.5 text-white">
+            <div key={i} className="max-w-[85%] self-end whitespace-pre-wrap break-words rounded-[18px_18px_6px_18px] bg-ink px-3.5 py-2.5 text-white">
               {m.content}
             </div>
           ) : (
             <div
               key={i}
-              className={`max-w-[90%] self-start break-words rounded-[12px_12px_12px_4px] px-3 py-2.5 ${m.tone === "notice" ? "bg-warn-bg text-warn" : "bg-[#F1F0EB] text-ink"}`}
+              className={`max-w-[90%] self-start break-words rounded-[18px_18px_18px_6px] px-3.5 py-2.5 ${m.tone === "notice" ? "bg-warn-bg text-warn" : "bg-surface text-ink"}`}
             >
               {m.content ? <Answer text={m.content} steps={steps} /> : <span className="text-muted">Escribiendo…</span>}
             </div>
@@ -190,7 +192,7 @@ export function AssistantPanel({ token, lenderName, opening, suggestions, histor
                 key={s}
                 type="button"
                 onClick={() => ask(s)}
-                className="min-h-8 rounded-full border border-line-strong bg-surface px-3 py-1 text-xs text-ink hover:bg-surface-subtle"
+                className="min-h-9 rounded-full bg-surface px-3.5 py-1 text-[13px] text-ink transition-colors hover:bg-soft-control"
               >
                 {s}
               </button>
@@ -204,7 +206,7 @@ export function AssistantPanel({ token, lenderName, opening, suggestions, histor
           e.preventDefault();
           void ask(input);
         }}
-        className="flex flex-col gap-2 border-t border-line-row px-3.5 pb-3.5 pt-3"
+        className="flex flex-col gap-2 px-4 pb-4 pt-3"
       >
         <div className="flex gap-2">
           <label htmlFor={inputId} className="sr-only">Escribe tu pregunta</label>
@@ -216,24 +218,24 @@ export function AssistantPanel({ token, lenderName, opening, suggestions, histor
             onChange={(e) => setInput(e.target.value)}
             placeholder={ASSISTANT_COPY.placeholder}
             autoComplete="off"
-            className="h-11 min-w-0 grow rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink"
+            className={cx(fieldClass, "min-w-0 grow rounded-full bg-surface px-4 text-sm")}
           />
           <button
             type="submit"
             disabled={busy || !input.trim()}
             aria-label="Enviar pregunta"
-            className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-white hover:bg-accent-hover disabled:opacity-50"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover disabled:opacity-50"
           >
-            <ArrowRight size={18} aria-hidden />
+            <ArrowRight size={18} strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <div className="flex items-start justify-between gap-2 text-[11px] leading-snug text-muted">
+        <div className="flex items-start justify-between gap-2 text-xs leading-snug text-muted">
           <span>{ASSISTANT_COPY.disclaimer}</span>
           <button
             type="button"
             onClick={askHuman}
             disabled={humanState !== "idle"}
-            className="-my-3 whitespace-nowrap py-3 text-[11px] text-accent underline hover:text-accent-hover disabled:text-muted disabled:no-underline"
+            className="-my-3 whitespace-nowrap py-3 text-xs text-accent underline-offset-4 hover:underline disabled:text-muted disabled:no-underline"
           >
             {humanState === "sent" ? "Aviso enviado" : ASSISTANT_COPY.human}
           </button>

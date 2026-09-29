@@ -18,3 +18,23 @@ export const formatMonthYear = (iso: string) => monthYear.format(new Date(iso));
 /** Today's calendar date in Spain, YYYY-MM-DD (the borrower's and lender's "today"). */
 export const todayMadrid = (now = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+
+export type FigureUnit = "EUR" | "x" | "%" | "days";
+
+const UNIT_LABEL: Record<FigureUnit, string> = { EUR: "€", x: "x", "%": "%", days: "días" };
+
+/**
+ * Spanish formatting for a figure, split into number and unit so the UI can style them apart.
+ * EUR ≥ 1M is shown in millions ("1,25 M€"), otherwise whole euros with grouping ("412.345 €").
+ * Ratios/percentages keep `decimals` (default 1 for x, 0 for % and days). null → "—" with no unit.
+ */
+export function formatFigure(value: number | null | undefined, unit: FigureUnit, decimals?: number): { number: string; unit: string } {
+  if (value === null || value === undefined || !Number.isFinite(value)) return { number: "—", unit: "" };
+  const fmt = (n: number, d: number) =>
+    n.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: "always" } as unknown as Intl.NumberFormatOptions);
+  if (unit === "EUR") {
+    if (Math.abs(value) >= 1_000_000) return { number: fmt(value / 1_000_000, decimals ?? 2), unit: "M€" };
+    return { number: fmt(value, decimals ?? 0), unit: "€" };
+  }
+  return { number: fmt(value, decimals ?? (unit === "x" ? 1 : 0)), unit: UNIT_LABEL[unit] };
+}

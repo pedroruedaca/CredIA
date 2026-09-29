@@ -77,8 +77,8 @@ export default async function BorrowerPortalPage({ params }: { params: Promise<{
             <div className="text-sm text-ink-2">
               {kase.companyName} · {requestLine(kase.requestedProduct)}
             </div>
-            <h1 className="font-serif text-[32px] font-semibold leading-[1.15] tracking-[-0.01em] sm:text-[38px]">Documentación para tu solicitud</h1>
-            <p className="max-w-[680px] text-base leading-normal text-ink-2">
+            <h1 className="heading-page">Documentación para tu solicitud</h1>
+            <p className="max-w-[680px] text-[17px] leading-normal text-ink-2">
               {isDelegate
                 ? `Estás aportando la documentación de ${kase.companyName} a petición de la empresa. Te explicamos cómo conseguir cada documento.`
                 : `Cuanto antes esté completa, antes podrá responderte ${kase.lenderName}. Te explicamos cómo conseguir cada documento; la mayoría tarda menos de cinco minutos.`}
@@ -86,21 +86,21 @@ export default async function BorrowerPortalPage({ params }: { params: Promise<{
           </div>
 
           {checklist.items.length === 0 ? (
-            <div className="rounded-card border border-line bg-surface p-6 text-sm text-ink-2">
+            <div className="rounded-panel bg-soft p-6 text-[15px] text-ink-2">
               {kase.lenderName} no ha pedido ningún documento en esta solicitud. No tienes que hacer nada más.
             </div>
           ) : (
             <>
               <div className="flex items-center gap-3.5">
                 <div
-                  className="h-2 grow overflow-hidden rounded bg-line"
+                  className="h-1.5 grow overflow-hidden rounded-full bg-track"
                   role="progressbar"
                   aria-valuenow={checklist.done}
                   aria-valuemin={0}
                   aria-valuemax={checklist.total}
                   aria-label="Documentos obligatorios completados"
                 >
-                  <div className="h-full rounded bg-accent transition-[width]" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="shrink-0 text-sm font-semibold">
                   {checklist.done} de {checklist.total} completados

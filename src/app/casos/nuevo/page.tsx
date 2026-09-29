@@ -10,7 +10,7 @@ export default async function NuevoCasoPage() {
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-10">
       <div className="mb-6 flex flex-col gap-2">
         <div className="text-[13px] text-muted"><Link href="/casos">Casos</Link> / Nuevo</div>
-        <h1 className="font-serif text-[34px] font-semibold tracking-tight">Nuevo caso</h1>
+        <h1 className="heading-page">Nuevo caso</h1>
       </div>
       <NewCaseForm />
     </main>

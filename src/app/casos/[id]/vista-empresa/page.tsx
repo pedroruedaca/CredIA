@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { Pill } from "@/components/ui/Pill";
 import { NewLinkButton } from "../../NewLinkButton";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +72,7 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-10">
         {back}
-        <p role="alert" className="mt-4 rounded-card bg-high-bg p-5 text-sm text-high">No hemos podido cargar la vista de la empresa. Recarga la página.</p>
+        <p role="alert" className="mt-4 flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="high">Error</Pill>No hemos podido cargar la vista de la empresa. Recarga la página.</p>
       </main>
     );
   }
@@ -83,11 +84,11 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
 
   return (
     <div className="flex grow flex-col">
-      <div className="border-b border-line bg-accent-tint">
+      <div className="bg-accent-tint">
         <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-14">
           {back}
           <p className="flex grow items-center gap-2 text-sm text-ink-2">
-            <Eye size={16} className="shrink-0 text-accent" aria-hidden />
+            <Eye size={16} strokeWidth={1.8} className="shrink-0 text-accent" aria-hidden />
             <span>
               Vista de solo lectura: así ve <b className="text-ink">{companyName}</b> su página de documentación.
               {kase.consent_withdrawn_at
@@ -109,23 +110,23 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
               <div className="text-sm text-ink-2">
                 {companyName} · {requestLine(portal.kase.requestedProduct)}
               </div>
-              <h1 className="font-serif text-[32px] font-semibold leading-[1.15] tracking-[-0.01em] sm:text-[38px]">Documentación para tu solicitud</h1>
+              <h1 className="heading-page">Documentación para tu solicitud</h1>
             </div>
 
             {checklist.items.length === 0 ? (
-              <div className="rounded-card border border-line bg-surface p-6 text-sm text-ink-2">No se ha pedido ningún documento en esta solicitud.</div>
+              <div className="rounded-panel bg-soft p-6 text-[15px] text-ink-2">No se ha pedido ningún documento en esta solicitud.</div>
             ) : (
               <>
                 <div className="flex items-center gap-3.5">
                   <div
-                    className="h-2 grow overflow-hidden rounded bg-line"
+                    className="h-1.5 grow overflow-hidden rounded-full bg-track"
                     role="progressbar"
                     aria-valuenow={checklist.done}
                     aria-valuemin={0}
                     aria-valuemax={checklist.total}
                     aria-label="Documentos obligatorios completados"
                   >
-                    <div className="h-full rounded bg-accent" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="shrink-0 text-sm font-semibold">
                     {checklist.done} de {checklist.total} completados
@@ -153,8 +154,8 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
 
           <aside className="flex w-full shrink-0 flex-col gap-[18px] lg:w-[340px] lg:pt-1">
             <SharingCard token="" lenderName={portal.kase.lenderName} holded={portal.holded} canWithdraw={false} />
-            <section className="rounded-card border border-dashed border-line-strong bg-surface-subtle px-[22px] py-5 text-sm text-ink-2">
-              <h2 className="text-base font-semibold text-ink">Asistente de documentación</h2>
+            <section className="rounded-panel bg-soft px-6 py-5 text-sm text-ink-2">
+              <h2 className="heading-section text-ink">Asistente de documentación</h2>
               <p className="mt-1">La empresa ve aquí el chat que le ayuda a conseguir cada documento. Sus conversaciones no se muestran en esta vista.</p>
             </section>
           </aside>
