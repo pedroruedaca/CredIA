@@ -59,7 +59,7 @@ export function borrowerInviteEmail(i: { lenderName: string; companyName: string
         "Desde este enlace puedes subirlos paso a paso, conectar Holded si lo usas o pedírselos a tu gestoría. Un asistente te explica cómo conseguir cada uno.",
       ],
       button: { label: "Aportar la documentación", url: i.link },
-      note: `${expires} Si el botón no funciona, copia esta dirección en tu navegador:<br><span style="word-break:break-all;color:#111315">${esc(i.link)}</span>`,
+      note: `${expires} Si el botón no funciona, copia esta dirección en tu navegador:<br><a href="${esc(i.link)}" style="word-break:break-all;color:#0E5A61;text-decoration:underline">${esc(i.link)}</a>`,
       footer: FOOTER_BORROWER(i.lenderName),
     }),
     text: text([
@@ -84,7 +84,7 @@ export function delegateInviteEmail(i: { lenderName: string; companyName: string
         "Con este enlace podéis subir los ficheros directamente; la empresa verá el progreso.",
       ],
       button: { label: "Aportar la documentación", url: i.link },
-      note: `Si el botón no funciona, copia esta dirección en tu navegador:<br><span style="word-break:break-all;color:#111315">${esc(i.link)}</span>`,
+      note: `Si el botón no funciona, copia esta dirección en tu navegador:<br><a href="${esc(i.link)}" style="word-break:break-all;color:#0E5A61;text-decoration:underline">${esc(i.link)}</a>`,
       footer: FOOTER_BORROWER(i.lenderName),
     }),
     text: text([`${company} os pide que aportéis su documentación para ${i.lenderName}.`, i.link]),

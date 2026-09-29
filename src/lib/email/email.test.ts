@@ -9,7 +9,7 @@ describe("templates", () => {
   it("borrower invite: Spanish copy, the link as button and as text, expiry", () => {
     const e = borrowerInviteEmail({ lenderName: "Fondo Ejemplo", companyName: "Talleres Demo, S.L.", link: LINK, expiresInDays: 30 });
     expect(e.subject).toBe("Fondo Ejemplo te pide la documentación de Talleres Demo, S.L.");
-    expect(e.html).toContain(`href="${LINK}"`);
+    expect(e.html.split(`href="${LINK}"`).length - 1).toBe(2); // button and the fallback address are both links
     expect(e.html).toContain("Aportar la documentación");
     expect(e.text).toContain(LINK);
     expect(e.text).toContain("caduca en 30 días");
