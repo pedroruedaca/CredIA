@@ -6,9 +6,16 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
+/** Value after `--name`, joining words until the next flag (Windows shells may drop the quotes). */
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const words: string[] = [];
+  for (const w of process.argv.slice(i + 1)) {
+    if (w.startsWith("--")) break;
+    words.push(w);
+  }
+  return words.length ? words.join(" ") : undefined;
 }
 
 const email = arg("email")?.trim().toLowerCase();
@@ -23,7 +30,13 @@ if (!url || !key) {
   console.error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
   process.exit(1);
 }
-const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url.trim()) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url.trim())) {
+  console.error(
+    `NEXT_PUBLIC_SUPABASE_URL debe ser solo la URL base del proyecto, p. ej. https://<ref>.supabase.co (sin /rest/v1, sin barra final). Valor actual: ${url}`,
+  );
+  process.exit(1);
+}
+const db = createClient(url.trim(), key, { auth: { persistSession: false, autoRefreshToken: false } });
 
 async function findUserId(target: string): Promise<string | null> {
   for (let page = 1; ; page++) {
