@@ -10,7 +10,7 @@ import { useState } from "react";
 import { ConnectHolded } from "@/components/ConnectHolded";
 import { RichText } from "@/components/RichText";
 import { buttonClass } from "@/components/ui/Button";
-import { TogglePill } from "@/components/ui/Pill";
+import { Pill, TogglePill } from "@/components/ui/Pill";
 import { cx } from "@/components/ui/cx";
 import { BANKS, N43_FALLBACK } from "@/content/banks.es";
 import { ITEM_COPY } from "@/content/borrower-portal.es";
@@ -76,7 +76,7 @@ function RevokeHolded({ token }: { token: string }) {
       >
         Revocar acceso a Holded
       </button>
-      {error && <span role="alert" className="text-[13px] text-high">No se pudo revocar. Inténtalo de nuevo.</span>}
+      {error && <span role="alert" className="flex items-center gap-2 text-[13px] text-ink-2"><Pill tone="high">Error</Pill>No se pudo revocar. Inténtalo de nuevo.</span>}
     </span>
   );
 }

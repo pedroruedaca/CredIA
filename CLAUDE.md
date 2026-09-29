@@ -90,6 +90,25 @@ BORME adverse acts · Holded chart vs ledger reconciliation · closing-entries s
   (`src/lib/__fixtures__/`: `tb-small-sl.ts` hand-checked TB; `holded-fake.ts` in-memory Holded API).
 - Imports inside `src/lib` use explicit `.ts` extensions (`allowImportingTsExtensions`); app code may use `@/`.
 
+## Design language v2
+Specs: `design/lender-case-view2.html`, `design/borrower-flow2.html`. Tokens in `src/app/globals.css` (`@theme`);
+primitives in `src/components/ui/` — use them instead of ad-hoc styles.
+- **No cards, no borders as structure.** Hierarchy from type size, whitespace and soft fills (`bg-soft`). Hairlines
+  (`border-hairline`) only inside tables and panels. Only floating layers are elevated (`shadow-float`): evidence
+  panel, assistant bar, popovers, sheets, modals.
+- Colour: ink text on white; accent `#0E5A61` for progress, links, focus and the assistant — never primary buttons.
+  Buttons: primary = ink pill, secondary = soft pill, tertiary = accent link. `faint` is decorative only.
+- Status and severity = pill with a 6px dot (`Pill`, `SeverityDot`), never a coloured box.
+- Type: Geist for text, **Geist Mono for every figure, code and ID** (`Figure`: mono number + muted unit, Spanish
+  formatting). Page headings 44px/600/−0.035em (`heading-page`), section titles 17px/600 (`heading-section`).
+- Radii: pills full; rows/inline panels 14–16px; inputs 14px; drop zones and floating panels 24–28px.
+- Inputs: soft fill, no border, 44px min height, 2px accent focus ring. Targets ≥ 44px.
+- Lists, not cards: `ListRow` with hover/selected soft fill and negative margin so text aligns with headings.
+- States: loading = `Skeleton` soft blocks; errors = one line with a high/warn pill (`ErrorLine`); no alert boxes.
+- Icons: lucide-react, stroke 1.8–2. No emoji or ✓ glyphs. Motion 150–200ms ease-out; honour reduced motion.
+- Spanish UI copy lives in `src/content/`; bracketed placeholders like `[RUTA …]` stay until real paths exist.
+- The PDF export (`src/lib/case-view/pdf.tsx`) mirrors these rules with vendored Geist TTFs.
+
 ## Build order
 W1: scaffold + auth + RLS + case/upload flow · TB parser + PGC mapping · canonical schema + KPI engine
 W2: Holded connector ✅ (starter) — wire into borrower page, verify against a real account · N43 parser · LLM extractors (Modelo 200, CIRBE, certificates) · checks engine

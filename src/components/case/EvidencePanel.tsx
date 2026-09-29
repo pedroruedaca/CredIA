@@ -84,7 +84,7 @@ function ReviewForm({ caseId, view, canEdit }: { caseId: string; view: OpenView;
               </>
             )}
           </div>
-          {error && <p role="alert" className="text-[13px] text-high">{error}</p>}
+          {error && <p role="alert" className="flex items-center gap-2 text-[13px] text-ink-2"><Pill tone="high">Error</Pill>{error}</p>}
         </>
       ) : (
         view.review?.note && <p className="rounded-row bg-soft px-3.5 py-3 text-sm">{view.review.note}</p>

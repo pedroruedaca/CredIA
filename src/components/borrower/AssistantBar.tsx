@@ -235,7 +235,7 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
           <ArrowUp size={18} strokeWidth={2.2} aria-hidden />
         </button>
       </form>
-      <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="pointer-events-auto -mt-1 self-center text-xs text-accent underline-offset-4 hover:underline disabled:text-muted sm:hidden">
+      <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="pointer-events-auto -my-2 min-h-11 self-center px-3 text-xs text-accent underline-offset-4 hover:underline disabled:text-muted sm:hidden">
         {humanState === "sent" ? "Aviso enviado" : "o habla con una persona"}
       </button>
     </div>

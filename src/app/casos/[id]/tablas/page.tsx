@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { SourcePill } from "@/components/ui/Pill";
 import { cx } from "@/components/ui/cx";
 import { loadCaseView } from "@/lib/case-view/load";
@@ -48,7 +48,7 @@ function Table({ title, rows, columns, caseId, docs }: { title: string; rows: Ta
           <details key={r.key} className="group border-t border-hairline">
             <summary className={cx(rowCls, "cursor-pointer list-none border-0 hover:bg-soft [&::-webkit-details-marker]:hidden")}>
               <span className="flex items-center gap-2">
-                <span aria-hidden className="text-faint transition-transform group-open:rotate-90">›</span>
+                <ChevronRight size={14} strokeWidth={2} aria-hidden className="text-faint transition-transform duration-150 group-open:rotate-90" />
                 {r.label}
               </span>
               {cells}

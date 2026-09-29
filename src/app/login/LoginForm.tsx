@@ -36,7 +36,7 @@ export function LoginForm({ next }: { next: string }) {
         Correo electrónico
         <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="font-normal" />
       </label>
-      {state.kind === "error" && <p role="alert" className="text-sm text-high">{state.message}</p>}
+      {state.kind === "error" && <p role="alert" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Error</Pill>{state.message}</p>}
       <Button type="submit" disabled={state.kind === "sending"}>
         {state.kind === "sending" ? "Enviando…" : "Enviar enlace de acceso"}
       </Button>

@@ -3,7 +3,7 @@
  * with the evidence panel (?check=<slug>), balance structure with lineage, sources. Nothing here scores or recommends.
  */
 import Link from "next/link";
-import { ChevronRight, Eye } from "lucide-react";
+import { Check, ChevronRight, Eye } from "lucide-react";
 import { BalanceBars } from "@/components/case/BalanceBars";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
@@ -156,7 +156,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           {pkg.passed.length > 0 && (
             <ul aria-label="Verificaciones correctas" className="flex flex-wrap gap-2 pt-2.5">
               {pkg.passed.map((v) => (
-                <li key={v.slug}><Pill tone="ok" dot={false} className="font-normal">✓ {CHECK_PASS_LABEL[v.key] ?? v.name}</Pill></li>
+                <li key={v.slug}><Pill tone="ok" dot={false} className="font-normal"><Check size={14} strokeWidth={2.2} aria-hidden />{CHECK_PASS_LABEL[v.key] ?? v.name}</Pill></li>
               ))}
             </ul>
           )}

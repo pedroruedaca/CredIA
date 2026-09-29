@@ -101,7 +101,7 @@ export function RequestDocumentButton({ caseId, companyName, requested }: { case
               <Textarea id="req-msg" rows={3} maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} className="resize-none" />
             </Field>
             <p className="text-[13px] text-muted">El documento aparecerá en la página de la empresa con su enlace actual; no se genera uno nuevo.</p>
-            {result && !result.ok && <p role="alert" className="text-[13px] text-high">{result.message}</p>}
+            {result && !result.ok && <p role="alert" className="flex items-center gap-2 text-[13px] text-ink-2"><Pill tone="high">Error</Pill>{result.message}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => ref.current?.close()}>Cancelar</Button>
               <Button type="submit" disabled={pending || !kind}>{pending ? "Pidiendo…" : "Pedir documento"}</Button>
