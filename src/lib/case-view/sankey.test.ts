@@ -39,6 +39,11 @@ describe("pnlSankey", () => {
     expect(val(m, "operating")).toBe(closed.incomeStatement.operatingResult);
     expect(val(m, "net")).toBe(closed.incomeStatement.netIncome);
     conserves(m);
+    // Financial income netted against expense: one cost node, no crossing input.
+    const fin = m.nodes.find((n) => n.id === "financial")!;
+    expect(fin).toMatchObject({ label: "Gastos financieros netos", value: closed.incomeStatement.financialExpense - closed.incomeStatement.financialIncome });
+    expect(fin.accounts.reduce((s, a) => s + a.amount, 0)).toBeCloseTo(fin.value, 2);
+    expect(m.nodes.some((n) => n.id === "financialIncome")).toBe(false);
     const personnel = m.nodes.find((n) => n.id === "personnel")!;
     expect(personnel.accounts.reduce((s, a) => s + a.amount, 0)).toBeCloseTo(personnel.value, 2);
   });
@@ -54,6 +59,16 @@ describe("pnlSankey", () => {
     expect(m.kind).toBe("flat");
     expect(val(m, "loss")).toBeCloseTo(-loss.incomeStatement.netIncome, 2);
     expect(m.nodes.some((n) => n.id === "net")).toBe(false);
+    conserves(m);
+  });
+
+  it("shows a positive financial result as an input into net profit", () => {
+    const rich = structuredClone(closed);
+    rich.incomeStatement.financialIncome = 30_000;
+    rich.incomeStatement.netIncome += 29_000;
+    rich.incomeStatement.preTaxResult += 29_000;
+    const m = pnlSankey(rich)!;
+    expect(m.nodes.find((n) => n.id === "financial")).toMatchObject({ label: "Resultado financiero", value: 21_000 });
     conserves(m);
   });
 

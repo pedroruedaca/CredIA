@@ -104,18 +104,23 @@ export function pnlSankey(s: CanonicalStatement): PnlSankey | null {
     link("ebitda", "operating", ebitda - dep - Math.max(0, -others));
     link("ebitda", "depreciation", dep);
 
-    // Financial income joins at the last split: allocated to net profit first, then to the costs.
-    node({ id: "net", label: "Resultado neto", col: 4 + o, value: net, tone: "asset-3", accounts: [], formula: "resultado de explotación + financiero − impuesto", emphasis: true });
-    node({ id: "financialExpense", label: "Gastos financieros", col: 4 + o, value: finExp, tone: "debt-2", accounts: lineage(s, ["financialExpense", "financialImpairments"]) });
-    node({ id: "incomeTax", label: "Impuesto", col: 4 + o, value: is.incomeTax, tone: "other", accounts: lineage(s, ["incomeTax"]) });
-    node({ id: "financialIncome", label: "Ingr. financieros", col: 3 + o, value: is.financialIncome, tone: "asset-1", accounts: lineage(s, ["financialIncome"]) });
-    let fin = is.financialIncome;
-    for (const [target, value] of [["net", net], ["incomeTax", is.incomeTax], ["financialExpense", finExp]] as const) {
-      const fromFin = Math.min(fin, value);
-      fin -= fromFin;
-      link("financialIncome", target, fromFin);
-      link("operating", target, value - fromFin);
+    // Financial result netted (income against expense), as SME financial Sankeys usually show it: a cost when
+    // negative (the common case), an extra input into net profit when positive. Both accounts stay in the lineage.
+    const finNet = r2(is.financialIncome - finExp);
+    const finAccounts = lineage(s, ["financialExpense", "financialImpairments"]).concat(lineage(s, ["financialIncome"], -1));
+    node({ id: "net", label: "Resultado neto", col: 4 + o, value: net, tone: "asset-3", accounts: [], formula: "resultado de explotación + resultado financiero − impuesto", emphasis: true });
+    if (finNet < 0) {
+      node({ id: "financial", label: "Gastos financieros netos", col: 4 + o, value: -finNet, tone: "debt-2", accounts: finAccounts, formula: "gastos financieros − ingresos financieros" });
+      link("operating", "financial", -finNet);
+    } else if (finNet > 0) {
+      node({ id: "financial", label: "Resultado financiero", col: 3 + o, value: finNet, tone: "asset-1", accounts: finAccounts.map((c) => ({ ...c, amount: -c.amount })), formula: "ingresos financieros − gastos financieros" });
+      link("financial", "net", Math.min(finNet, net));
+      if (finNet > net) link("financial", "incomeTax", finNet - net);
     }
+    node({ id: "incomeTax", label: "Impuesto", col: 4 + o, value: is.incomeTax, tone: "other", accounts: lineage(s, ["incomeTax"]) });
+    const fromFin = finNet > 0 ? finNet : 0;
+    link("operating", "net", net - Math.min(fromFin, net));
+    link("operating", "incomeTax", is.incomeTax - Math.max(0, fromFin - net));
     return { kind: "cascade", nodes, links, revenue: is.revenue };
   }
 
