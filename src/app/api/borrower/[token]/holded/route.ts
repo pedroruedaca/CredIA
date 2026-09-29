@@ -8,7 +8,8 @@
  * NOTE: long histories can take a while. maxDuration covers the MVP; move to a queue
  * (Supabase Edge Function / Inngest) once real books exceed the limit.
  */
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { processCase } from "@/lib/pipeline/process-case";
 import { audit, borrowerRoute } from "@/lib/borrower/access";
 import { HoldedClient, HoldedError, verifyHoldedKey } from "@/lib/connectors/holded";
 import { runHoldedSync, WARNING_SEVERITY } from "@/lib/connectors/holded-sync";
@@ -69,6 +70,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   // 4. Pull, normalise, compute.
   try {
     const result = await runHoldedSync(client, { fiscalYearEnd: kase.fiscal_year_end, today });
+    // A new sync replaces the previous one's Holded warnings.
+    await db.from("checks").delete().eq("case_id", kase.id).eq("source", "holded");
 
     for (const p of result.periods) {
       const { data: sync } = await db.from("holded_syncs").insert({
@@ -91,26 +94,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
         debit: b.debit, credit: b.credit, source: "holded", source_ref: `${b.sourceRef}#sync:${sync!.id}`,
       })));
 
-      const { data: stmt } = await db.from("financial_statements").insert({
-        case_id: kase.id, lender_id: kase.lender_id, period_kind: p.period.kind,
-        period_start: p.period.start, period_end: p.period.end, statement: p.statement,
-      }).select("id").single();
-
-      await db.from("kpis").insert(p.kpis.map((k) => ({
-        statement_id: stmt!.id, lender_id: kase.lender_id, key: k.key, value: k.value,
-        formula: k.formula, inputs: k.inputs, note: k.note ?? null,
-      })));
-
-      if (p.warnings.length) {
-        await db.from("checks").insert(p.warnings.map((w) => ({
-          case_id: kase.id, lender_id: kase.lender_id, check_key: w.code,
+      // Holded-specific warnings (closing entries, chart reconciliation…). Statements, KPIs and the other checks
+      // are rebuilt by the pipeline below, which also decides between Holded and uploaded balances.
+      const holdedWarnings = p.warnings.filter((w) => w.code.startsWith("holded_"));
+      if (holdedWarnings.length) {
+        await db.from("checks").insert(holdedWarnings.map((w) => ({
+          case_id: kase.id, lender_id: kase.lender_id, check_key: w.code, status: "fail", source: "holded",
           severity: WARNING_SEVERITY[w.code] ?? "info",
-          message: `[${p.period.kind}] ${w.message}`, evidence: w.detail ?? {},
+          message: `[${p.period.kind === "closed_fy" ? "Ejercicio cerrado" : "Año en curso"}] ${w.message}`, evidence: w.detail ?? {},
         })));
       }
     }
 
     await db.from("holded_connections").update({ status: "synced", last_sync_at: new Date().toISOString() }).eq("id", conn.id);
+    after(() => processCase(db, kase.id));
     await audit(db, access, "holded.synced", { requests: result.requestCount, periods: result.periods.map((p) => p.period) });
     if (mode === "one_time") await audit(db, access, "holded.token_discarded", {});
 

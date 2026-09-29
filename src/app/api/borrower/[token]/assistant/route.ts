@@ -14,6 +14,7 @@ import { borrowerRoute, jsonError } from "@/lib/borrower/access";
 import { loadPortal } from "@/lib/borrower/load";
 import { RATE_LIMIT, rateLimit } from "@/lib/assistant/conversation";
 import { REPLACE_MARKER } from "@/lib/assistant/protocol";
+import { fallbackParams, modelFor, supportsEffort } from "@/lib/llm/model";
 import { assistantContext, loadHistory, recentQuestionTimes, saveMessage, stablePrompt, systemBlocks } from "@/lib/assistant/server";
 
 export const runtime = "nodejs";
@@ -21,11 +22,6 @@ export const maxDuration = 60;
 
 const body = z.object({ message: z.string().trim().min(1).max(1000) });
 
-const DEFAULT_MODEL = "claude-opus-5-5";
-/** Models that accept the server-side refusal fallback (`fallbacks: "default"`). */
-const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
-/** Models that accept `output_config.effort`. */
-const EFFORT_MODELS = /^claude-(fable|mythos|opus-(5|4-[5-8])|sonnet-(5|4-6))/;
 
 let client: Anthropic | null = null;
 
@@ -51,7 +47,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   while (history[0]?.role === "assistant") history.shift(); // the API needs a user turn first
   await saveMessage(db, access, "user", question);
 
-  const model = process.env.CREDIA_ASSISTANT_MODEL || DEFAULT_MODEL;
+  const model = modelFor("assistant");
   client ??= new Anthropic();
   const system = systemBlocks(await stablePrompt(), assistantContext(portal, access));
   const messages: Anthropic.Beta.BetaMessageParam[] = [...history, { role: "user", content: question }];
@@ -62,8 +58,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       max_tokens: 4000,
       system,
       messages,
-      ...(EFFORT_MODELS.test(model) ? { output_config: { effort: "low" as const } } : {}),
-      ...(FALLBACK_MODELS.has(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+      ...(supportsEffort(model) ? { output_config: { effort: "low" as const } } : {}),
+      ...fallbackParams(model),
     },
     { signal: req.signal },
   );

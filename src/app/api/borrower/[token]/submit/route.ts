@@ -3,12 +3,14 @@
  * Recomputes the checklist server-side; only when every required item is done does the case move to
  * `processing`. Idempotent: a case already submitted returns ok.
  */
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { processCase } from "@/lib/pipeline/process-case";
 import { audit, borrowerRoute, jsonError } from "@/lib/borrower/access";
 import { loadPortal } from "@/lib/borrower/load";
 import { getNotifier } from "@/lib/notify";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function POST(_req: Request, ctx: { params: Promise<{ token: string }> }) {
   const r = await borrowerRoute((await ctx.params).token);
@@ -39,5 +41,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ token: string
     companyName: portal.kase.companyName,
     event: "documents_submitted",
   });
+  // Marks the case ready once every document is processed.
+  after(() => processCase(db, access.caseId));
   return NextResponse.json({ ok: true, submittedAt });
 }

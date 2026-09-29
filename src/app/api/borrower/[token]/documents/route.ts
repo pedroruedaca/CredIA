@@ -4,16 +4,18 @@
  * (SHA-256) and records the `documents` row. Rejected files are deleted from Storage.
  */
 import { createHash } from "node:crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { audit, borrowerRoute, jsonError } from "@/lib/borrower/access";
+import { processCase } from "@/lib/pipeline/process-case";
 import { daysBetween } from "@/lib/borrower/checklist";
 import { cleanFilename, CONTENT_TYPES, contentMatchesExtension, MAX_UPLOAD_BYTES, parseUploadPath } from "@/lib/borrower/upload-rules";
 import { todayMadrid } from "@/lib/format";
 import { BANKS } from "@/content/banks.es";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Processing (parsing, Claude extraction) runs after the response via after(), within this budget.
+export const maxDuration = 300;
 
 const body = z.object({
   path: z.string().min(1).max(300),
@@ -103,6 +105,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   }
 
   await audit(db, access, "document.uploaded", { document_id: doc.id, kind: target.kind, sha256, size: bytes.length });
-  // Processing (parsers, extraction) runs from Phase 4's orchestrator; documents stay `uploaded` until then.
+  after(() => processCase(db, access.caseId));
   return NextResponse.json({ ok: true, documentId: doc.id });
 }

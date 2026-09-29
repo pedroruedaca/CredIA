@@ -46,3 +46,9 @@ npm run seed:lender -- --email you@fondo.es --lender "Fondo Ejemplo Capital"
 | `src/content/docs-guide.es.md`, `assistant.es.ts` | What each document is and how to get it (assistant's only source), chat copy |
 | `src/app/api/borrower/[token]/assistant/route.ts` | Streaming chat (Anthropic SDK, `CREDIA_ASSISTANT_MODEL`, default `claude-opus-5-5`), 30 questions/hour per link |
 | `src/app/api/borrower/[token]/support/route.ts` | "Hablar con una persona": support request + lender notification (stub) |
+| `supabase/migrations/0005_pipeline.sql` | Check status/source, per-case processing lock, per-document links for derived rows |
+| `src/lib/parsers/trial-balance.ts`, `spreadsheet.ts` | Sumas y saldos from .xlsx (exceljs) / CSV: header detection, A3 · Sage · ContaSol · Holded · Odoo layouts, group rows dropped, period detection |
+| `src/lib/parsers/norma43.ts` | Norma 43 records 11/22/23/33/88, totals reconciliation, keyword categories |
+| `src/lib/extract/` | Claude PDF extraction (Modelo 200, cuentas anuales, CIRBE, AEAT/TGSS) + verification: wrong document, other company, wrong year → borrower fix message |
+| `src/lib/checks/engine.ts` | CIRBE vs books, N43 inflows vs revenue, Modelo 200 vs closed year, certificates, overdrafts, debt payments |
+| `src/lib/pipeline/` | `processCase`: parse new documents, then rebuild balances, transactions, debt, statements, KPIs and checks (idempotent, locked per case) |

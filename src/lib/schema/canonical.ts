@@ -77,3 +77,18 @@ export const CirbeExtractionSchema = z.object({
 });
 
 export type CanonicalStatementParsed = z.infer<typeof CanonicalStatementSchema>;
+
+/** AEAT / TGSS "estar al corriente" certificate. */
+export const CertificateExtractionSchema = z.object({
+  nif: z.string(),
+  issuer: z.enum(["aeat", "tgss"]),
+  issuedOn: date.nullable(),
+  validUntil: date.nullable(),
+  result: z.enum(["al_corriente", "no_al_corriente", "unknown"]),
+  verificationCode: z.string().nullable(),
+  page: z.number().int().positive().nullable(),
+});
+
+export type Modelo200Extraction = z.infer<typeof Modelo200ExtractionSchema>;
+export type CirbeExtraction = z.infer<typeof CirbeExtractionSchema>;
+export type CertificateExtraction = z.infer<typeof CertificateExtractionSchema>;

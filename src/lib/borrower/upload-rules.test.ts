@@ -8,6 +8,7 @@ const bytes = (s: string) => new TextEncoder().encode(s);
 describe("checkDeclaredFile", () => {
   it("accepts the formats each document allows", () => {
     expect(checkDeclaredFile("trial_balance", "Sumas y saldos 2025.XLSX", 1000)).toEqual({ ok: true, ext: "xlsx" });
+    expect(checkDeclaredFile("trial_balance", "balance.xls", 1000)).toEqual({ ok: false, message: expect.stringMatching(/formato antiguo \(\.xls\).*\.xlsx/) });
     expect(checkDeclaredFile("norma43", "cuenta_1.n43", 1000)).toEqual({ ok: true, ext: "n43" });
     expect(checkDeclaredFile("norma43", "extracto.pdf", 1000)).toEqual({ ok: true, ext: "pdf" });
     expect(checkDeclaredFile("cirbe", "cirbe.pdf", 1000)).toEqual({ ok: true, ext: "pdf" });

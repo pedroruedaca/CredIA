@@ -26,7 +26,8 @@ export interface UploadRule {
 const PDF_ONLY: UploadRule = { extensions: ["pdf"], multiple: false, acceptLabel: "PDF · hasta 20 MB" };
 
 export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
-  trial_balance: { extensions: ["xlsx", "xls", "csv"], multiple: true, acceptLabel: ".xlsx, .xls, .csv · puedes subir varios ficheros" },
+  // Legacy .xls is not accepted: we only read .xlsx (exceljs) and CSV. See LEGACY_XLS_MESSAGE.
+  trial_balance: { extensions: ["xlsx", "csv"], multiple: true, acceptLabel: ".xlsx o .csv · puedes subir varios ficheros" },
   // PDF statements are the fallback when the bank does not export Norma 43.
   norma43: { extensions: ["n43", "q43", "txt", "aeb", "pdf"], multiple: true, acceptLabel: ".n43, .txt, .aeb o PDF · varios ficheros a la vez" },
   modelo200: PDF_ONLY,
@@ -41,12 +42,16 @@ export function extensionOf(filename: string): string {
   return m ? m[1].toLowerCase() : "";
 }
 
+export const LEGACY_XLS_MESSAGE = (filename: string) =>
+  `«${filename}» es un Excel de formato antiguo (.xls). Ábrelo y guárdalo como .xlsx, o expórtalo en CSV, y vuelve a subirlo.`;
+
 export type UploadCheck = { ok: true; ext: string } | { ok: false; message: string };
 
 /** Checks the declared file before issuing an upload URL. Messages are borrower-facing Spanish. */
 export function checkDeclaredFile(kind: RequirementKind, filename: string, size: number): UploadCheck {
   const rule = UPLOAD_RULES[kind];
   const ext = extensionOf(filename);
+  if (ext === "xls" && kind === "trial_balance") return { ok: false, message: LEGACY_XLS_MESSAGE(filename) };
   if (!rule.extensions.includes(ext)) {
     return { ok: false, message: `«${filename}» no tiene un formato válido para este documento. Formatos aceptados: ${rule.extensions.map((e) => `.${e}`).join(", ")}.` };
   }

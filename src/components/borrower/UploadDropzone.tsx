@@ -32,6 +32,8 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; json
 
 export function UploadDropzone({ token, kind, bank, needsIssueDate = false, today, label }: Props) {
   const router = useRouter();
+  // Not cleared on unmount: the item often collapses once done, and a later failure must still show up.
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputId = useId();
   const dateId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +82,12 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
     setFiles((fs) => [...entries.map(({ file, key }) => ({ key, name: file.name, status: "uploading" as const })), ...fs]);
     const results = await Promise.all(entries.map(({ file, key }) => uploadOne(file, key)));
     if (inputRef.current) inputRef.current.value = "";
-    if (results.some(Boolean)) router.refresh();
+    if (results.some(Boolean)) {
+      router.refresh();
+      // Files are read in the background after upload; pick up "leído" or a fix message without a manual reload.
+      for (const t of timers.current) clearTimeout(t);
+      timers.current = [4_000, 12_000, 30_000, 60_000].map((ms) => setTimeout(() => router.refresh(), ms));
+    }
   }
 
   return (
