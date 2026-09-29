@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
 import { regenerateBorrowerLink, type RegenerateLinkResult } from "./actions";
 
-export function NewLinkButton({ caseId, companyName }: { caseId: string; companyName: string }) {
+export function NewLinkButton({ caseId, companyName, compact = false }: { caseId: string; companyName: string; compact?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RegenerateLinkResult | null>(null);
@@ -29,10 +29,22 @@ export function NewLinkButton({ caseId, companyName }: { caseId: string; company
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => ref.current?.showModal()}>
-        <Link2 size={15} strokeWidth={1.8} aria-hidden /> Nuevo enlace
-        <span className="sr-only"> para {companyName}</span>
-      </Button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => ref.current?.showModal()}
+          title="Nuevo enlace"
+          className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink"
+        >
+          <Link2 size={18} strokeWidth={1.8} aria-hidden />
+          <span className="sr-only">Nuevo enlace para {companyName}</span>
+        </button>
+      ) : (
+        <Button variant="secondary" size="sm" onClick={() => ref.current?.showModal()}>
+          <Link2 size={15} strokeWidth={1.8} aria-hidden /> Nuevo enlace
+          <span className="sr-only"> para {companyName}</span>
+        </Button>
+      )}
 
       <Modal ref={ref} title={`Nuevo enlace para ${companyName}`} onClose={() => setResult(null)}>
         <div className="flex flex-col gap-4 text-[15px]">

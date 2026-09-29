@@ -38,3 +38,18 @@ export function formatFigure(value: number | null | undefined, unit: FigureUnit,
   }
   return { number: fmt(value, decimals ?? (unit === "x" ? 1 : 0)), unit: UNIT_LABEL[unit] };
 }
+
+/** "ahora", "hace 5 min", "hace 3 h", "ayer", "hace 4 días", then the short date. */
+export function relativeTime(iso: string, now = new Date()): string {
+  const then = new Date(iso);
+  const mins = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (mins < 1) return "ahora";
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const day = (d: Date) => todayMadrid(d);
+  const days = Math.round((Date.parse(day(now)) - Date.parse(day(then))) / 86_400_000);
+  if (days === 0) return `hace ${hours} h`;
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  return formatDate(iso);
+}

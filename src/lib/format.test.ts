@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatFigure } from "./format.ts";
+import { formatFigure, relativeTime } from "./format.ts";
 
 describe("formatFigure", () => {
   it("formats euros with Spanish grouping, millions as M€", () => {
@@ -16,5 +16,17 @@ describe("formatFigure", () => {
   it("shows a dash for missing values", () => {
     expect(formatFigure(null, "x")).toEqual({ number: "—", unit: "" });
     expect(formatFigure(Number.NaN, "EUR")).toEqual({ number: "—", unit: "" });
+  });
+});
+
+describe("relativeTime", () => {
+  const now = new Date("2026-09-29T12:00:00Z"); // 14:00 in Madrid
+  it("uses minutes and hours today, then days, then the date", () => {
+    expect(relativeTime("2026-09-29T11:59:40Z", now)).toBe("ahora");
+    expect(relativeTime("2026-09-29T11:55:00Z", now)).toBe("hace 5 min");
+    expect(relativeTime("2026-09-29T08:00:00Z", now)).toBe("hace 4 h");
+    expect(relativeTime("2026-09-28T20:00:00Z", now)).toBe("ayer");
+    expect(relativeTime("2026-09-25T10:00:00Z", now)).toBe("hace 4 días");
+    expect(relativeTime("2026-09-01T10:00:00Z", now)).toMatch(/1 sept?\.? 2026/);
   });
 });

@@ -1,5 +1,5 @@
 import { DEFAULT_LENDER_COLOR } from "@/content/borrower-portal.es";
-import { initials } from "@/lib/lender";
+import { initials } from "@/lib/initials";
 
 /** Co-branded header of the borrower portal (design/borrower-checklist.html). */
 export function PortalHeader({ lenderName, brandColor }: { lenderName: string; brandColor: string | null }) {

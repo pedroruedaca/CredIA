@@ -42,9 +42,5 @@ export async function requireLender(): Promise<LenderContext> {
   return ctx;
 }
 
-export function initials(nameOrEmail: string): string {
-  const base = nameOrEmail.split("@")[0].replace(/[._-]+/g, " ").trim();
-  const parts = base.split(/\s+/).filter(Boolean);
-  const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : base.slice(0, 2);
-  return letters.toUpperCase();
-}
+/** Re-exported for existing server imports; the helper itself is pure (client-safe) in ./initials.ts. */
+export { initials } from "./initials.ts";

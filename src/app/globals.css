@@ -71,23 +71,25 @@
   letter-spacing: -0.01em;
 }
 
-body {
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-}
-
-a {
-  color: var(--color-accent);
-}
-a:hover {
-  color: var(--color-accent-hover);
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+/* In the base layer so utilities (text-ink on a link, etc.) win. */
+@layer base {
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+  }
+  a {
+    color: var(--color-accent);
+    text-underline-offset: 3px;
+  }
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
