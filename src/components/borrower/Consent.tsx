@@ -1,46 +1,16 @@
 "use client";
 
+/** Consent withdrawal and the Holded access description, used by the borrower flow's privacy note. */
+
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
-import type { ChecklistHolded } from "@/lib/borrower/checklist";
 
-/** "Qué compartimos y con quién" (right column). */
-export function SharingCard({ token, lenderName, holded, canWithdraw }: { token: string; lenderName: string; holded: ChecklistHolded[]; canWithdraw: boolean }) {
-  return (
-    <section aria-labelledby="sharing-title" className="flex flex-col gap-3 rounded-panel bg-soft px-6 py-5 text-sm leading-normal">
-      <h2 id="sharing-title" className="heading-section">Qué compartimos y con quién</h2>
-      <div>
-        <div className="text-[13px] text-muted">Destinatario</div>
-        <div>Solo {lenderName}</div>
-      </div>
-      <div>
-        <div className="text-[13px] text-muted">Para qué</div>
-        <div>Analizar esta solicitud de financiación</div>
-      </div>
-      <div>
-        <div className="text-[13px] text-muted">Holded</div>
-        <div>{holdedText(holded)}</div>
-      </div>
-      {canWithdraw && <WithdrawConsent token={token} lenderName={lenderName} />}
-    </section>
-  );
-}
 
-function holdedText(connections: ChecklistHolded[]): string {
-  const synced = connections.filter((c) => c.status === "synced");
-  if (synced.length === 0) return "Sin conectar.";
-  if (synced.some((c) => c.mode === "refresh" && !c.revoked_at)) {
-    return "Acceso de solo lectura. La clave se guarda cifrada para actualizar los datos; puedes revocarla cuando quieras.";
-  }
-  if (synced.some((c) => c.revoked_at)) return "Acceso revocado. Los datos ya importados se mantienen en la solicitud.";
-  return "Acceso de solo lectura. La clave se usó una vez y no se ha guardado.";
-}
-
-function WithdrawConsent({ token, lenderName }: { token: string; lenderName: string }) {
+export function WithdrawConsent({ token, lenderName }: { token: string; lenderName: string }) {
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);

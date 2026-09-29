@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChecklist, daysBetween, freshnessWindow, isStale, type ChecklistDocument, type ChecklistHolded, type ChecklistInput } from "./checklist.ts";
+import { periodLabel, buildChecklist, daysBetween, freshnessWindow, isStale, type ChecklistDocument, type ChecklistHolded, type ChecklistInput } from "./checklist.ts";
 
 const TODAY = "2026-09-28";
 const NOW = new Date("2026-09-28T10:00:00Z");
@@ -160,5 +160,15 @@ describe("date helpers", () => {
     expect(freshnessWindow(90)).toBe("de los últimos 3 meses");
     expect(freshnessWindow(30)).toBe("del último mes");
     expect(freshnessWindow(45)).toBe("de los últimos 45 días");
+  });
+});
+
+describe("detected period on files", () => {
+  it("labels a file with the period processing read from it", () => {
+    expect(periodLabel("2025-10-01", "2026-09-30")).toBe("oct 25 – sep 26");
+    const c = buildChecklist(input({ documents: [doc("norma43", { status: "parsed", summary: { period: { start: "2025-10-01", end: "2026-09-30" } } })] }));
+    expect(c.items.find((i) => i.kind === "norma43")!.files[0].period).toBe("oct 25 – sep 26");
+    const none = buildChecklist(input({ documents: [doc("norma43")] }));
+    expect(none.items.find((i) => i.kind === "norma43")!.files[0].period).toBeNull();
   });
 });

@@ -4,7 +4,7 @@
  * Drag-and-drop upload for one checklist item. Each file: ask the server for a signed upload URL,
  * send the bytes straight to Supabase Storage, then ask the server to check and record it.
  */
-import { AlertCircle, Check, Loader2, Upload } from "lucide-react";
+import { AlertCircle, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
@@ -113,24 +113,21 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
           void handle(e.dataTransfer.files);
         }}
         aria-disabled={blocked || undefined}
-        className={`relative flex flex-col items-center gap-2 rounded-panel px-6 py-8 text-center transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${
+        className={`relative flex items-center gap-5 rounded-panel px-6 py-6 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-8 sm:py-7 ${
           blocked ? "cursor-not-allowed bg-soft opacity-70" : dragOver ? "cursor-pointer bg-accent-ring" : "cursor-pointer bg-accent-tint hover:bg-accent-ring"
         }`}
       >
-        <span className="flex size-12 items-center justify-center rounded-full bg-surface">
-          {busy ? <Loader2 size={22} className="animate-spin text-accent" aria-hidden /> : <Upload size={22} strokeWidth={1.8} className="text-accent" aria-hidden />}
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
+          {busy ? <Loader2 size={24} className="animate-spin text-accent" aria-hidden /> : <Upload size={24} strokeWidth={2} className="text-accent" aria-hidden />}
         </span>
-        <span className="text-[15px] font-medium">
-          {blocked ? (
-            "Indica primero la fecha de emisión"
-          ) : (
-            <>
-              {label ?? (rule.multiple ? "Arrastra los ficheros o " : "Arrastra el fichero o ")}
-              <span className="text-accent underline">{rule.multiple ? "selecciónalos" : "selecciónalo"}</span>
-            </>
-          )}
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="text-[17px] font-semibold">
+            {blocked ? "Indica primero la fecha de emisión" : (label ?? (rule.multiple ? "Suelta aquí tus ficheros" : "Suelta aquí el fichero"))}
+          </span>
+          <span className="text-sm text-ink-2">
+            o <span className="text-accent underline underline-offset-[3px]">{rule.multiple ? "búscalos en tu equipo" : "búscalo en tu equipo"}</span> · {rule.acceptLabel}
+          </span>
         </span>
-        <span className="text-[13px] text-muted">{rule.acceptLabel}</span>
         <input
           ref={inputRef}
           id={inputId}
@@ -143,22 +140,20 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
         />
       </label>
 
-      {files.length > 0 && (
-        <ul className="flex flex-col gap-1.5 text-[13px]" aria-live="polite">
-          {files.map((f) => (
-            <li key={f.key} className="flex items-start gap-2">
-              {f.status === "uploading" && <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin text-muted" aria-hidden />}
-              {(f.status === "done" || f.status === "duplicate") && <Check size={16} className="mt-0.5 shrink-0 text-ok" aria-hidden />}
-              {f.status === "error" && <AlertCircle size={16} className="mt-0.5 shrink-0 text-high-dot" aria-hidden />}
-              <span className="min-w-0">
-                <span className="break-all font-medium">{f.name}</span>
-                <span className={f.status === "error" ? "text-high" : "text-ink-2"}>
-                  {" · "}
-                  {f.status === "uploading" ? "subiendo…" : f.status === "done" ? "recibido" : f.message}
+      {/* In-flight and failed uploads. Received files come back from the server as FilePills, with what was read. */}
+      {files.some((f) => f.status === "uploading" || f.status === "error") && (
+        <ul className="flex flex-wrap gap-2" aria-live="polite">
+          {files
+            .filter((f) => f.status === "uploading" || f.status === "error")
+            .map((f) => (
+              <li key={f.key} className="inline-flex max-w-full items-center gap-2.5 rounded-full bg-soft py-2 pl-2 pr-3.5 text-sm">
+                <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${f.status === "error" ? "bg-high-bg" : "bg-surface"}`}>
+                  {f.status === "uploading" ? <Loader2 size={14} className="animate-spin text-muted" aria-hidden /> : <AlertCircle size={14} strokeWidth={2.2} className="text-high-dot" aria-hidden />}
                 </span>
-              </span>
-            </li>
-          ))}
+                <span className="truncate">{f.name}</span>
+                <span className={f.status === "error" ? "text-high" : "text-muted"}>· {f.status === "uploading" ? "subiendo…" : f.message}</span>
+              </li>
+            ))}
         </ul>
       )}
     </div>

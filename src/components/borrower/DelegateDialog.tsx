@@ -15,7 +15,7 @@ type State =
   | { kind: "sent"; email: string; link: string; emailSent: boolean };
 
 /** "¿Lo gestiona tu asesoría? Enviar esta petición a mi gestoría" + modal. */
-export function DelegateDialog({ token, lenderName }: { token: string; lenderName: string }) {
+export function DelegateDialog({ token, lenderName, inline = false }: { token: string; lenderName: string; inline?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -43,13 +43,19 @@ export function DelegateDialog({ token, lenderName }: { token: string; lenderNam
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-2">
-        <Mail size={16} strokeWidth={1.8} aria-hidden />
-        <span>¿Lo gestiona tu asesoría?</span>
-        <Button variant="link" size="sm" onClick={() => ref.current?.showModal()}>
-          Enviar esta petición a mi gestoría
+      {inline ? (
+        <Button variant="link" onClick={() => ref.current?.showModal()}>
+          Lo tiene mi gestoría: enviarle la petición
         </Button>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-2">
+          <Mail size={16} strokeWidth={1.8} aria-hidden />
+          <span>¿Lo gestiona tu asesoría?</span>
+          <Button variant="link" size="sm" onClick={() => ref.current?.showModal()}>
+            Enviar esta petición a mi gestoría
+          </Button>
+        </div>
+      )}
 
       <Modal ref={ref} title="Enviar a tu gestoría" onClose={() => state.kind === "sent" && setState({ kind: "idle" })}>
         {state.kind === "sent" ? (

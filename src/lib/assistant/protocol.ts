@@ -10,5 +10,3 @@ export function visibleAnswer(raw: string): string {
   return i >= 0 ? raw.slice(i + REPLACE_MARKER.length) : raw;
 }
 
-/** Window event the chat dispatches (detail = doc_kind) to open and scroll to a checklist step. */
-export const OPEN_STEP_EVENT = "credia:open-step";

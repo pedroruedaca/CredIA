@@ -2,12 +2,13 @@
 import "server-only";
 import { todayMadrid } from "../format.ts";
 import type { AdminClient, BorrowerAccess } from "./access.ts";
-import { buildChecklist, type Checklist, type ChecklistHolded, type ChecklistHoldedPeriod, type ChecklistInput } from "./checklist.ts";
+import { buildChecklist, type Checklist, type ChecklistDocument, type ChecklistHolded, type ChecklistHoldedPeriod, type ChecklistInput } from "./checklist.ts";
 
 export interface PortalCase {
   id: string;
   companyName: string;
   requestedProduct: string | null;
+  requestedAmount: number | null;
   fiscalYearEnd: string | null;
   status: string;
   submittedAt: string | null;
@@ -27,13 +28,13 @@ export async function loadPortal(db: AdminClient, access: BorrowerAccess, now = 
   const [caseRes, reqRes, docRes, holdedRes] = await Promise.all([
     db
       .from("cases")
-      .select("id, borrower_name, requested_product, fiscal_year_end, status, submitted_at, lenders(name, brand_color)")
+      .select("id, borrower_name, requested_product, requested_amount, fiscal_year_end, status, submitted_at, lenders(name, brand_color)")
       .eq("id", access.caseId)
       .single(),
     db.from("case_requirements").select("doc_kind, required, max_age_days").eq("case_id", access.caseId),
     db
       .from("documents")
-      .select("id, kind, status, original_filename, issued_on, attention_message, uploaded_at")
+      .select("id, kind, status, original_filename, issued_on, attention_message, uploaded_at, extractions(summary, created_at)")
       .eq("case_id", access.caseId)
       .order("uploaded_at", { ascending: false }),
     db
@@ -59,7 +60,11 @@ export async function loadPortal(db: AdminClient, access: BorrowerAccess, now = 
   const input: ChecklistInput = {
     lenderName: lender?.name ?? "la entidad",
     requirements: reqRes.data ?? [],
-    documents: docRes.data ?? [],
+    documents: (docRes.data ?? []).map(({ extractions, ...d }) => ({
+      ...d,
+      // Latest extraction's summary (e.g. detected period), if processing has run.
+      summary: ([...((extractions as { summary: ChecklistDocument["summary"]; created_at: string }[] | null) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.summary) ?? null,
+    })),
     holded,
     today,
     now,
@@ -70,6 +75,7 @@ export async function loadPortal(db: AdminClient, access: BorrowerAccess, now = 
       id: c.id,
       companyName: c.borrower_name ?? "",
       requestedProduct: c.requested_product,
+      requestedAmount: c.requested_amount === null ? null : Number(c.requested_amount),
       fiscalYearEnd: c.fiscal_year_end,
       status: c.status,
       submittedAt: c.submitted_at,

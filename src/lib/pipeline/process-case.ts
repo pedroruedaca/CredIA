@@ -77,7 +77,7 @@ type Outcome = {
   status: "parsed" | "failed" | "needs_review" | "uploaded";
   attention?: string | null;
   issuedOn?: string | null;
-  extraction?: { parser: string; status: "parsed" | "failed" | "needs_review" | "pending"; output: unknown; warnings: Warning[] };
+  extraction?: { parser: string; status: "parsed" | "failed" | "needs_review" | "pending"; output: unknown; warnings: Warning[]; summary?: Record<string, unknown> };
 };
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -161,6 +161,7 @@ async function processDocuments(db: AdminClient, kase: CaseRow, now: () => Date)
         status: outcome.extraction.status,
         output: outcome.extraction.output as object,
         warnings: outcome.extraction.warnings,
+        summary: outcome.extraction.summary ?? {},
       });
     }
     const update: Record<string, unknown> = { status: outcome.status, attention_message: outcome.attention ?? null, processing_started_at: null };
@@ -205,7 +206,13 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
     if (parsed.data.balances.length === 0) return failed(`tb:${parsed.data.template}@1`, `«${name}» no contiene saldos de cuentas. Exporta el balance de sumas y saldos completo.`, parsed.warnings);
     return {
       status: "parsed",
-      extraction: { parser: `tb:${parsed.data.template}@1`, status: "parsed", output: { ...parsed.data, mappingSource }, warnings: parsed.warnings },
+      extraction: {
+        parser: `tb:${parsed.data.template}@1`,
+        status: "parsed",
+        output: { ...parsed.data, mappingSource },
+        warnings: parsed.warnings,
+        summary: { period: parsed.data.period, accounts: parsed.data.balances.length },
+      },
     };
   }
 
@@ -221,7 +228,18 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
     if (r.data.length === 0) {
       return failed("n43@1", `«${name}» no es un fichero Norma 43. Descárgalo de la banca online eligiendo el formato Norma 43 / Cuaderno 43, o sube los extractos en PDF.`, r.warnings);
     }
-    return { status: "parsed", extraction: { parser: "n43@1", status: "parsed", output: { accounts: r.data }, warnings: r.warnings } };
+    const starts = r.data.map((a) => a.start).sort();
+    const ends = r.data.map((a) => a.end).sort();
+    return {
+      status: "parsed",
+      extraction: {
+        parser: "n43@1",
+        status: "parsed",
+        output: { accounts: r.data },
+        warnings: r.warnings,
+        summary: { period: { start: starts[0], end: ends[ends.length - 1] }, accounts: r.data.length },
+      },
+    };
   }
 
   const kind = doc.kind as ExtractKind;

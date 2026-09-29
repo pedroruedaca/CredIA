@@ -74,3 +74,63 @@ export const SUPPORT_EMAIL: string | null = null;
 
 /** Initials badge colour when the lender has not set one. */
 export const DEFAULT_LENDER_COLOR = "#2B2E6B";
+
+/** One-step-at-a-time flow (design/borrower-flow2.html): timeline label, page heading, one-sentence why. */
+export interface StepCopy {
+  short: string;
+  heading: string;
+  why: (lender: string) => string;
+  /** Rough time to get the document, shown on pending steps. An estimate for the borrower, not a promise. */
+  estimate: string;
+}
+
+export const STEP_COPY: Record<RequirementKind, StepCopy> = {
+  trial_balance: {
+    short: "Contabilidad",
+    heading: "Tu contabilidad",
+    why: (l) => `El último ejercicio cerrado y el año en curso. Con ella ${l} prepara el balance y la cuenta de resultados sin pedirte más informes.`,
+    estimate: "≈ 5 min",
+  },
+  norma43: {
+    short: "Movimientos bancarios",
+    heading: "Tus movimientos bancarios",
+    why: (l) => `Los últimos 12 meses de cada cuenta de la empresa. Así ${l} puede comprobar tus cobros y pagos sin pedirte extractos uno a uno.`,
+    estimate: "≈ 10 min",
+  },
+  modelo200: {
+    short: "Impuesto de Sociedades",
+    heading: "Tu Impuesto de Sociedades",
+    why: (l) => `La declaración del último ejercicio (Modelo 200). ${l} la usa como referencia oficial del año cerrado.`,
+    estimate: "≈ 5 min",
+  },
+  cuentas_anuales: {
+    short: "Cuentas anuales",
+    heading: "Tus cuentas anuales",
+    why: () => "Las del último ejercicio, tal como se depositaron en el Registro Mercantil.",
+    estimate: "≈ 5 min",
+  },
+  cirbe: {
+    short: "Informe CIRBE",
+    heading: "Tu informe CIRBE",
+    why: (l) => `Un informe gratuito del Banco de España con la financiación de la empresa. Evita que ${l} tenga que pedirte el detalle de cada préstamo.`,
+    estimate: "≈ 5 min",
+  },
+  aeat_cert: {
+    short: "Certificado Hacienda",
+    heading: "Tu certificado de Hacienda",
+    why: () => "El certificado de estar al corriente de tus obligaciones tributarias, expedido por la Agencia Tributaria.",
+    estimate: "≈ 3 min",
+  },
+  tgss_cert: {
+    short: "Certificado Seguridad Social",
+    heading: "Tu certificado de la Seguridad Social",
+    why: () => "El certificado de estar al corriente de pago con la Seguridad Social, expedido por la TGSS.",
+    estimate: "≈ 3 min",
+  },
+};
+
+export const REVIEW_STEP = {
+  id: "enviar",
+  short: "Revisar y enviar",
+  heading: "Revisa y envía",
+};

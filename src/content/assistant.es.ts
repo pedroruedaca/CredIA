@@ -43,7 +43,32 @@ export const ASSISTANT_COPY = {
   whyChip: "¿Por qué pedís esto?",
   gestoriaChip: "Lo lleva mi gestoría",
   rateLimited: "Has hecho muchas preguntas en poco tiempo. Espera un rato o pulsa «Hablar con una persona».",
+  barPlaceholder: "Pregunta lo que necesites sobre tus documentos…",
   failed: "No he podido responder ahora mismo. Vuelve a intentarlo en unos minutos o pulsa «Hablar con una persona».",
   refused: "Con eso no puedo ayudarte. Solo te ayudo a conseguir y subir los documentos de esta solicitud.",
   humanSent: (lender: string) => `Hemos avisado a ${lender}. Se pondrán en contacto contigo por correo.`,
+};
+
+/** Tip bubble for the current step: static text from the docs guide, no model call. */
+export const STEP_TIP: Record<RequirementKind | "enviar", string> = {
+  trial_balance: "Si usas Holded, conectarlo es lo más rápido: no tienes que exportar nada. Si no, cualquier programa de contabilidad exporta el sumas y saldos a Excel.",
+  norma43: "Si tu banco online no exporta Norma 43, sube los PDF de los últimos 12 meses: los leemos igual.",
+  modelo200: "Si lo presentó tu gestoría, pídele el PDF de la declaración presentada: lo tendrá a mano.",
+  cuentas_anuales: "Tu gestoría suele tener el PDF de las cuentas que depositó en el Registro Mercantil.",
+  cirbe: "Necesitas el certificado digital de la empresa. Si no lo tienes, tu gestoría puede pedirlo por ti.",
+  aeat_cert: "Sube el PDF original que descargas de la sede electrónica, no una foto ni un escaneo.",
+  tgss_cert: "Sube el PDF original que descargas de la sede electrónica, no una foto ni un escaneo.",
+  enviar: "Cuando lo envíes, la entidad podrá revisarlo. Si te pide algo más, aparecerá aquí.",
+};
+
+/** Suggestion pills for the current step. */
+export const STEP_SUGGESTIONS: Record<RequirementKind | "enviar", string[]> = {
+  trial_balance: ["¿Qué es el sumas y saldos?", "¿Cómo conecto Holded?", "¿Por qué lo pedís?"],
+  norma43: ["¿Qué es Norma 43?", "¿Por qué lo pedís?", "Mi banco no aparece"],
+  modelo200: ["¿Dónde lo descargo?", "¿Por qué lo pedís?", "Lo lleva mi gestoría"],
+  cuentas_anuales: ["¿Dónde las consigo?", "¿Son obligatorias?", "Lo lleva mi gestoría"],
+  cirbe: ["¿Qué es la CIRBE?", "No tengo certificado digital", "¿Por qué lo pedís?"],
+  aeat_cert: ["¿Cómo lo pido?", "¿Qué antigüedad vale?", "Lo lleva mi gestoría"],
+  tgss_cert: ["¿Cómo lo pido?", "¿Qué antigüedad vale?", "Lo lleva mi gestoría"],
+  enviar: ["¿Qué pasa al enviar?", "¿Puedo añadir algo después?"],
 };

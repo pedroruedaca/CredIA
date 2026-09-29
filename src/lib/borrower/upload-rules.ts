@@ -27,9 +27,9 @@ const PDF_ONLY: UploadRule = { extensions: ["pdf"], multiple: false, acceptLabel
 
 export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
   // Legacy .xls is not accepted: we only read .xlsx (exceljs) and CSV. See LEGACY_XLS_MESSAGE.
-  trial_balance: { extensions: ["xlsx", "csv"], multiple: true, acceptLabel: ".xlsx o .csv · puedes subir varios ficheros" },
+  trial_balance: { extensions: ["xlsx", "csv"], multiple: true, acceptLabel: ".xlsx o .csv" },
   // PDF statements are the fallback when the bank does not export Norma 43.
-  norma43: { extensions: ["n43", "q43", "txt", "aeb", "pdf"], multiple: true, acceptLabel: ".n43, .txt, .aeb o PDF · varios ficheros a la vez" },
+  norma43: { extensions: ["n43", "q43", "txt", "aeb", "pdf"], multiple: true, acceptLabel: ".n43, .txt o PDF" },
   modelo200: PDF_ONLY,
   cuentas_anuales: PDF_ONLY,
   cirbe: PDF_ONLY,

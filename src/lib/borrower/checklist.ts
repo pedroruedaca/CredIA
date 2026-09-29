@@ -22,6 +22,8 @@ export interface ChecklistDocument {
   issued_on: string | null; // YYYY-MM-DD
   attention_message: string | null;
   uploaded_at: string;
+  /** What processing read, when it has run: the period a trial balance or bank file covers. */
+  summary?: { period?: { start: string; end: string } | null } | null;
 }
 
 export interface ChecklistHoldedPeriod {
@@ -44,6 +46,8 @@ export interface ChecklistFile {
   name: string;
   label: string; // "recibido", "leído correctamente", ...
   tone: "ok" | "neutral" | "problem";
+  /** Detected period, e.g. "oct 25 – sep 26". */
+  period: string | null;
 }
 
 export interface ChecklistItem {
@@ -90,6 +94,15 @@ const DOC_NOUN: Partial<Record<RequirementKind, string>> = {
   tgss_cert: "El certificado",
   cirbe: "El informe",
 };
+
+// Fixed list: ICU versions disagree on Spanish abbreviations ("sep" vs "sept").
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "2025-10-01".."2026-09-30" → "oct 25 – sep 26". */
+export function periodLabel(start: string, end: string): string {
+  const f = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(2, 4)}`;
+  return `${f(start)} – ${f(end)}`;
+}
 
 export function daysBetween(fromIso: string, toIso: string): number {
   const a = Date.UTC(+fromIso.slice(0, 4), +fromIso.slice(5, 7) - 1, +fromIso.slice(8, 10));
@@ -156,6 +169,7 @@ function buildItem(req: ChecklistRequirement & { doc_kind: RequirementKind }, in
   const files: ChecklistFile[] = docs.map((d) => ({
     id: d.id,
     name: d.original_filename ?? "documento",
+    period: d.summary?.period ? periodLabel(d.summary.period.start, d.summary.period.end) : null,
     ...fileLabel(d, PROVIDED.has(d.status) && isStale(d.issued_on, maxAge, input.today)),
   }));
 

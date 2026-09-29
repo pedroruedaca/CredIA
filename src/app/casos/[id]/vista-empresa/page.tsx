@@ -7,12 +7,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
-import { Checklist } from "@/components/borrower/Checklist";
-import { PortalHeader } from "@/components/borrower/PortalHeader";
-import { SharingCard } from "@/components/borrower/SharingCard";
-import { productLabel } from "@/content/products.es";
+import { BorrowerFlow } from "@/components/borrower/flow/BorrowerFlow";
 import type { BorrowerAccess } from "@/lib/borrower/access";
 import { loadPortal } from "@/lib/borrower/load";
+import { requestLine } from "@/lib/borrower/request-line";
+import { resolveStep } from "@/lib/borrower/steps";
 import { formatDate } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,14 +22,10 @@ import { NewLinkButton } from "../../NewLinkButton";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Vista de la empresa · credIA", robots: { index: false, follow: false } };
 
-function requestLine(product: string | null): string {
-  if (!product || product === "otro") return "Solicitud de financiación";
-  const label = productLabel(product);
-  return `Solicitud de ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-}
 
-export default async function VistaEmpresaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VistaEmpresaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ paso?: string }> }) {
   const { id } = await params;
+  const { paso } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const lender = await requireLender();
 
@@ -77,15 +72,13 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
     );
   }
 
-  const { checklist } = portal;
   const companyName = portal.kase.companyName || kase.borrower_cif;
-  const pct = checklist.total === 0 ? 100 : Math.round((checklist.done / checklist.total) * 100);
   const linkExpired = kase.borrower_token_expires_at && new Date(kase.borrower_token_expires_at) <= new Date();
 
   return (
     <div className="flex grow flex-col">
       <div className="bg-accent-tint">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-14">
+        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-10">
           {back}
           <p className="flex grow items-center gap-2 text-sm text-ink-2">
             <Eye size={16} strokeWidth={1.8} className="shrink-0 text-accent" aria-hidden />
@@ -101,66 +94,21 @@ export default async function VistaEmpresaPage({ params }: { params: Promise<{ i
           {lender.role !== "viewer" && <NewLinkButton caseId={kase.id} companyName={companyName} />}
         </div>
       </div>
-
-      <div className="flex grow flex-col" role="region" aria-label="Vista previa de la página de la empresa">
-        <PortalHeader lenderName={portal.kase.lenderName} brandColor={portal.kase.lenderBrandColor} />
-        <div className="mx-auto flex w-full max-w-[1280px] grow flex-col gap-10 px-4 py-8 sm:px-14 sm:py-10 lg:flex-row">
-          <main className="flex min-w-0 grow flex-col gap-[22px]">
-            <div className="flex flex-col gap-2.5">
-              <div className="text-sm text-ink-2">
-                {companyName} · {requestLine(portal.kase.requestedProduct)}
-              </div>
-              <h1 className="heading-page">Documentación para tu solicitud</h1>
-            </div>
-
-            {checklist.items.length === 0 ? (
-              <div className="rounded-panel bg-soft p-6 text-[15px] text-ink-2">No se ha pedido ningún documento en esta solicitud.</div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className="h-1.5 grow overflow-hidden rounded-full bg-track"
-                    role="progressbar"
-                    aria-valuenow={checklist.done}
-                    aria-valuemin={0}
-                    aria-valuemax={checklist.total}
-                    aria-label="Documentos obligatorios completados"
-                  >
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="shrink-0 text-sm font-semibold">
-                    {checklist.done} de {checklist.total} completados
-                  </div>
-                </div>
-                <Checklist
-                  token=""
-                  actor="borrower"
-                  lenderName={portal.kase.lenderName}
-                  today={portal.today}
-                  items={checklist.items}
-                  firstIncomplete={checklist.firstIncomplete}
-                  readOnly
-                />
-                <p className="text-[13px] text-ink-2">
-                  {portal.kase.submittedAt
-                    ? `La empresa envió la documentación el ${formatDate(portal.kase.submittedAt)}.`
-                    : checklist.allRequiredDone
-                      ? "Tiene todo lo obligatorio, pero aún no ha pulsado «Enviar documentación»."
-                      : `Le faltan ${checklist.missing.length} documento${checklist.missing.length === 1 ? "" : "s"} obligatorio${checklist.missing.length === 1 ? "" : "s"}.`}
-                </p>
-              </>
-            )}
-          </main>
-
-          <aside className="flex w-full shrink-0 flex-col gap-[18px] lg:w-[340px] lg:pt-1">
-            <SharingCard token="" lenderName={portal.kase.lenderName} holded={portal.holded} canWithdraw={false} />
-            <section className="rounded-panel bg-soft px-6 py-5 text-sm text-ink-2">
-              <h2 className="heading-section text-ink">Asistente de documentación</h2>
-              <p className="mt-1">La empresa ve aquí el chat que le ayuda a conseguir cada documento. Sus conversaciones no se muestran en esta vista.</p>
-            </section>
-          </aside>
-        </div>
-      </div>
+      <BorrowerFlow
+        token=""
+        readOnly
+        actor="borrower"
+        lenderName={portal.kase.lenderName}
+        brandColor={portal.kase.lenderBrandColor}
+        companyName={companyName}
+        requestLine={requestLine(portal.kase.requestedProduct, portal.kase.requestedAmount)}
+        checklist={portal.checklist}
+        current={resolveStep(paso, portal.checklist.items)}
+        today={portal.today}
+        holded={portal.holded}
+        submittedAt={portal.kase.submittedAt}
+        submittedLabel={portal.kase.submittedAt ? formatDate(portal.kase.submittedAt) : null}
+      />
     </div>
   );
 }
