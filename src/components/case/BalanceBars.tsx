@@ -9,9 +9,10 @@ import { SourcePill } from "@/components/ui/Pill";
 import { cx } from "@/components/ui/cx";
 import { describeSource, formatAccount, sourceHref, type SourceDoc } from "@/lib/case-view/present";
 import type { BalanceBars as Bars, BalanceSegment, SegmentTone } from "@/lib/case-view/balance";
+import type { LineContribution } from "@/lib/pgc/mapping";
 import { formatCompactEur } from "@/lib/format";
 
-const TONE: Record<SegmentTone, string> = {
+export const TONE: Record<SegmentTone, string> = {
   "asset-1": "bg-chart-asset-1",
   "asset-2": "bg-chart-asset-2",
   "asset-3": "bg-chart-asset-3",
@@ -79,42 +80,57 @@ export function BalanceBars({
 }) {
   const [active, setActive] = useState<string | null>(null);
   const seg = [...bars.top, ...bars.bottom].find((s) => s.id === active) ?? null;
-  const shown = seg?.accounts.slice(0, 6) ?? [];
-  const rest = (seg?.accounts.length ?? 0) - shown.length;
 
   return (
     <div className="flex flex-col gap-4">
       <Bar label={labels[0]} segments={bars.top} active={active} onActive={setActive} />
       <Bar label={labels[1]} segments={bars.bottom} active={active} onActive={setActive} />
-      <div aria-live="polite" className="min-h-[52px] rounded-[14px] bg-soft px-3.5 py-3 text-[13px] text-ink-2">
-        {seg ? (
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <span className="font-mono text-ink">{seg.label} {formatCompactEur(seg.value)}</span>
-            {shown.length > 0 && <span>=</span>}
-            {shown.map((a, i) => {
-              const src = describeSource(a.sourceRef, docs);
-              return (
-                <span key={`${a.account}-${i}`} className="inline-flex items-center gap-1.5">
-                  {i > 0 && <span className="mr-1">{a.amount < 0 ? "−" : "+"}</span>}
-                  <span className="font-mono">{formatAccount(a.account)}</span>
-                  <span>{formatCompactEur(i > 0 ? Math.abs(a.amount) : a.amount)}</span>
-                  <SourcePill href={sourceHref(caseId, src.docId, src.page)} className="min-h-6 px-2 text-[11px]">{src.label}</SourcePill>
-                </span>
-              );
-            })}
-            {rest > 0 && <span>+ {rest} cuentas más</span>}
-            {seg.accounts.length === 0 && (
-              <span>{seg.id === "result" || seg.id === "loss" ? "= ingresos − gastos del periodo" : "Sin cuentas en este tramo."}</span>
-            )}
-          </div>
-        ) : (
-          <span>Pasa el cursor o el foco por un tramo para ver sus cuentas.</span>
-        )}
-      </div>
+      <SegmentDetail seg={seg} caseId={caseId} docs={docs} />
       {bars.notDrawn.length > 0 && (
         <p className="text-xs text-muted">
           No se dibujan por ser negativos: {bars.notDrawn.map((s) => `${s.label} ${formatCompactEur(s.value)}`).join(" · ")}.
         </p>
+      )}
+    </div>
+  );
+}
+
+/** Inline detail under a chart: the hovered/focused part, its accounts (lineage) with source links, or its formula. */
+export function SegmentDetail({
+  seg,
+  caseId,
+  docs,
+  hint = "Pasa el cursor o el foco por un tramo para ver sus cuentas.",
+}: {
+  seg: { id: string; label: string; value: number; accounts: LineContribution[]; formula?: string } | null;
+  caseId: string;
+  docs: SourceDoc[];
+  hint?: string;
+}) {
+  const shown = seg?.accounts.slice(0, 6) ?? [];
+  const rest = (seg?.accounts.length ?? 0) - shown.length;
+  return (
+    <div aria-live="polite" className="min-h-[52px] rounded-[14px] bg-soft px-3.5 py-3 text-[13px] text-ink-2">
+      {seg ? (
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <span className="font-mono text-ink">{seg.label} {formatCompactEur(seg.value)}</span>
+          {shown.length > 0 && <span>=</span>}
+          {shown.map((a, i) => {
+            const src = describeSource(a.sourceRef, docs);
+            return (
+              <span key={`${a.account}-${i}`} className="inline-flex items-center gap-1.5">
+                {i > 0 && <span className="mr-1">{a.amount < 0 ? "−" : "+"}</span>}
+                <span className="font-mono">{formatAccount(a.account)}</span>
+                <span>{formatCompactEur(i > 0 ? Math.abs(a.amount) : a.amount)}</span>
+                <SourcePill href={sourceHref(caseId, src.docId, src.page)} className="min-h-6 px-2 text-[11px]">{src.label}</SourcePill>
+              </span>
+            );
+          })}
+          {rest > 0 && <span>+ {rest} cuentas más</span>}
+          {seg.accounts.length === 0 && <span>{seg.formula ? `= ${seg.formula}` : "Sin cuentas en este tramo."}</span>}
+        </div>
+      ) : (
+        <span>{hint}</span>
       )}
     </div>
   );

@@ -3,13 +3,14 @@
  * severity dots, proportional balance bars, and the disclaimer on every page. Server-only (reads fonts from disk).
  */
 import path from "node:path";
-import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Font, Page, Path, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { CHECK_PASS_LABEL, DISCLAIMER, REVIEW_LABEL } from "../../content/case-view.es.ts";
 import { productLabel } from "../../content/products.es.ts";
 import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } from "../format.ts";
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
+import { layoutSankey, type PnlSankey } from "./sankey.ts";
 import { statementTables, type TableRow } from "./tables.ts";
 
 const FONT_DIR = path.join(process.cwd(), "src/lib/case-view/fonts");
@@ -83,6 +84,30 @@ function Bars({ label, segments }: { label: string; segments: BalanceSegment[] }
           <Text key={x.id} style={{ width: `${x.pct}%` }}>{x.pct >= 7 ? `${x.pct >= 15 ? x.label : x.short} ${Math.round(x.value / 1000).toLocaleString("es-ES")}` : ""}</Text>
         ))}
       </View>
+    </View>
+  );
+}
+
+const SANKEY_W = 507;
+
+/** P&L Sankey: shapes as SVG, labels as positioned text so they use the registered Geist fonts. */
+function Sankey({ model }: { model: PnlSankey }) {
+  const l = layoutSankey(model, { width: SANKEY_W, height: 150, nodeWidth: 6, gap: 6, labelRight: 96, minSlot: 20 });
+  const h = l.height + 4;
+  return (
+    <View style={{ position: "relative", width: SANKEY_W, height: h, marginTop: 4 }}>
+      <Svg width={SANKEY_W} height={h} viewBox={`0 0 ${SANKEY_W} ${h}`}>
+        {l.links.map((k, i) => (
+          <Path key={i} d={k.path} fill={TONE[k.tone]} fillOpacity={k.tone === "asset-3" || k.tone === "asset-2" ? 0.55 : 0.75} />
+        ))}
+        {l.nodes.map((n) => <Rect key={n.id} x={n.x} y={n.y} width={l.nodeWidth} height={n.h} rx={2} fill={TONE[n.tone]} />)}
+      </Svg>
+      {l.nodes.map((n) => (
+        <View key={n.id} style={{ position: "absolute", left: n.x + l.nodeWidth + 4, top: n.y + Math.max(n.h, 18) / 2 - 9 }}>
+          <Text style={{ fontSize: 7, fontWeight: n.emphasis ? 600 : 400, color: C.ink, lineHeight: 1.25 }}>{n.label}</Text>
+          <Text style={{ fontSize: 7, fontFamily: "GeistMono", color: C.ink2, lineHeight: 1.25 }}>{formatCompactEur(n.value)}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -165,20 +190,19 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
           </View>
         )}
 
+        {pkg.pnl && pkg.pnlPeriod && (
+          <View wrap={false}>
+            <Text style={s.h2}>
+              Cuenta de resultados {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01") ? pkg.pnlPeriod.end.slice(0, 4) : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`} · {formatCompactEur(pkg.pnl.revenue)} de cifra de negocios
+            </Text>
+            <Sankey model={pkg.pnl} />
+          </View>
+        )}
         {pkg.balance && pkg.balanceDate && (
           <View wrap={false}>
             <Text style={s.h2}>Balance a {formatDate(pkg.balanceDate)} · {formatCompactEur(pkg.balance.total)}</Text>
             <Bars label="Activo" segments={pkg.balance.top} />
             <Bars label="Patrimonio neto y pasivo" segments={pkg.balance.bottom} />
-          </View>
-        )}
-        {pkg.pnl && pkg.pnlPeriod && (
-          <View wrap={false}>
-            <Text style={s.h2}>
-              Cuenta de resultados {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01") ? pkg.pnlPeriod.end.slice(0, 4) : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`} · {formatCompactEur(pkg.pnl.total)} de ingresos
-            </Text>
-            <Bars label="Ingresos" segments={pkg.pnl.top} />
-            <Bars label="Gastos y resultado" segments={pkg.pnl.bottom} />
           </View>
         )}
 

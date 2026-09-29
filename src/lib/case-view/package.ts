@@ -6,9 +6,10 @@ import { DOC_KIND_LABEL } from "../../content/case-view.es.ts";
 import { cirbeDrawnDebt } from "../checks/engine.ts";
 import { formatDate } from "../format.ts";
 import { caseSummary, type SummarySegment } from "../summary.ts";
-import { balanceBars, pnlBars, type BalanceBars } from "./balance.ts";
+import { balanceBars, type BalanceBars } from "./balance.ts";
 import { checkSlugs, evidenceView, type EvidenceView } from "./evidence.ts";
 import type { CaseViewData } from "./load.ts";
+import { pnlSankey, type PnlSankey } from "./sankey.ts";
 import { kpiTiles, splitChecks, summariseSources, type KpiTile, type SourceLabel } from "./present.ts";
 
 export interface SourceChip {
@@ -24,8 +25,8 @@ export interface CasePackage {
   passed: EvidenceView[];
   balance: BalanceBars | null;
   balanceDate: string | null;
-  /** P&L of the same period as the balance, as income vs expenses + result (not annualised). */
-  pnl: BalanceBars | null;
+  /** P&L of the same period as the balance, as a Sankey from income to result (not annualised). */
+  pnl: PnlSankey | null;
   pnlPeriod: { start: string; end: string; months: number } | null;
   sources: SourceChip[];
   /** Evidence panels that could only show text or partial detail, for the report. */
@@ -69,7 +70,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
     passed: passed.map((c) => evidenceView(c, ctx)),
     balance: base ? balanceBars(base) : null,
     balanceDate: base?.period.end ?? null,
-    pnl: base ? pnlBars(base) : null,
+    pnl: base ? pnlSankey(base) : null,
     pnlPeriod: base ? { start: base.period.start, end: base.period.end, months: base.months } : null,
     sources,
     gaps: views.filter((v) => v.gaps.length).map((v) => ({ check: v.name, gaps: v.gaps })),

@@ -9,6 +9,7 @@ import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { KpiRow } from "@/components/case/KpiRow";
+import { PnlSankey } from "@/components/case/PnlSankey";
 import { StatusChip } from "@/components/StatusChip";
 import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
@@ -162,18 +163,6 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           )}
         </section>
 
-        {pkg.balance && pkg.balanceDate && (
-          <section aria-labelledby="balance" className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline gap-x-2.5">
-              <h2 id="balance" className="heading-section">Balance a {formatDate(pkg.balanceDate)}</h2>
-              <span className="text-[13px] text-muted">{formatCompactEur(pkg.balance.total)}</span>
-              <div className="grow" />
-              <Link href={`/casos/${kase.id}/tablas`} className="inline-flex min-h-11 items-center text-[13px] font-medium">Ver tablas completas</Link>
-            </div>
-            <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
-          </section>
-        )}
-
         {pkg.pnl && pkg.pnlPeriod && (
           <section aria-labelledby="pyg" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline gap-x-2.5">
@@ -184,10 +173,22 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
                   : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`}
               </h2>
               <span className="text-[13px] text-muted">
-                {formatCompactEur(pkg.pnl.total)} de ingresos{pkg.pnlPeriod.months !== 12 ? ` · ${pkg.pnlPeriod.months} meses, sin anualizar` : ""}
+                {formatCompactEur(pkg.pnl.revenue)} de cifra de negocios{pkg.pnlPeriod.months !== 12 ? ` · ${pkg.pnlPeriod.months} meses, sin anualizar` : ""}
               </span>
             </div>
-            <BalanceBars bars={pkg.pnl} caseId={kase.id} docs={data.documents} labels={["Ingresos", "Gastos y resultado"]} />
+            <PnlSankey model={pkg.pnl} caseId={kase.id} docs={data.documents} />
+          </section>
+        )}
+
+        {pkg.balance && pkg.balanceDate && (
+          <section aria-labelledby="balance" className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-baseline gap-x-2.5">
+              <h2 id="balance" className="heading-section">Balance a {formatDate(pkg.balanceDate)}</h2>
+              <span className="text-[13px] text-muted">{formatCompactEur(pkg.balance.total)}</span>
+              <div className="grow" />
+              <Link href={`/casos/${kase.id}/tablas`} className="inline-flex min-h-11 items-center text-[13px] font-medium">Ver tablas completas</Link>
+            </div>
+            <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
           </section>
         )}
 
