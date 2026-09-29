@@ -168,8 +168,17 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
         {pkg.balance && pkg.balanceDate && (
           <View wrap={false}>
             <Text style={s.h2}>Balance a {formatDate(pkg.balanceDate)} · {formatCompactEur(pkg.balance.total)}</Text>
-            <Bars label="Activo" segments={pkg.balance.assets} />
-            <Bars label="Patrimonio neto y pasivo" segments={pkg.balance.liabilities} />
+            <Bars label="Activo" segments={pkg.balance.top} />
+            <Bars label="Patrimonio neto y pasivo" segments={pkg.balance.bottom} />
+          </View>
+        )}
+        {pkg.pnl && pkg.pnlPeriod && (
+          <View wrap={false}>
+            <Text style={s.h2}>
+              Cuenta de resultados {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01") ? pkg.pnlPeriod.end.slice(0, 4) : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`} · {formatCompactEur(pkg.pnl.total)} de ingresos
+            </Text>
+            <Bars label="Ingresos" segments={pkg.pnl.top} />
+            <Bars label="Gastos y resultado" segments={pkg.pnl.bottom} />
           </View>
         )}
 

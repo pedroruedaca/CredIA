@@ -174,6 +174,23 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           </section>
         )}
 
+        {pkg.pnl && pkg.pnlPeriod && (
+          <section aria-labelledby="pyg" className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-baseline gap-x-2.5">
+              <h2 id="pyg" className="heading-section">
+                Cuenta de resultados{" "}
+                {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01")
+                  ? pkg.pnlPeriod.end.slice(0, 4)
+                  : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`}
+              </h2>
+              <span className="text-[13px] text-muted">
+                {formatCompactEur(pkg.pnl.total)} de ingresos{pkg.pnlPeriod.months !== 12 ? ` · ${pkg.pnlPeriod.months} meses, sin anualizar` : ""}
+              </span>
+            </div>
+            <BalanceBars bars={pkg.pnl} caseId={kase.id} docs={data.documents} labels={["Ingresos", "Gastos y resultado"]} />
+          </section>
+        )}
+
         <footer aria-label="Fuentes" className="flex flex-wrap items-center gap-2.5 text-[13px] text-muted">
           <span>Fuentes</span>
           {pkg.sources.length === 0 && <span>Aún no hay documentos.</span>}

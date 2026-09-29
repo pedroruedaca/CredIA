@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Balance structure as two stacked proportional bars. Hovering or focusing a segment shows the accounts behind it
+ * Two stacked proportional bars (balance: assets vs equity + liabilities; P&L: income vs expenses + result). Hovering or focusing a segment shows the accounts behind it
  * inline, each with its source (lineage). Segments are buttons in the tab order; arrow keys move between them.
  */
 import { useRef, useState } from "react";
@@ -66,16 +66,26 @@ function Bar({ label, segments, active, onActive }: { label: string; segments: B
   );
 }
 
-export function BalanceBars({ bars, caseId, docs }: { bars: Bars; caseId: string; docs: SourceDoc[] }) {
+export function BalanceBars({
+  bars,
+  caseId,
+  docs,
+  labels = ["Activo", "Patrimonio neto y pasivo"],
+}: {
+  bars: Bars;
+  caseId: string;
+  docs: SourceDoc[];
+  labels?: [string, string];
+}) {
   const [active, setActive] = useState<string | null>(null);
-  const seg = [...bars.assets, ...bars.liabilities].find((s) => s.id === active) ?? null;
+  const seg = [...bars.top, ...bars.bottom].find((s) => s.id === active) ?? null;
   const shown = seg?.accounts.slice(0, 6) ?? [];
   const rest = (seg?.accounts.length ?? 0) - shown.length;
 
   return (
     <div className="flex flex-col gap-4">
-      <Bar label="Activo" segments={bars.assets} active={active} onActive={setActive} />
-      <Bar label="Patrimonio neto y pasivo" segments={bars.liabilities} active={active} onActive={setActive} />
+      <Bar label={labels[0]} segments={bars.top} active={active} onActive={setActive} />
+      <Bar label={labels[1]} segments={bars.bottom} active={active} onActive={setActive} />
       <div aria-live="polite" className="min-h-[52px] rounded-[14px] bg-soft px-3.5 py-3 text-[13px] text-ink-2">
         {seg ? (
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
@@ -93,7 +103,9 @@ export function BalanceBars({ bars, caseId, docs }: { bars: Bars; caseId: string
               );
             })}
             {rest > 0 && <span>+ {rest} cuentas más</span>}
-            {seg.accounts.length === 0 && <span>Sin cuentas en este tramo.</span>}
+            {seg.accounts.length === 0 && (
+              <span>{seg.id === "result" || seg.id === "loss" ? "= ingresos − gastos del periodo" : "Sin cuentas en este tramo."}</span>
+            )}
           </div>
         ) : (
           <span>Pasa el cursor o el foco por un tramo para ver sus cuentas.</span>
