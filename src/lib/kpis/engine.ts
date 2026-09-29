@@ -32,8 +32,8 @@ export interface KpiOptions {
 const r = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 
 function ratio(num: number, den: number, opts: { allowNegativeDen?: boolean } = {}): { value: number | null; note?: string } {
-  if (den === 0) return { value: null, note: "Denominator is zero" };
-  if (den < 0 && !opts.allowNegativeDen) return { value: null, note: "Denominator is negative; ratio not meaningful" };
+  if (den === 0) return { value: null, note: "El denominador es cero" };
+  if (den < 0 && !opts.allowNegativeDen) return { value: null, note: "El denominador es negativo; el ratio no es significativo" };
   return { value: r(num / den) };
 }
 
@@ -51,44 +51,44 @@ export function computeKpis(s: CanonicalStatement, opts: KpiOptions = {}): Kpi[]
   const purchasesA = (is.cogs + is.externalServices) * af;
   const principal = opts.annualPrincipal ?? l.shortTermFinancialDebt;
   const principalNote = opts.annualPrincipal !== undefined
-    ? `Principal from ${opts.annualPrincipalSource ?? "provided schedule"}`
-    : "Principal = all short-term financial debt (conservative; replace with CIRBE schedule when available)";
+    ? `Principal según ${opts.annualPrincipalSource ?? "el calendario aportado"}`
+    : "Principal = toda la deuda financiera a corto plazo (criterio conservador; se sustituye por el calendario CIRBE cuando está disponible)";
 
   const kpis: Kpi[] = [];
   const add = (k: Omit<Kpi, "value"> & { value: number | null }) => kpis.push(k);
-  const annNote = s.months !== 12 ? `Flows annualised from ${s.months} months` : undefined;
+  const annNote = s.months !== 12 ? `Flujos anualizados desde ${s.months} meses` : undefined;
   const joinNotes = (...n: (string | undefined)[]) => n.filter(Boolean).join(". ") || undefined;
 
   if (!s.pnlAvailable) {
     for (const key of ["revenue", "ebitda", "ebitdaMargin", "netDebtToEbitda", "interestCoverage", "dscr", "dso", "dpo"] as KpiKey[]) {
-      add({ key, value: null, unit: key === "ebitdaMargin" ? "%" : key === "dso" || key === "dpo" ? "days" : key === "revenue" || key === "ebitda" ? "EUR" : "x", formula: "—", inputs: {}, note: "Income statement not available for this period" });
+      add({ key, value: null, unit: key === "ebitdaMargin" ? "%" : key === "dso" || key === "dpo" ? "days" : key === "revenue" || key === "ebitda" ? "EUR" : "x", formula: "—", inputs: {}, note: "Sin cuenta de resultados para este periodo" });
     }
   } else {
-    add({ key: "revenue", value: r(revenueA), unit: "EUR", formula: "Σ group 70 × 12/months", inputs: { revenue: is.revenue, months: s.months }, note: annNote });
-    add({ key: "ebitda", value: r(ebitdaA), unit: "EUR", formula: "(operating result + 68 + net operating impairments − 67/77 − 746) × 12/months", inputs: { operatingResult: is.operatingResult, depreciation: is.depreciation, operatingImpairments: is.operatingImpairments, nonRecurringResult: is.nonRecurringResult, grantsTransferred: is.grantsTransferred, months: s.months }, note: annNote });
+    add({ key: "revenue", value: r(revenueA), unit: "EUR", formula: "Σ grupo 70 × 12/meses", inputs: { revenue: is.revenue, months: s.months }, note: annNote });
+    add({ key: "ebitda", value: r(ebitdaA), unit: "EUR", formula: "(resultado de explotación + 68 + deterioros de explotación − 67/77 − 746) × 12/meses", inputs: { operatingResult: is.operatingResult, depreciation: is.depreciation, operatingImpairments: is.operatingImpairments, nonRecurringResult: is.nonRecurringResult, grantsTransferred: is.grantsTransferred, months: s.months }, note: annNote });
     const m = ratio(is.ebitda, is.revenue);
-    add({ key: "ebitdaMargin", value: m.value === null ? null : r(m.value * 100, 1), unit: "%", formula: "EBITDA / revenue", inputs: { ebitda: is.ebitda, revenue: is.revenue }, note: m.note });
+    add({ key: "ebitdaMargin", value: m.value === null ? null : r(m.value * 100, 1), unit: "%", formula: "EBITDA / cifra de negocios", inputs: { ebitda: is.ebitda, revenue: is.revenue }, note: m.note });
     const nd = ratio(d.netDebt, ebitdaA);
-    add({ key: "netDebtToEbitda", value: nd.value, unit: "x", formula: "net debt / annualised EBITDA", inputs: { netDebt: d.netDebt, ebitdaAnnualised: r(ebitdaA) }, note: joinNotes(nd.note, ebitdaA < 0 ? "Negative EBITDA" : undefined) });
+    add({ key: "netDebtToEbitda", value: nd.value, unit: "x", formula: "deuda financiera neta / EBITDA anualizado", inputs: { netDebt: d.netDebt, ebitdaAnnualised: r(ebitdaA) }, note: joinNotes(nd.note, ebitdaA < 0 ? "EBITDA negativo" : undefined) });
     const ic = ratio(ebitdaA, interestA);
-    add({ key: "interestCoverage", value: ic.value, unit: "x", formula: "annualised EBITDA / annualised interest (661+662+665)", inputs: { ebitdaAnnualised: r(ebitdaA), interestAnnualised: r(interestA) }, note: ic.note === "Denominator is zero" ? "No interest expense recorded" : ic.note });
+    add({ key: "interestCoverage", value: ic.value, unit: "x", formula: "EBITDA anualizado / intereses anualizados (661+662+665)", inputs: { ebitdaAnnualised: r(ebitdaA), interestAnnualised: r(interestA) }, note: ic.note === "El denominador es cero" ? "Sin gasto por intereses registrado" : ic.note });
     const ds = ratio(ebitdaA, interestA + principal);
-    add({ key: "dscr", value: ds.value, unit: "x", formula: "annualised EBITDA / (annualised interest + principal due 12m)", inputs: { ebitdaAnnualised: r(ebitdaA), interestAnnualised: r(interestA), principal: r(principal) }, note: joinNotes(ds.note, principalNote) });
+    add({ key: "dscr", value: ds.value, unit: "x", formula: "EBITDA anualizado / (intereses anualizados + principal a 12 meses)", inputs: { ebitdaAnnualised: r(ebitdaA), interestAnnualised: r(interestA), principal: r(principal) }, note: joinNotes(ds.note, principalNote) });
     const dso = ratio(a.tradeReceivables * 365, revenueA * (1 + vat));
-    add({ key: "dso", value: dso.value === null ? null : r(dso.value, 0), unit: "days", formula: "trade receivables / (annualised revenue × (1+VAT)) × 365", inputs: { tradeReceivables: a.tradeReceivables, revenueAnnualised: r(revenueA), vatRate: vat }, note: dso.note });
+    add({ key: "dso", value: dso.value === null ? null : r(dso.value, 0), unit: "days", formula: "clientes / (ventas anualizadas × (1+IVA)) × 365", inputs: { tradeReceivables: a.tradeReceivables, revenueAnnualised: r(revenueA), vatRate: vat }, note: dso.note });
     const dpo = ratio(l.tradePayables * 365, purchasesA * (1 + vat));
-    add({ key: "dpo", value: dpo.value === null ? null : r(dpo.value, 0), unit: "days", formula: "trade payables / (annualised (60+61+62) × (1+VAT)) × 365", inputs: { tradePayables: l.tradePayables, purchasesAnnualised: r(purchasesA), vatRate: vat }, note: joinNotes(dpo.note, "Payables = credit balances in 40/41; fixed-asset suppliers (173/523) excluded") });
+    add({ key: "dpo", value: dpo.value === null ? null : r(dpo.value, 0), unit: "days", formula: "proveedores / (compras anualizadas (60+61+62) × (1+IVA)) × 365", inputs: { tradePayables: l.tradePayables, purchasesAnnualised: r(purchasesA), vatRate: vat }, note: joinNotes(dpo.note, "Proveedores = saldos acreedores de 40/41; sin proveedores de inmovilizado (173/523)") });
   }
 
   const cr = ratio(d.currentAssets, d.currentLiabilities);
-  add({ key: "currentRatio", value: cr.value, unit: "x", formula: "current assets / current liabilities", inputs: { currentAssets: d.currentAssets, currentLiabilities: d.currentLiabilities }, note: cr.note });
+  add({ key: "currentRatio", value: cr.value, unit: "x", formula: "activo corriente / pasivo corriente", inputs: { currentAssets: d.currentAssets, currentLiabilities: d.currentLiabilities }, note: cr.note });
   const qr = ratio(d.currentAssets - a.inventories, d.currentLiabilities);
-  add({ key: "quickRatio", value: qr.value, unit: "x", formula: "(current assets − inventories) / current liabilities", inputs: { currentAssets: d.currentAssets, inventories: a.inventories, currentLiabilities: d.currentLiabilities }, note: qr.note });
-  add({ key: "workingCapital", value: d.workingCapital, unit: "EUR", formula: "current assets − current liabilities", inputs: { currentAssets: d.currentAssets, currentLiabilities: d.currentLiabilities } });
-  add({ key: "financialDebt", value: d.financialDebt, unit: "EUR", formula: "16x+17x (excl. 172/173) + 50x+51x+52x (excl. 522/523/526/529) + overdrawn 57x", inputs: { longTerm: l.longTermFinancialDebt, shortTerm: l.shortTermFinancialDebt }, note: l.relatedPartyShortTerm ? `Excludes ${l.relatedPartyShortTerm} € of shareholder/related-party current accounts (55x), shown separately` : undefined });
-  add({ key: "netDebt", value: d.netDebt, unit: "EUR", formula: "financial debt − cash (57) − short-term investments (53/54/56)", inputs: { financialDebt: d.financialDebt, cash: a.cash, shortTermInvestments: a.shortTermInvestments } });
+  add({ key: "quickRatio", value: qr.value, unit: "x", formula: "(activo corriente − existencias) / pasivo corriente", inputs: { currentAssets: d.currentAssets, inventories: a.inventories, currentLiabilities: d.currentLiabilities }, note: qr.note });
+  add({ key: "workingCapital", value: d.workingCapital, unit: "EUR", formula: "activo corriente − pasivo corriente", inputs: { currentAssets: d.currentAssets, currentLiabilities: d.currentLiabilities } });
+  add({ key: "financialDebt", value: d.financialDebt, unit: "EUR", formula: "16x+17x (sin 172/173) + 50x+51x+52x (sin 522/523/526/529) + 57x en descubierto", inputs: { longTerm: l.longTermFinancialDebt, shortTerm: l.shortTermFinancialDebt }, note: l.relatedPartyShortTerm ? `Excluye ${l.relatedPartyShortTerm} € de cuentas corrientes con socios y vinculadas (55x), que se muestran aparte` : undefined });
+  add({ key: "netDebt", value: d.netDebt, unit: "EUR", formula: "deuda financiera − tesorería (57) − inversiones a corto plazo (53/54/56)", inputs: { financialDebt: d.financialDebt, cash: a.cash, shortTermInvestments: a.shortTermInvestments } });
   const de = ratio(d.financialDebt, l.equity);
-  add({ key: "debtToEquity", value: de.value, unit: "x", formula: "financial debt / equity", inputs: { financialDebt: d.financialDebt, equity: l.equity }, note: l.equity < 0 ? "Negative equity (patrimonio neto negativo) — check causa de disolución (art. 363 LSC)" : de.note });
+  add({ key: "debtToEquity", value: de.value, unit: "x", formula: "deuda financiera / patrimonio neto", inputs: { financialDebt: d.financialDebt, equity: l.equity }, note: l.equity < 0 ? "Patrimonio neto negativo: revisar posible causa de disolución (art. 363 LSC)" : de.note });
 
   return kpis;
 }

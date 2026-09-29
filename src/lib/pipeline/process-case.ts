@@ -288,6 +288,18 @@ async function insertChunks(db: AdminClient, table: string, rows: object[], size
   }
 }
 
+/** Warning detail as check evidence: scalar values stay, a detail source_ref (account row, ledger) becomes the source. */
+function warningEvidence(w: Warning, documentId: string | null): CheckResult["evidence"] {
+  const values: Record<string, number | string | null> = {};
+  const sources: string[] = [];
+  for (const [k, v] of Object.entries(w.detail ?? {})) {
+    if (k === "source_ref" && typeof v === "string") sources.push(v);
+    else if (v === null || typeof v === "number" || typeof v === "string") values[k] = v;
+  }
+  if (sources.length === 0 && documentId) sources.push(`doc:${documentId}`);
+  return { values, sources };
+}
+
 async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   const today = todayMadrid(now);
   const checks: (CheckResult & { documentId?: string | null })[] = [];
@@ -299,7 +311,7 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
         status: "fail",
         severity: PIPELINE_WARNING_SEVERITY[w.code] ?? "info",
         message: `${prefix}${w.message}`,
-        evidence: { values: (w.detail as Record<string, number | string | null>) ?? {}, sources: documentId ? [`doc:${documentId}`] : [] },
+        evidence: warningEvidence(w, documentId),
         documentId,
       });
     }

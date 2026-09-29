@@ -352,7 +352,7 @@ export async function pullHoldedTrialBalance(
         rows.push({ account: String(l.account), debit: toNumber(l.debit), credit: toNumber(l.credit) });
       }
       openingReconstructed = true;
-      warnings.push({ code: "holded_opening_reconstructed", message: `No opening entry on ${fyStart}; opening balances rebuilt from ${history.length} historical ledger lines.` });
+      warnings.push({ code: "holded_opening_reconstructed", message: `Sin asiento de apertura el ${fyStart}; saldos iniciales reconstruidos a partir de ${history.length} apuntes anteriores.` });
     }
   }
 
@@ -362,13 +362,13 @@ export async function pullHoldedTrialBalance(
   // Post-check: if every balance-sheet account nets to ~0, a closing entry slipped through.
   const bs = balances.filter((b) => "12345".includes(b.pgc3[0]));
   if (bs.length > 3 && bs.every((b) => Math.abs(b.debit - b.credit) < 0.01)) {
-    warnings.push({ code: "holded_closing_entries_suspected", message: "All balance-sheet accounts net to zero: a closing entry was probably not detected. Check EntryClassifierConfig." });
+    warnings.push({ code: "holded_closing_entries_suspected", message: "Todas las cuentas de balance suman cero: probablemente no se detectó un asiento de cierre. Revisa la configuración del clasificador de asientos." });
   }
   const tbDiff = balances.reduce((s, b) => s + b.debit - b.credit, 0);
   if (Math.abs(tbDiff) > 0.05) {
-    warnings.push({ code: "holded_tb_unbalanced", message: `Trial balance debits and credits differ by ${tbDiff.toFixed(2)} €`, detail: { diff: tbDiff } });
+    warnings.push({ code: "holded_tb_unbalanced", message: `El debe y el haber del sumas y saldos difieren en ${tbDiff.toFixed(2)} €`, detail: { diff: tbDiff } });
   }
-  if (!raw.length) warnings.push({ code: "holded_no_entries", message: `No ledger entries between ${period.start} and ${period.end}.` });
+  if (!raw.length) warnings.push({ code: "holded_no_entries", message: `No hay apuntes entre ${period.start} y ${period.end}.` });
 
   return {
     data: { period, balances, linesFetched: raw.length + history.length, excluded, openingReconstructed, raw: [...history, ...raw] },
@@ -392,7 +392,7 @@ export function reconcileWithChart(balances: LedgerBalance[], chart: HoldedAccou
     const theirs = toNumber(a.debit) - toNumber(a.credit);
     const mine = ours.get(acct) ?? 0;
     if (Math.abs(theirs - mine) > tolerance) {
-      out.push({ code: "holded_chart_mismatch", message: `Account ${acct} (${a.name}): ledger ${mine.toFixed(2)} vs chart ${theirs.toFixed(2)}`, detail: { account: acct, ledger: mine, chart: theirs } });
+      out.push({ code: "holded_chart_mismatch", message: `Cuenta ${acct} (${a.name}): libro diario ${mine.toFixed(2)} € frente a plan de cuentas ${theirs.toFixed(2)} €`, detail: { account: acct, ledger: mine, chart: theirs } });
     }
   }
   return out;

@@ -23,13 +23,27 @@ export interface LenderNotice {
   event: LenderEvent;
 }
 
+/** A lender asks the company for one more document. No link: the company uses the one it already has. */
+export interface DocumentRequest {
+  to: string;
+  lenderName: string;
+  companyName: string;
+  document: string;
+  message: string | null;
+}
+
 export interface Notifier {
   sendBorrowerInvite(invite: BorrowerInvite): Promise<{ sent: boolean }>;
+  sendDocumentRequest(request: DocumentRequest): Promise<{ sent: boolean }>;
   sendDelegateInvite(invite: DelegateInvite): Promise<{ sent: boolean }>;
   notifyLender(notice: LenderNotice): Promise<{ sent: boolean }>;
 }
 
 const devConsoleNotifier: Notifier = {
+  async sendDocumentRequest(r) {
+    console.info(`[notify:dev] Petición de documento para ${r.to} (${r.companyName}, de ${r.lenderName}): ${r.document}`);
+    return { sent: true };
+  },
   async sendBorrowerInvite(i) {
     console.info(`[notify:dev] Invitación para ${i.to} (${i.companyName}, de ${i.lenderName}): ${i.link}`);
     return { sent: true };
@@ -45,6 +59,10 @@ const devConsoleNotifier: Notifier = {
 };
 
 const noopNotifier: Notifier = {
+  async sendDocumentRequest() {
+    console.warn("[notify] Sin proveedor de correo configurado: petición de documento no enviada.");
+    return { sent: false };
+  },
   async sendBorrowerInvite() {
     console.warn("[notify] Sin proveedor de correo configurado: invitación no enviada.");
     return { sent: false };

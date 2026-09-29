@@ -8,6 +8,8 @@
 import type { LedgerBalance, Period, Warning } from "../types.ts";
 import { monthsBetween } from "../types.ts";
 
+const eurText = (n: number) => `${Math.round(n).toLocaleString("es-ES", { useGrouping: "always" } as unknown as Intl.NumberFormatOptions)} €`;
+
 export type AssetLine =
   | "nonCurrentAssets" | "inventories" | "tradeReceivables" | "otherReceivables"
   | "shortTermInvestments" | "cash" | "prepayments";
@@ -211,7 +213,7 @@ export function buildStatement(
     const rule = ruleFor(pgc3);
     if (!rule) {
       unmapped += net;
-      warnings.push({ code: "unmapped_account", message: `Account ${b.account} (${pgc3}) has no PGC rule`, detail: { account: b.account, net } });
+      warnings.push({ code: "unmapped_account", message: `La cuenta ${b.account} (${pgc3}) no tiene regla de mapeo PGC`, detail: { account: b.account, net: r2(net), source_ref: b.sourceRef } });
       continue;
     }
     const ref = { account: b.account, sourceRef: b.sourceRef };
@@ -232,7 +234,11 @@ export function buildStatement(
           liabs[rule.credit] += -net;
           push(rule.credit, { ...ref, amount: -net });
           if (pgc3.startsWith("57")) {
-            warnings.push({ code: "overdrawn_bank_account", message: `Bank account ${b.account} has a credit balance (${r2(-net)} €); classified as short-term financial debt` });
+            warnings.push({
+              code: "overdrawn_bank_account",
+              message: `La cuenta bancaria ${b.account} tiene saldo acreedor (${eurText(-net)}); se trata como deuda financiera a corto plazo`,
+              detail: { account: b.account, amount: r2(-net), source_ref: b.sourceRef },
+            });
           }
         }
         break;
@@ -276,8 +282,8 @@ export function buildStatement(
     warnings.push({
       code: "pnl_unavailable",
       message: has129
-        ? "Groups 6/7 are closed into 129 (post-regularisation trial balance). Request a pre-closing sumas y saldos to get the P&L."
-        : "No income-statement accounts found for this period.",
+        ? "Los grupos 6 y 7 están regularizados contra la 129 (balance posterior al cierre). Pide un sumas y saldos previo al cierre para obtener la cuenta de resultados."
+        : "No hay cuentas de resultados en este periodo.",
     });
   }
 
@@ -285,7 +291,7 @@ export function buildStatement(
   const totalEL = LIAB_LINES.reduce((s, k) => s + liabs[k], 0);
   const imbalance = r2(totalAssets - totalEL);
   if (Math.abs(imbalance) > 1) {
-    warnings.push({ code: "balance_sheet_imbalance", message: `Assets and equity+liabilities differ by ${imbalance} €`, detail: { unmapped: r2(unmapped) } });
+    warnings.push({ code: "balance_sheet_imbalance", message: `El activo y el patrimonio neto más pasivo difieren en ${imbalance} €`, detail: { unmapped: r2(unmapped) } });
   }
 
   const financialDebt = liabs.longTermFinancialDebt + liabs.shortTermFinancialDebt;

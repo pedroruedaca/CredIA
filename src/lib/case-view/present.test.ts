@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import { tbSmallSl } from "../__fixtures__/tb-small-sl.ts";
+import { buildStatement } from "../pgc/mapping.ts";
+import { cirbeNetDebtToEbitda, describeSource, formatAccount, splitChecks, summariseSources } from "./present.ts";
+
+const docs = [
+  { id: "c1", kind: "cirbe", original_filename: "cirbe.pdf", issued_on: "2026-08-31" },
+  { id: "t1", kind: "trial_balance", original_filename: "sys.xlsx" },
+  { id: "n1", kind: "norma43", original_filename: "a.n43" },
+];
+
+describe("describeSource", () => {
+  it("labels document pages, rows and lines, and Holded accounts", () => {
+    expect(describeSource("doc:c1:page:2", docs)).toEqual({ label: "CIRBE 31 ago 2026 · pág. 2", docId: "c1", page: 2 });
+    expect(describeSource("doc:t1:sheet:Sumas:row:14", docs)).toMatchObject({ label: "Sumas y saldos · fila 14", docId: "t1" });
+    expect(describeSource("doc:n1:line:7", docs).label).toBe("Norma 43 · línea 7");
+    expect(describeSource("holded:ledger:2025-01-01..2025-12-31:acct:5200001#sync:9", docs)).toEqual({ label: "Holded · cuenta 520·0001", docId: null, page: null });
+    expect(describeSource("doc:gone:page:1", docs)).toMatchObject({ label: "Documento · pág. 1", docId: null });
+  });
+  it("de-duplicates and caps sources", () => {
+    const refs = ["doc:t1:row:1", "doc:t1:row:1", ...Array.from({ length: 8 }, (_, i) => `doc:t1:row:${i + 2}`)];
+    const r = summariseSources(refs, docs, 3);
+    expect(r.shown).toHaveLength(3);
+    expect(r.more).toBe(6);
+  });
+  it("formats accounts as group·subaccount", () => {
+    expect(formatAccount("57200002")).toBe("572·00002");
+    expect(formatAccount("430")).toBe("430");
+  });
+});
+
+describe("splitChecks", () => {
+  it("orders open checks high → warn → info and separates passes", () => {
+    const c = (id: number, status: "pass" | "fail", severity: "high" | "warn" | "info") => ({ id, status, severity });
+    const { open, passed } = splitChecks([c(1, "fail", "info"), c(2, "fail", "high"), c(3, "pass", "info"), c(4, "fail", "warn"), c(5, "fail", "high")]);
+    expect(open.map((x) => x.id)).toEqual([2, 5, 4, 1]);
+    expect(passed.map((x) => x.id)).toEqual([3]);
+  });
+});
+
+describe("cirbeNetDebtToEbitda", () => {
+  it("uses CIRBE debt net of cash over annualised EBITDA", () => {
+    const s = buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data;
+    const k = cirbeNetDebtToEbitda(s, 245_000);
+    // cash 174.000 → (245.000 − 174.000) / 110.000
+    expect(k.value).toBeCloseTo(0.65, 2);
+    expect(k.inputs.cirbeDrawn).toBe(245_000);
+  });
+});
+
+describe("kpiTiles", () => {
+  it("builds the five header metrics with YTD comparison and the CIRBE variant", async () => {
+    const { computeKpis } = await import("../kpis/engine.ts");
+    const { kpiTiles } = await import("./present.ts");
+    const closed = buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data;
+    const ytd = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-08-31" }).data;
+    const tiles = kpiTiles({ statement: closed, kpis: computeKpis(closed) }, { statement: ytd, kpis: computeKpis(ytd) }, 245_000);
+    expect(tiles.map((t) => t.label)).toEqual(["DSCR", "Cobertura int.", "DFN / EBITDA", "Liquidez", "DSO / DPO"]);
+    expect(tiles[2].value).toBe(0.65);
+    expect(tiles[2].sub).toMatch(/^con CIRBE · libros /);
+    expect(tiles[0].sub).toMatch(/^YTD /);
+    expect(tiles[3].sub).toMatch(/^ácida /);
+    expect(tiles[4].secondary).not.toBeNull();
+    expect(tiles.every((t) => t.details.length > 0)).toBe(true);
+    expect(kpiTiles(null, null, null)).toEqual([]);
+  });
+});

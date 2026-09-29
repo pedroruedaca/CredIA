@@ -9,9 +9,12 @@ const tokenHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  serverExternalPackages: ["@react-pdf/renderer"],
   // The assistant reads its guide at runtime; make sure it ships with the serverless bundle.
   outputFileTracingIncludes: {
     "/api/borrower/[token]/assistant": ["./src/content/docs-guide.es.md"],
+    // Geist TTFs for the PDF export (react-pdf reads them from disk).
+    "/casos/[id]/exportar/[format]": ["./src/lib/case-view/fonts/*.ttf"],
   },
   async headers() {
     return [

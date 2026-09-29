@@ -53,3 +53,20 @@ export function relativeTime(iso: string, now = new Date()): string {
   if (days < 7) return `hace ${days} días`;
   return formatDate(iso);
 }
+
+/** Whole euros with grouping, no unit ("1.000.000", "−9.000"), for tables. */
+export function formatEurWhole(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  const s = Math.abs(Math.round(n)).toLocaleString("es-ES", { useGrouping: "always" } as unknown as Intl.NumberFormatOptions);
+  return n < -0.5 ? `−${s}` : s;
+}
+
+/** Compact euros for prose: "1,0 M€", "110 k€", "950 €"; negatives with a true minus sign. */
+export function formatCompactEur(n: number): string {
+  const sign = n < 0 ? "−" : "";
+  const a = Math.abs(n);
+  const fmt = (v: number, d: number) => v.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: "always" } as unknown as Intl.NumberFormatOptions);
+  if (a >= 999_500) return `${sign}${fmt(a / 1_000_000, 1)} M€`;
+  if (a >= 1000) return `${sign}${fmt(Math.round(a / 1000), 0)} k€`;
+  return `${sign}${fmt(Math.round(a), 0)} €`;
+}

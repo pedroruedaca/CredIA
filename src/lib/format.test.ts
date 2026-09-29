@@ -30,3 +30,13 @@ describe("relativeTime", () => {
     expect(relativeTime("2026-09-01T10:00:00Z", now)).toMatch(/1 sept?\.? 2026/);
   });
 });
+
+describe("formatEurWhole", () => {
+  it("groups whole euros with a true minus and no unit", async () => {
+    const { formatEurWhole } = await import("./format.ts");
+    expect(formatEurWhole(1_000_000)).toBe("1.000.000");
+    expect(formatEurWhole(-9000.4)).toBe("−9.000");
+    expect(formatEurWhole(0)).toBe("0");
+    expect(formatEurWhole(null)).toBe("—");
+  });
+});

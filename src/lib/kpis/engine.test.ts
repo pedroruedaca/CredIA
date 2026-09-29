@@ -22,7 +22,7 @@ describe("computeKpis — full year", () => {
     expect(k.ebitdaMargin.value).toBe(11);
     expect(k.interestCoverage.value).toBe(12.22);
     expect(k.dscr.value).toBe(1.59); // 110.000 / (9.000 + 60.000)
-    expect(k.dscr.note).toContain("conservative");
+    expect(k.dscr.note).toContain("conservador");
   });
 
   it("uses a CIRBE principal schedule when provided", () => {

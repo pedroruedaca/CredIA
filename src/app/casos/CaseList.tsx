@@ -48,7 +48,7 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
             className="-mx-4 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 rounded-row px-4 py-4 transition-colors duration-150 ease-out hover:bg-soft md:grid-cols-[minmax(0,1fr)_auto_130px_90px_auto]"
           >
             <div className="min-w-0">
-              <Link href={`/casos/${c.id}/vista-empresa`} className="block truncate text-[17px] font-medium text-ink hover:text-ink">
+              <Link href={`/casos/${c.id}`} className="block truncate text-[17px] font-medium text-ink hover:text-ink">
                 {name}
               </Link>
               <div className="truncate text-sm text-muted">

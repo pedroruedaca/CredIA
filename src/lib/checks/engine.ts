@@ -37,6 +37,16 @@ const na = (key: string, message: string): CheckResult => ({ key, status: "not_a
 /** Contingent risks (guarantees) are not financial debt on the balance sheet. */
 const CONTINGENT = /\baval|garant|fianza|credito documentario|compromiso/i;
 
+/** Drawn financial debt in a CIRBE report, excluding contingent risks (guarantees). */
+export function cirbeDrawnDebt(cirbe: CirbeExtraction): number {
+  return r2(cirbe.positions.filter((p) => !CONTINGENT.test(p.product)).reduce((sum, p) => sum + p.drawn, 0));
+}
+
+/** Same tolerance as the CIRBE check: within 5.000 € or 10 %. */
+export function withinDebtTolerance(a: number, b: number): boolean {
+  return Math.abs(a - b) <= 5000 || Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) <= 0.1;
+}
+
 export function checkCirbeVsBooks(s: CanonicalStatement, cirbe: CirbeExtraction, cirbeDocId: string): CheckResult[] {
   const debtPositions = cirbe.positions.filter((p) => !CONTINGENT.test(p.product));
   const cirbeDrawn = r2(debtPositions.reduce((sum, p) => sum + p.drawn, 0));
