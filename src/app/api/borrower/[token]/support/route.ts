@@ -52,6 +52,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     caseId: access.caseId,
     companyName: portal?.kase.companyName ?? "",
     event: "support_requested",
+    message: parsed.data.message || null,
   });
   return NextResponse.json({ ok: true });
 }
