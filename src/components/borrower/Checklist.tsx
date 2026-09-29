@@ -21,6 +21,8 @@ interface Props {
   today: string;
   items: ChecklistItem[];
   firstIncomplete: RequirementKind | null;
+  /** Lender preview ("Ver como la empresa"): same list, no uploads or actions. */
+  readOnly?: boolean;
 }
 
 const CHIP: Record<ItemState, { label: string; className: string }> = {
@@ -30,7 +32,7 @@ const CHIP: Record<ItemState, { label: string; className: string }> = {
   done: { label: "Completado", className: "bg-ok-bg text-ok" },
 };
 
-export function Checklist({ token, actor, lenderName, today, items, firstIncomplete }: Props) {
+export function Checklist({ token, actor, lenderName, today, items, firstIncomplete, readOnly = false }: Props) {
   const [open, setOpen] = useState<RequirementKind | null>(firstIncomplete);
 
   // When the open item gets completed, move on to the next incomplete one.
@@ -68,6 +70,7 @@ export function Checklist({ token, actor, lenderName, today, items, firstIncompl
           actor={actor}
           lenderName={lenderName}
           today={today}
+          readOnly={readOnly}
         />
       ))}
     </div>
@@ -96,9 +99,10 @@ interface ItemProps {
   actor: "borrower" | "delegate";
   lenderName: string;
   today: string;
+  readOnly: boolean;
 }
 
-function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, today }: ItemProps) {
+function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, today, readOnly }: ItemProps) {
   const copy = ITEM_COPY[item.kind];
   const panelId = `paso-${item.kind}`;
   const holded = item.holded;
@@ -126,8 +130,8 @@ function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, t
             <span className={`text-[13px] ${item.state === "attention" ? "text-warn" : "text-ink-2"}`}>{subtitle}</span>
           </span>
         </button>
-        {canRevokeHolded && !open && <RevokeHolded token={token} />}
-        {item.state === "attention" && !open && (
+        {canRevokeHolded && !open && !readOnly && <RevokeHolded token={token} />}
+        {item.state === "attention" && !open && !readOnly && (
           <button
             type="button"
             onClick={onOpen}
@@ -145,7 +149,11 @@ function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, t
 
       {open && (
         <div id={`${panelId}-panel`} className="flex flex-col gap-4 px-4 pb-6 sm:ml-11 sm:px-[22px]">
-          <Panel item={item} token={token} lenderName={lenderName} today={today} />
+          {readOnly ? (
+            <p className="text-sm text-ink-2">Aquí la empresa ve las instrucciones y el recuadro para subir el documento.</p>
+          ) : (
+            <Panel item={item} token={token} lenderName={lenderName} today={today} />
+          )}
           {item.files.length > 0 && (
             <div className="flex flex-col gap-1 text-[13px]">
               <div className="font-medium text-ink-2">Ficheros recibidos</div>
@@ -159,8 +167,8 @@ function Item({ item, index, open, onToggle, onOpen, token, actor, lenderName, t
               </ul>
             </div>
           )}
-          {canRevokeHolded && <RevokeHolded token={token} />}
-          {actor === "borrower" && <DelegateDialog token={token} lenderName={lenderName} />}
+          {canRevokeHolded && !readOnly && <RevokeHolded token={token} />}
+          {actor === "borrower" && !readOnly && <DelegateDialog token={token} lenderName={lenderName} />}
         </div>
       )}
     </div>

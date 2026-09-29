@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import { StatusChip } from "@/components/StatusChip";
 import { completeness } from "@/lib/cases/requirements";
 import { caseRef, formatDate } from "@/lib/format";
@@ -59,7 +59,7 @@ export default async function CasosPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-card border border-line bg-surface">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          <table className="w-full min-w-[960px] border-collapse text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.04em] text-muted">
                 <th className="border-b border-line px-5 py-3 font-medium">Empresa</th>
@@ -67,7 +67,7 @@ export default async function CasosPage() {
                 <th className="border-b border-line px-5 py-3 font-medium">Estado</th>
                 <th className="border-b border-line px-5 py-3 font-medium">Documentos</th>
                 <th className="border-b border-line px-5 py-3 font-medium">Actualizado</th>
-                {canEdit && <th className="border-b border-line px-5 py-3 font-medium"><span className="sr-only">Acciones</span></th>}
+                <th className="border-b border-line px-5 py-3 font-medium"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
@@ -97,11 +97,18 @@ export default async function CasosPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-ink-2">{formatDate(c.updated_at)}</td>
-                    {canEdit && (
-                      <td className="px-5 py-2 text-right">
-                        <NewLinkButton caseId={c.id} companyName={c.borrower_name ?? c.borrower_cif} />
-                      </td>
-                    )}
+                    <td className="px-5 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Link
+                          href={`/casos/${c.id}/vista-empresa`}
+                          className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-subtle hover:text-ink hover:no-underline"
+                        >
+                          <Eye size={15} aria-hidden /> Ver como la empresa
+                          <span className="sr-only"> ({c.borrower_name ?? c.borrower_cif})</span>
+                        </Link>
+                        {canEdit && <NewLinkButton caseId={c.id} companyName={c.borrower_name ?? c.borrower_cif} />}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
