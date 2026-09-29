@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>credIA · Solicitante paso a paso (v2)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF;font-family:'Geist',system-ui,sans-serif;color:#111315;-webkit-font-smoothing:antialiased}
+a{color:#0E5A61;text-decoration:underline;text-underline-offset:3px}a:hover{color:#083B40}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1240px; box-sizing: border-box; background: #FFFFFF; display: flex; position: relative;">
+
+<aside style="width: 360px; flex-shrink: 0; box-sizing: border-box; background: #F6F6F3; padding: 36px 32px; display: flex; flex-direction: column; gap: 36px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="width: 40px; height: 40px; border-radius: 12px; background: #2B2E6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">FE</div>
+<div style="display: flex; flex-direction: column;"><span style="font-size: 15px; font-weight: 600;">Fondo Ejemplo Capital</span><span style="font-size: 12px; color: #6B6F76;">con credIA</span></div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<div style="font-size: 13px; color: #6B6F76;">Tu solicitud</div>
+<div style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25;">Distribuciones Ejemplo SL</div>
+<div style="font-size: 14px; color: #4B4F56;">Póliza de circulante · 250.000 €</div>
+</div>
+
+<ol aria-label="Pasos" style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; background: #0E5A61; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"></path></svg></span><span style="width: 2px; height: 30px; background: #0E5A61;"></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 500;">Contabilidad</div><div style="font-size: 12px; color: #6B6F76;">Holded conectado</div></div>
+</li>
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 0 0 2px #0E5A61, 0 0 0 7px #DCEBEA; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0E5A61;">2</span><span style="width: 2px; height: 30px; background: #DDDCD6;"></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 600;">Movimientos bancarios</div><div style="font-size: 12px; color: #0E5A61;">Ahora</div></div>
+</li>
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; border: 2px solid #CFCEC7; box-sizing: border-box;"></span><span style="width: 2px; height: 30px; background: #DDDCD6;"></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 500; color: #4B4F56;">Informe CIRBE</div><div style="font-size: 12px; color: #6B6F76;">≈ 5 min</div></div>
+</li>
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; background: #0E5A61; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"></path></svg></span><span style="width: 2px; height: 30px; background: #DDDCD6;"></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 500;">Impuesto de Sociedades</div><div style="font-size: 12px; color: #6B6F76;">Modelo 200 recibido</div></div>
+</li>
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; background: #0E5A61; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"></path></svg></span><span style="width: 2px; height: 30px; background: #DDDCD6;"></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 500;">Certificado Hacienda</div><div style="font-size: 12px; color: #6B6F76;">Vigente</div></div>
+</li>
+<li style="display: flex; gap: 14px;">
+<div style="display: flex; flex-direction: column; align-items: center;"><span style="width: 24px; height: 24px; border-radius: 12px; background: #F6E3BF; display: flex; align-items: center; justify-content: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7A4A00" stroke-width="3" stroke-linecap="round"><path d="M12 7v6"></path><path d="M12 17h.01"></path></svg></span></div>
+<div style="padding-top: 2px;"><div style="font-size: 14px; font-weight: 500;">Certificado Seguridad Social</div><div style="font-size: 12px; color: #7A4A00;">Necesitamos uno más reciente</div></div>
+</li>
+</ol>
+
+<div style="flex-grow: 1;"></div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; color: #4B4F56;">
+<div style="display: flex; align-items: center; gap: 8px; color: #111315; font-weight: 500;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111315" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Solo lo ve Fondo Ejemplo Capital</div>
+<span>Para analizar esta solicitud. Holded en solo lectura; la clave no se guarda.</span>
+<a href="#" style="font-size: 13px;">Retirar consentimiento</a>
+</div>
+</aside>
+
+<main style="flex-grow: 1; box-sizing: border-box; padding: 56px 96px 180px 80px; display: flex; flex-direction: column; gap: 32px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 13px; font-weight: 500; color: #0E5A61;">Paso 2 de 6</span>
+<div style="width: 160px; height: 4px; border-radius: 2px; background: #ECEBE6; display: flex;"><div style="width: 50%; border-radius: 2px; background: #0E5A61;"></div></div>
+<span style="font-size: 13px; color: #6B6F76;">3 listos</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px;">
+<h1 style="margin: 0; font-size: 48px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.05;">Tus movimientos bancarios</h1>
+<p style="margin: 0; font-size: 18px; line-height: 1.55; color: #4B4F56; max-width: 600px;">Los últimos 12 meses de cada cuenta de la empresa. Así Fondo Ejemplo Capital puede comprobar tus cobros y pagos sin pedirte extractos uno a uno.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="font-size: 14px; color: #6B6F76;">¿Con qué banco trabajas?</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<button type="button" aria-pressed="true" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #111315; color: #FFFFFF; font-size: 14px; font-weight: 500;">Santander</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 14px;">BBVA</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 14px;">CaixaBank</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 14px;">Sabadell</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 14px;">Bankinter</button>
+<button type="button" aria-pressed="false" style="height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 14px;">Otro</button>
+</div>
+</div>
+
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; font-size: 16px; line-height: 1.5;">
+<li style="display: flex; gap: 14px;"><span style="font-family: 'Geist Mono', monospace; color: #9A9EA5; width: 20px;">01</span><span>Entra en la banca online de empresas de [BANCO].</span></li>
+<li style="display: flex; gap: 14px;"><span style="font-family: 'Geist Mono', monospace; color: #9A9EA5; width: 20px;">02</span><span>Ve a [RUTA DEL MENÚ] y elige el formato <b style="font-weight: 600;">Norma 43</b>.</span></li>
+<li style="display: flex; gap: 14px;"><span style="font-family: 'Geist Mono', monospace; color: #9A9EA5; width: 20px;">03</span><span>Selecciona los últimos 12 meses y descarga un fichero por cuenta.</span></li>
+</ol>
+
+<label for="n43v2" style="display: flex; align-items: center; gap: 20px; padding: 28px 32px; border-radius: 28px; background: #EEF4F3; cursor: pointer;">
+<span style="width: 56px; height: 56px; border-radius: 28px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 2px rgba(17,19,21,0.08);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0E5A61" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M5 20h14"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 17px; font-weight: 600;">Suelta aquí tus ficheros</span><span style="font-size: 14px; color: #4B4F56;">o <span style="color: #0E5A61; text-decoration: underline; text-underline-offset: 3px;">búscalos en tu equipo</span> · .n43, .txt o PDF</span></span>
+<input id="n43v2" type="file" multiple style="position: absolute; width: 1px; height: 1px; opacity: 0;">
+</label>
+
+<div style="display: flex; align-items: center; gap: 12px;">
+<div style="display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: 999px; background: #F6F6F3; font-size: 14px;">
+<span style="width: 28px; height: 28px; border-radius: 14px; background: #EAF4EE; display: flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F6135" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"></path></svg></span>
+<span>santander_0142.n43</span><span style="color: #6B6F76;">· oct 25 – sep 26</span>
+</div>
+<span style="font-size: 14px; color: #6B6F76;">¿Tienes más cuentas? Súbelas también.</span>
+</div>
+
+<div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+<button type="button" style="height: 52px; padding: 0 28px; border-radius: 999px; border: 0; background: #111315; color: #FFFFFF; font-size: 16px; font-weight: 500;">Continuar</button>
+<a href="#" style="font-size: 15px;">Lo tiene mi gestoría: enviarle la petición</a>
+</div>
+</main>
+
+<div style="position: absolute; left: 440px; right: 96px; bottom: 36px; display: flex; flex-direction: column; gap: 12px;">
+<div style="align-self: flex-start; max-width: 560px; display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 22px 22px 22px 6px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(17,19,21,0.06), 0 12px 32px rgba(17,19,21,0.10); font-size: 14px; line-height: 1.5;">
+<span style="width: 28px; height: 28px; border-radius: 14px; background: #0E5A61; flex-shrink: 0; display: flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg></span>
+<span>Si tu banco online no exporta Norma 43, sube los PDF de los últimos 12 meses: los leemos igual.</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<button type="button" style="min-height: 36px; padding: 6px 14px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 13px;">¿Qué es Norma 43?</button>
+<button type="button" style="min-height: 36px; padding: 6px 14px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 13px;">¿Por qué lo pedís?</button>
+<button type="button" style="min-height: 36px; padding: 6px 14px; border-radius: 999px; border: 0; background: #F2F2EE; color: #111315; font-size: 13px;">Mi banco no aparece</button>
+</div>
+<form style="margin: 0; display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 8px 0 22px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 0 0 1px #ECEBE6, 0 16px 40px rgba(17,19,21,0.10);">
+<label for="ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden;">Pregunta al asistente</label>
+<input id="ask" type="text" placeholder="Pregunta lo que necesites sobre tus documentos…" style="flex-grow: 1; min-width: 0; height: 44px; border: 0; background: transparent; font-family: inherit; font-size: 15px; color: #111315; outline: none;">
+<span style="font-size: 12px; color: #6B6F76; white-space: nowrap;">o <a href="#" style="font-size: 12px;">habla con una persona</a></span>
+<button type="submit" aria-label="Enviar" style="width: 44px; height: 44px; border-radius: 22px; border: 0; background: #0E5A61; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg></button>
+</form>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
