@@ -65,17 +65,23 @@ const CATEGORY_RULES: [TxCategory, RegExp][] = [
   ["debt_service", /prestamo|amortiz|\bcuota\b.*(prest|credit|leasing|renting)|\bleasing\b|intereses|liquidacion (poliza|credito|cuenta de credito)/],
   ["bank_fees", /comision|\bcomis\b|gastos (de )?mantenimiento|\bcuota (de )?(tarjeta|mantenimiento)/],
   ["card_settlement", /\btpv\b|liquidacion (de )?(tarjetas|comercio)|abono (de )?tarjetas/],
-  ["transfer", /\btransf|\btraspaso|\bsepa\b/],
+  ["transfer", /\btransf|\bsepa\b/],
 ];
+
+/** Moves between the company's own accounts: never receipts. */
+const INTERNAL_TRANSFER = /\btraspaso|entre cuentas|cuenta propia|\bmismo titular\b/;
 
 export function categorise(description: string, amount: number): TxCategory {
   const t = description
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
+  if (INTERNAL_TRANSFER.test(t)) return "transfer";
   for (const [cat, re] of CATEGORY_RULES) {
     if (!re.test(t)) continue;
     if (cat === "card_settlement" && amount > 0) return "revenue";
+    // An incoming transfer from a third party is how most customers pay: count it as a receipt.
+    if (cat === "transfer" && amount > 0) return "revenue";
     return cat;
   }
   return amount > 0 ? "revenue" : "other";

@@ -30,7 +30,7 @@ describe("parseNorma43", () => {
     expect(payroll.amount).toBe(-15000);
   });
   it("categorises by concept", () => {
-    expect(data[0].transactions.map((t) => t.category)).toEqual(["transfer", "payroll", "social_security", "tax", "revenue", "bank_fees"]);
+    expect(data[0].transactions.map((t) => t.category)).toEqual(["revenue", "payroll", "social_security", "tax", "revenue", "bank_fees"]);
     expect(data[1].transactions[0].category).toBe("debt_service");
   });
   it("finds the lowest running balance (overdraft)", () => {
@@ -60,6 +60,11 @@ describe("categorise", () => {
     expect(categorise("IMPUESTO SOCIEDADES MOD. 200", -2000)).toBe("tax");
     expect(categorise("ABONO TARJETAS TPV", 900)).toBe("revenue");
     expect(categorise("INGRESO EFECTIVO", 100)).toBe("revenue");
+    expect(categorise("TRANSFERENCIA DE CLIENTE LOGISTICA SUR SL", 12_000)).toBe("revenue");
+    expect(categorise("TRANSF. SEPA RECIBIDA GRUPO MEDITERRANEO", 5_000)).toBe("revenue");
+    expect(categorise("TRASPASO DESDE SANTANDER", 3_000)).toBe("transfer");
+    expect(categorise("TRANSFERENCIA ENTRE CUENTAS", 3_000)).toBe("transfer");
+    expect(categorise("TRANSFERENCIA A PROVEEDOR SL", -8_000)).toBe("transfer");
     expect(categorise("RECIBO LUZ", -80)).toBe("other");
   });
 });

@@ -9,7 +9,8 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "seed:lender": "tsx --env-file=.env.local scripts/seed-lender.ts"
+    "seed:lender": "tsx --env-file=.env.local scripts/seed-lender.ts",
+    "seed:demo": "tsx --conditions=react-server --env-file=.env.local scripts/seed-demo-case.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
