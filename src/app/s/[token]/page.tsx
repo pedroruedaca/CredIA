@@ -1,97 +1,134 @@
-/**
- * Borrower portal (magic link). No Supabase session: the token in the URL is validated server-side on every
- * request and every write goes through /api/borrower/:token/… routes that validate it again.
- */
 import type { Metadata } from "next";
-import { Logo } from "@/components/Logo";
-import { PORTAL_COPY } from "@/content/borrower.es";
+import { Checklist } from "@/components/borrower/Checklist";
+import { PortalHeader } from "@/components/borrower/PortalHeader";
+import { PortalMessage } from "@/components/borrower/PortalMessage";
+import { SharingCard } from "@/components/borrower/SharingCard";
+import { SubmitBar } from "@/components/borrower/SubmitBar";
 import { productLabel } from "@/content/products.es";
-import { loadChecklistRows, resolveBorrowerToken } from "@/lib/borrower/access";
-import { buildChecklist } from "@/lib/borrower/checklist";
-import { BorrowerPortal } from "./BorrowerPortal";
+import { resolveBorrowerAccess } from "@/lib/borrower/access";
+import { loadPortal } from "@/lib/borrower/load";
+import { formatDate } from "@/lib/format";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-// Keep the token out of search engines and Referer headers.
 export const metadata: Metadata = {
-  title: "Documentación de tu solicitud · credIA",
+  title: "Documentación para tu solicitud · credIA",
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };
 
-function initials(name: string): string {
-  const words = name.split(/\s+/).filter((w) => /^[\p{L}\p{N}]/u.test(w));
-  return (words.slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+function requestLine(product: string | null): string {
+  if (!product || product === "otro") return "Solicitud de financiación";
+  const label = productLabel(product);
+  return `Solicitud de ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
 
-function LinkProblem({ title, body }: { title: string; body: string }) {
-  return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-card border border-line bg-surface p-8">
-        <Logo className="text-ink [&>span]:text-accent" />
-        <h1 className="mt-4 font-serif text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-2">{body}</p>
-      </div>
-    </main>
-  );
-}
-
-export default async function BorrowerPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function BorrowerPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const access = await resolveBorrowerToken(token);
+  const db = createAdminClient();
+  const res = await resolveBorrowerAccess(db, token);
 
-  if (!access.ok) {
-    return access.reason === "expired" ? (
-      <LinkProblem
-        title="Este enlace ha caducado"
-        body="Por seguridad, los enlaces para aportar documentación caducan. Pide uno nuevo a la entidad que te lo envió; lo que ya hayas subido se conserva."
-      />
+  if (!res.ok) {
+    return res.reason === "expired" ? (
+      <PortalMessage title="Este enlace ha caducado">
+        <p>Por seguridad, los enlaces para aportar documentación caducan pasado un tiempo. Pide a la entidad que te lo envió uno nuevo; lo que ya subiste se conserva.</p>
+      </PortalMessage>
     ) : (
-      <LinkProblem
-        title="Este enlace no es válido"
-        body="Comprueba que has copiado el enlace completo del correo. Si el problema sigue, pide uno nuevo a la entidad que te lo envió."
-      />
+      <PortalMessage title="No encontramos este enlace">
+        <p>Comprueba que has copiado el enlace completo del correo. Si lo has recibido hace tiempo, puede que se haya sustituido por uno nuevo.</p>
+      </PortalMessage>
     );
   }
 
-  const { kase } = access;
-  const rows = await loadChecklistRows(access.db, kase.id);
-  if (rows.error) {
+  const { access } = res;
+  const portal = await loadPortal(db, access);
+  if (!portal) {
     return (
-      <LinkProblem
-        title="No hemos podido cargar tu solicitud"
-        body="Ha sido un problema nuestro. Recarga la página en unos minutos; tu progreso está guardado."
-      />
+      <PortalMessage title="No hemos podido cargar tu solicitud">
+        <p>Es un problema nuestro. Recarga la página en unos minutos; tu progreso está guardado.</p>
+      </PortalMessage>
+    );
+  }
+  const { kase, checklist } = portal;
+
+  if (access.consentWithdrawn) {
+    return (
+      <PortalMessage title="Has retirado tu consentimiento" lenderName={kase.lenderName}>
+        <p>Ya no se pueden aportar documentos a esta solicitud y hemos avisado a {kase.lenderName}.</p>
+        <p>Para que se eliminen los documentos ya compartidos, o si quieres retomar la solicitud, contacta con {kase.lenderName}.</p>
+      </PortalMessage>
     );
   }
 
-  const checklist = buildChecklist(rows.requirements, rows.documents, rows.holded, kase.lender_name);
-  const companyName = kase.borrower_name ?? kase.borrower_cif;
-  const product = kase.requested_product && kase.requested_product !== "otro" ? productLabel(kase.requested_product) : null;
+  const isDelegate = access.actor === "delegate";
+  const pct = checklist.total === 0 ? 100 : Math.round((checklist.done / checklist.total) * 100);
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex min-h-[72px] items-center gap-4 border-b border-line bg-surface px-4 py-3 sm:px-14">
-        <div aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-white">
-          {initials(kase.lender_name)}
-        </div>
-        <div className="text-[15px] font-semibold">{kase.lender_name}</div>
-        <div className="grow" />
-        <div className="hidden items-baseline gap-1.5 text-[13px] text-muted sm:flex">
-          {PORTAL_COPY.managedBy} <Logo className="text-base text-ink [&>span]:text-accent" />
-        </div>
-      </header>
+      <PortalHeader lenderName={kase.lenderName} brandColor={kase.lenderBrandColor} />
 
-      <BorrowerPortal
-        token={token}
-        lenderName={kase.lender_name}
-        companyName={companyName}
-        product={product}
-        actor={access.actor}
-        submittedAt={kase.submitted_at}
-        consentWithdrawnAt={kase.consent_withdrawn_at}
-        checklist={checklist}
-      />
+      <div className="mx-auto flex w-full max-w-[1280px] grow flex-col gap-10 px-4 py-8 sm:px-14 sm:py-10 lg:flex-row">
+        <main className="flex min-w-0 grow flex-col gap-[22px]">
+          <div className="flex flex-col gap-2.5">
+            <div className="text-sm text-ink-2">
+              {kase.companyName} · {requestLine(kase.requestedProduct)}
+            </div>
+            <h1 className="font-serif text-[32px] font-semibold leading-[1.15] tracking-[-0.01em] sm:text-[38px]">Documentación para tu solicitud</h1>
+            <p className="max-w-[680px] text-base leading-normal text-ink-2">
+              {isDelegate
+                ? `Estás aportando la documentación de ${kase.companyName} a petición de la empresa. Te explicamos cómo conseguir cada documento.`
+                : `Cuanto antes esté completa, antes podrá responderte ${kase.lenderName}. Te explicamos cómo conseguir cada documento; la mayoría tarda menos de cinco minutos.`}
+            </p>
+          </div>
+
+          {checklist.items.length === 0 ? (
+            <div className="rounded-card border border-line bg-surface p-6 text-sm text-ink-2">
+              {kase.lenderName} no ha pedido ningún documento en esta solicitud. No tienes que hacer nada más.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3.5">
+                <div
+                  className="h-2 grow overflow-hidden rounded bg-line"
+                  role="progressbar"
+                  aria-valuenow={checklist.done}
+                  aria-valuemin={0}
+                  aria-valuemax={checklist.total}
+                  aria-label="Documentos obligatorios completados"
+                >
+                  <div className="h-full rounded bg-accent transition-[width]" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="shrink-0 text-sm font-semibold">
+                  {checklist.done} de {checklist.total} completados
+                </div>
+              </div>
+
+              <Checklist
+                token={token}
+                actor={access.actor}
+                lenderName={kase.lenderName}
+                today={portal.today}
+                items={checklist.items}
+                firstIncomplete={checklist.firstIncomplete}
+              />
+
+              <SubmitBar
+                token={token}
+                allRequiredDone={checklist.allRequiredDone}
+                missingCount={checklist.missing.length}
+                submittedAt={kase.submittedAt}
+                submittedLabel={kase.submittedAt ? formatDate(kase.submittedAt) : null}
+                lenderName={kase.lenderName}
+              />
+            </>
+          )}
+        </main>
+
+        <aside className="flex w-full shrink-0 flex-col gap-[18px] lg:w-[340px] lg:pt-1">
+          <SharingCard token={token} lenderName={kase.lenderName} holded={portal.holded} canWithdraw={!isDelegate} />
+        </aside>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-/** Supabase client for Client Components: lender login, and borrower uploads to server-issued signed URLs. */
+/** Supabase client for Client Components (lender login only). */
 import { createBrowserClient } from "@supabase/ssr";
 
 export function createClient() {

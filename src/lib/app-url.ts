@@ -1,4 +1,4 @@
-/** Public base URL for links we send (borrower and gestoría magic links). */
+/** Public base URL for links sent to borrowers. Server-only (reads request headers). */
 import "server-only";
 import { headers } from "next/headers";
 

@@ -1,61 +1,67 @@
 /**
- * POST /api/borrower/:token/delegate
- * "Enviar esta petición a mi gestoría": creates a separate magic-link token scoped to the same case, emails it
- * (stub) and returns the link so the company can also forward it themselves. Only the hash is stored.
- * Delegates cannot create further delegate links.
+ * POST /api/borrower/:token/delegate — "Enviar esta petición a mi gestoría".
+ * Creates a separate magic link scoped to the same case (hash stored, never the token), emails it (stub)
+ * and returns it so the borrower can also forward it themselves. Only the company's own link can delegate.
  */
-import { z } from "zod";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { appBaseUrl } from "@/lib/app-url";
-import { borrowerAudit } from "@/lib/borrower/access";
-import { borrowerAccess, fail } from "@/lib/borrower/http";
-import { borrowerLink, generateMagicLinkToken } from "@/lib/magic-link";
+import { audit, borrowerRoute, jsonError } from "@/lib/borrower/access";
+import { borrowerLink, delegateExpiry, generateMagicLinkToken } from "@/lib/magic-link";
 import { getNotifier } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+const MAX_ACTIVE_DELEGATES = 5;
 
-const MAX_DELEGATES_PER_CASE = 5;
+const body = z.object({ email: z.string().trim().toLowerCase().email() });
 
 export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const { token } = await ctx.params;
-  const access = await borrowerAccess(token);
-  if (access instanceof NextResponse) return access;
-  if (access.actor !== "borrower") return fail(403, "Solo la empresa puede reenviar la petición.");
-  const { db, kase } = access;
+  const r = await borrowerRoute((await ctx.params).token);
+  if (r.response) return r.response;
+  const { db, access } = r;
+  if (access.actor !== "borrower") return jsonError("Solo la empresa puede enviar la petición a otra persona.", 403);
 
-  const parsed = Body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return fail(400, "Escribe un correo electrónico válido.");
+  const parsed = body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return jsonError("Indica un correo electrónico válido.", 400);
   const { email } = parsed.data;
 
+  const nowIso = new Date().toISOString();
   const { count } = await db
-    .from("case_delegates")
+    .from("delegate_links")
     .select("id", { count: "exact", head: true })
-    .eq("case_id", kase.id)
-    .is("revoked_at", null);
-  if ((count ?? 0) >= MAX_DELEGATES_PER_CASE) return fail(429, "Ya has enviado esta petición a varias personas. Si necesitas otra, contacta con la entidad.");
+    .eq("case_id", access.caseId)
+    .is("revoked_at", null)
+    .gt("expires_at", nowIso);
+  if ((count ?? 0) >= MAX_ACTIVE_DELEGATES) {
+    return jsonError("Ya has enviado varios enlaces. Si necesitas otro, contacta con la entidad.", 429);
+  }
 
-  // Same lifetime as a new link, but never beyond the company's own link.
-  const { token: delegateToken, hash, expiresAt } = generateMagicLinkToken();
-  const caseExpiry = kase.borrower_token_expires_at ? new Date(kase.borrower_token_expires_at) : null;
-  const expires = caseExpiry && caseExpiry < new Date(expiresAt) ? caseExpiry.toISOString() : expiresAt;
+  const { data: kase } = await db
+    .from("cases")
+    .select("borrower_name, lenders(name)")
+    .eq("id", access.caseId)
+    .single();
+  const { token, hash } = generateMagicLinkToken();
+  const expiresAt = delegateExpiry(access.linkExpiresAt);
 
-  const { data: delegate, error } = await db
-    .from("case_delegates")
-    .insert({ case_id: kase.id, lender_id: kase.lender_id, email, token_hash: hash, expires_at: expires })
+  const { data: link, error } = await db
+    .from("delegate_links")
+    .insert({ case_id: access.caseId, lender_id: access.lenderId, email, token_hash: hash, expires_at: expiresAt })
     .select("id")
     .single();
-  if (error || !delegate) return fail(500, "No hemos podido crear el enlace. Inténtalo de nuevo.");
+  if (error || !link) return jsonError("No hemos podido crear el enlace. Inténtalo de nuevo.", 500);
 
-  const link = borrowerLink(await appBaseUrl(), delegateToken);
+  const url = borrowerLink(await appBaseUrl(), token);
+  const lenderName = (kase?.lenders as unknown as { name: string } | null)?.name ?? "";
   const { sent } = await getNotifier().sendDelegateInvite({
     to: email,
-    lenderName: kase.lender_name,
-    companyName: kase.borrower_name ?? kase.borrower_cif,
-    link,
+    lenderName,
+    companyName: kase?.borrower_name ?? "",
+    link: url,
+    requestedBy: "borrower",
   });
-  await borrowerAudit(access, "delegate.created", { delegate_id: delegate.id, to: email, expires_at: expires, email_sent: sent });
 
-  return NextResponse.json({ ok: true, sent, link, email });
+  await audit(db, access, "delegate.invited", { delegate_link_id: link.id, email, expires_at: expiresAt, emailed: sent });
+  return NextResponse.json({ ok: true, link: url, emailSent: sent, expiresAt });
 }

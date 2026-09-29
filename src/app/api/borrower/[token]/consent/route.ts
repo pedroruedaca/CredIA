@@ -1,35 +1,45 @@
 /**
- * DELETE /api/borrower/:token/consent
- * "Retirar consentimiento": stops further sharing for this case. Deletes stored Holded keys, revokes gestoría
- * links and blocks new uploads. The lender sees the withdrawal in the audit log. Only the company can do this.
- * Deleting data already shared is a retention decision for the lender and is not done here.
+ * POST /api/borrower/:token/consent — "Retirar consentimiento" (company's own link only).
+ * Stops any further sharing: no more uploads or Holded syncs, stored Holded keys are destroyed and
+ * gestoría links revoked. Documents already shared stay with the case; deletion requests go to the lender.
  */
 import { NextResponse } from "next/server";
-import { borrowerAudit } from "@/lib/borrower/access";
-import { borrowerAccess, fail } from "@/lib/borrower/http";
+import { audit, borrowerRoute, jsonError } from "@/lib/borrower/access";
+import { getNotifier } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const { token } = await ctx.params;
-  const access = await borrowerAccess(token, { write: false });
-  if (access instanceof NextResponse) return access;
-  if (access.actor !== "borrower") return fail(403, "Solo la empresa puede retirar el consentimiento.");
-  const { db, kase } = access;
-  if (kase.consent_withdrawn_at) return NextResponse.json({ ok: true, withdrawnAt: kase.consent_withdrawn_at });
+export async function POST(_req: Request, ctx: { params: Promise<{ token: string }> }) {
+  const r = await borrowerRoute((await ctx.params).token);
+  if (r.response) return r.response;
+  const { db, access } = r;
+  if (access.actor !== "borrower") return jsonError("Solo la empresa puede retirar el consentimiento.", 403);
 
   const now = new Date().toISOString();
-  const [c, h, d] = await Promise.all([
-    db.from("cases").update({ consent_withdrawn_at: now }).eq("id", kase.id),
-    db
-      .from("holded_connections")
-      .update({ token_ciphertext: null, token_iv: null, token_tag: null, revoked_at: now })
-      .eq("case_id", kase.id)
-      .is("revoked_at", null),
-    db.from("case_delegates").update({ revoked_at: now }).eq("case_id", kase.id).is("revoked_at", null),
-  ]);
-  if (c.error || h.error || d.error) return fail(500, "No hemos podido registrar tu decisión. Inténtalo de nuevo.");
+  const { data: kase, error } = await db
+    .from("cases")
+    .update({ consent_withdrawn_at: now })
+    .eq("id", access.caseId)
+    .is("consent_withdrawn_at", null)
+    .select("borrower_name")
+    .maybeSingle();
+  if (error) return jsonError("No hemos podido registrar tu decisión. Inténtalo de nuevo.", 500);
+  if (!kase) return NextResponse.json({ ok: true });
 
-  await borrowerAudit(access, "consent.withdrawn", {});
-  return NextResponse.json({ ok: true, withdrawnAt: now });
+  const { data: keys } = await db
+    .from("holded_connections")
+    .update({ token_ciphertext: null, token_iv: null, token_tag: null, revoked_at: now })
+    .eq("case_id", access.caseId)
+    .is("revoked_at", null)
+    .select("id");
+  await db.from("delegate_links").update({ revoked_at: now }).eq("case_id", access.caseId).is("revoked_at", null);
+
+  await audit(db, access, "consent.withdrawn", { holded_connections_revoked: keys?.length ?? 0 });
+  await getNotifier().notifyLender({
+    lenderId: access.lenderId,
+    caseId: access.caseId,
+    companyName: kase.borrower_name ?? "",
+    event: "consent_withdrawn",
+  });
+  return NextResponse.json({ ok: true });
 }

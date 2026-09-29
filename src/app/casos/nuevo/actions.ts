@@ -14,6 +14,7 @@ export type CreateCaseState =
   | { status: "failed"; message: string; values: Record<string, string> }
   | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean };
 
+
 export async function createCase(_prev: CreateCaseState, formData: FormData): Promise<CreateCaseState> {
   const lender = await requireLender();
   if (lender.role === "viewer") {

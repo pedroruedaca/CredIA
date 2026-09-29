@@ -8,6 +8,9 @@
   --color-line: #e3e1d8;
   --color-line-row: #efede6;
   --color-line-strong: #c9c6ba;
+  --color-line-dashed: #9fa3aa;
+  --color-disabled: #c9cbd1;
+  --color-on-disabled: #3a3d44;
 
   --color-ink: #17191e;
   --color-ink-2: #4a4e57;
