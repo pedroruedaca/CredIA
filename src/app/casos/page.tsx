@@ -5,6 +5,7 @@ import { completeness } from "@/lib/cases/requirements";
 import { caseRef, formatDate } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
 import { createClient } from "@/lib/supabase/server";
+import { NewLinkButton } from "./NewLinkButton";
 
 export const metadata = { title: "Casos · credIA" };
 
@@ -20,7 +21,8 @@ interface CaseRow {
 }
 
 export default async function CasosPage() {
-  await requireLender();
+  const lender = await requireLender();
+  const canEdit = lender.role !== "viewer";
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cases")
@@ -65,6 +67,7 @@ export default async function CasosPage() {
                 <th className="border-b border-line px-5 py-3 font-medium">Estado</th>
                 <th className="border-b border-line px-5 py-3 font-medium">Documentos</th>
                 <th className="border-b border-line px-5 py-3 font-medium">Actualizado</th>
+                {canEdit && <th className="border-b border-line px-5 py-3 font-medium"><span className="sr-only">Acciones</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -94,6 +97,11 @@ export default async function CasosPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-ink-2">{formatDate(c.updated_at)}</td>
+                    {canEdit && (
+                      <td className="px-5 py-2 text-right">
+                        <NewLinkButton caseId={c.id} companyName={c.borrower_name ?? c.borrower_cif} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}
