@@ -14,7 +14,7 @@ export interface DelegateInvite extends BorrowerInvite {
   requestedBy: "borrower";
 }
 
-export type LenderEvent = "documents_submitted" | "consent_withdrawn";
+export type LenderEvent = "documents_submitted" | "consent_withdrawn" | "support_requested";
 
 export interface LenderNotice {
   lenderId: string;

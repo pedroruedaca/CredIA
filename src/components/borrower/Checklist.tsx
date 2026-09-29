@@ -8,6 +8,7 @@ import { ConnectHolded } from "@/components/ConnectHolded";
 import { RichText } from "@/components/RichText";
 import { BANKS, N43_FALLBACK } from "@/content/banks.es";
 import { ITEM_COPY } from "@/content/borrower-portal.es";
+import { OPEN_STEP_EVENT } from "@/lib/assistant/protocol";
 import { freshnessWindow, type ChecklistItem, type ItemState } from "@/lib/borrower/checklist";
 import type { RequirementKind } from "@/lib/cases/requirements";
 import { DelegateDialog } from "./DelegateDialog";
@@ -40,6 +41,18 @@ export function Checklist({ token, actor, lenderName, today, items, firstIncompl
     if (current && current.state === "done" && prev.get(current.kind) !== "done") setOpen(firstIncomplete);
     prevStates.current = new Map(items.map((i) => [i.kind, i.state]));
   }, [items, open, firstIncomplete]);
+
+  // "Ir al paso N" links in the assistant open the step and bring it into view.
+  useEffect(() => {
+    const onStep = (e: Event) => {
+      const kind = (e as CustomEvent<string>).detail;
+      if (!items.some((i) => i.kind === kind)) return;
+      setOpen(kind as RequirementKind);
+      requestAnimationFrame(() => document.getElementById(`paso-${kind}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+    window.addEventListener(OPEN_STEP_EVENT, onStep);
+    return () => window.removeEventListener(OPEN_STEP_EVENT, onStep);
+  }, [items]);
 
   return (
     <div className="flex flex-col rounded-card border border-line bg-surface">

@@ -12,6 +12,7 @@
     "seed:lender": "tsx --env-file=.env.local scripts/seed-lender.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.45.0",
     "lucide-react": "^1.48.0",

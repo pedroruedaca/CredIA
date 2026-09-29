@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { AssistantPanel } from "@/components/borrower/AssistantPanel";
 import { Checklist } from "@/components/borrower/Checklist";
 import { PortalHeader } from "@/components/borrower/PortalHeader";
 import { PortalMessage } from "@/components/borrower/PortalMessage";
 import { SharingCard } from "@/components/borrower/SharingCard";
 import { SubmitBar } from "@/components/borrower/SubmitBar";
 import { productLabel } from "@/content/products.es";
+import { loadAssistantView } from "@/lib/assistant/server";
 import { resolveBorrowerAccess } from "@/lib/borrower/access";
 import { loadPortal } from "@/lib/borrower/load";
 import { formatDate } from "@/lib/format";
@@ -61,6 +63,7 @@ export default async function BorrowerPortalPage({ params }: { params: Promise<{
     );
   }
 
+  const assistant = await loadAssistantView(db, access, portal);
   const isDelegate = access.actor === "delegate";
   const pct = checklist.total === 0 ? 100 : Math.round((checklist.done / checklist.total) * 100);
 
@@ -127,6 +130,14 @@ export default async function BorrowerPortalPage({ params }: { params: Promise<{
 
         <aside className="flex w-full shrink-0 flex-col gap-[18px] lg:w-[340px] lg:pt-1">
           <SharingCard token={token} lenderName={kase.lenderName} holded={portal.holded} canWithdraw={!isDelegate} />
+          <AssistantPanel
+            token={token}
+            lenderName={kase.lenderName}
+            opening={assistant.opening}
+            suggestions={assistant.suggestions}
+            history={assistant.history}
+            steps={assistant.steps}
+          />
         </aside>
       </div>
     </div>

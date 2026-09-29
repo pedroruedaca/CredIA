@@ -41,3 +41,8 @@ npm run seed:lender -- --email you@fondo.es --lender "Fondo Ejemplo Capital"
 | `src/lib/crypto/token.ts` | AES-256-GCM sealing for stored keys (refresh mode) |
 | `src/app/api/borrower/[token]/holded/route.ts` | Borrower endpoint: verify key → sync → persist |
 | `src/components/ConnectHolded.tsx` | Borrower UI (Spanish) |
+| `supabase/migrations/0004_assistant.sql` | `assistant_messages` (one thread per link holder) and `support_requests`, with RLS |
+| `src/lib/assistant/` | Assistant grounding (whitelisted checklist context, no financial data), opening message, chips, `[[step:…]]` links, rate limit |
+| `src/content/docs-guide.es.md`, `assistant.es.ts` | What each document is and how to get it (assistant's only source), chat copy |
+| `src/app/api/borrower/[token]/assistant/route.ts` | Streaming chat (Anthropic SDK, `CREDIA_ASSISTANT_MODEL`, default `claude-opus-5-5`), 30 questions/hour per link |
+| `src/app/api/borrower/[token]/support/route.ts` | "Hablar con una persona": support request + lender notification (stub) |

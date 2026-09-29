@@ -9,6 +9,10 @@ const tokenHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The assistant reads its guide at runtime; make sure it ships with the serverless bundle.
+  outputFileTracingIncludes: {
+    "/api/borrower/[token]/assistant": ["./src/content/docs-guide.es.md"],
+  },
   async headers() {
     return [
       { source: "/s/:path*", headers: tokenHeaders },
