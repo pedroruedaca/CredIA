@@ -115,6 +115,24 @@ export function documentRequestEmail(r: { lenderName: string; companyName: strin
 
 // ------------------------------------------------------------------------------------------------ lender
 
+export function teamInviteEmail(i: { lenderName: string; invitedBy: string; loginUrl: string; role: "owner" | "analyst" | "viewer" }): Email {
+  const role = { owner: "administrador", analyst: "analista", viewer: "consulta" }[i.role];
+  return {
+    subject: oneLine(`Te han invitado a ${i.lenderName} en credIA`),
+    html: layout({
+      preheader: `Acceso a los casos de ${i.lenderName}.`,
+      heading: `Te han invitado a ${i.lenderName}`,
+      paragraphs: [
+        `${esc(i.invitedBy)} te ha dado acceso a credIA como <b style="color:#111315">${role}</b> de ${esc(i.lenderName)}.`,
+        "Entra con este correo: te enviaremos un enlace de acceso, sin contraseña.",
+      ],
+      button: { label: "Entrar en credIA", url: i.loginUrl },
+      footer: "credIA prepara paquetes de datos de crédito para prestamistas. Si no esperabas esta invitación, puedes ignorar este correo.",
+    }),
+    text: text([`${i.invitedBy} te ha dado acceso a credIA como ${role} de ${i.lenderName}.`, `Entra con este correo en ${i.loginUrl}`]),
+  };
+}
+
 export type LenderEventKind = "documents_submitted" | "consent_withdrawn" | "support_requested";
 
 const LENDER_COPY: Record<LenderEventKind, { subject: (c: string) => string; line: (c: string) => string; button: string }> = {

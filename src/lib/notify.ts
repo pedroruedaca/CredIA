@@ -6,7 +6,7 @@
  */
 import { lenderRecipients } from "./email/recipients.ts";
 import { sendWithResend } from "./email/resend.ts";
-import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail } from "./email/templates.ts";
+import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail, teamInviteEmail } from "./email/templates.ts";
 import { normaliseBaseUrl } from "./base-url.ts";
 import { MAGIC_LINK_TTL_DAYS } from "./magic-link.ts";
 
@@ -42,7 +42,17 @@ export interface DocumentRequest {
   message: string | null;
 }
 
+/** A lender owner adds someone to the team. No token: they sign in at loginUrl with their email. */
+export interface TeamInvite {
+  to: string;
+  lenderName: string;
+  invitedBy: string;
+  role: "owner" | "analyst" | "viewer";
+  loginUrl: string;
+}
+
 export interface Notifier {
+  sendTeamInvite(invite: TeamInvite): Promise<{ sent: boolean }>;
   sendBorrowerInvite(invite: BorrowerInvite): Promise<{ sent: boolean }>;
   sendDocumentRequest(request: DocumentRequest): Promise<{ sent: boolean }>;
   sendDelegateInvite(invite: DelegateInvite): Promise<{ sent: boolean }>;
@@ -50,6 +60,10 @@ export interface Notifier {
 }
 
 const devConsoleNotifier: Notifier = {
+  async sendTeamInvite(i) {
+    console.info(`[notify:dev] Invitación al equipo de ${i.lenderName} para ${i.to} (${i.role}), por ${i.invitedBy}: ${i.loginUrl}`);
+    return { sent: true };
+  },
   async sendDocumentRequest(r) {
     console.info(`[notify:dev] Petición de documento para ${r.to} (${r.companyName}, de ${r.lenderName}): ${r.document}`);
     return { sent: true };
@@ -69,6 +83,10 @@ const devConsoleNotifier: Notifier = {
 };
 
 const noopNotifier: Notifier = {
+  async sendTeamInvite() {
+    console.warn("[notify] Sin proveedor de correo configurado: invitación al equipo no enviada.");
+    return { sent: false };
+  },
   async sendDocumentRequest() {
     console.warn("[notify] Sin proveedor de correo configurado: petición de documento no enviada.");
     return { sent: false };
@@ -94,6 +112,7 @@ export function resendNotifier(apiKey: string, env: { from?: string; replyTo?: s
   const base = { apiKey, from: env.from || DEFAULT_FROM, replyTo: env.replyTo || undefined, fetchImpl: deps.fetchImpl };
   const caseUrl = (caseId: string) => (env.appUrl ? `${env.appUrl.replace(/\/+$/, "")}/casos/${caseId}` : null);
   return {
+    sendTeamInvite: (i) => sendWithResend(teamInviteEmail(i), { ...base, to: i.to, kind: "team_invite" }),
     sendBorrowerInvite: (i) =>
       sendWithResend(borrowerInviteEmail({ ...i, expiresInDays: MAGIC_LINK_TTL_DAYS }), { ...base, to: i.to, kind: "borrower_invite" }),
     sendDelegateInvite: (i) => sendWithResend(delegateInviteEmail(i), { ...base, to: i.to, kind: "delegate_invite" }),

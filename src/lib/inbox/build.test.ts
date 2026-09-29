@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { buildInbox, type InboxInput } from "./build.ts";
+
+const now = new Date("2026-09-29T12:00:00Z");
+const base: InboxInput = { support: [], cases: [], views: [], needsReview: [] };
+
+describe("buildInbox", () => {
+  it("open help requests are pending; attended ones stay listed as handled for 30 days", () => {
+    const r = buildInbox({
+      ...base,
+      support: [
+        { id: "s1", case_id: "c1", actor: "borrower", message: "No encuentro el CIRBE", status: "open", created_at: "2026-09-28T10:00:00Z", company: "Talleres" },
+        { id: "s2", case_id: "c1", actor: "delegate", message: null, status: "closed", created_at: "2026-09-20T10:00:00Z", company: "Talleres" },
+        { id: "s3", case_id: "c1", actor: "borrower", message: null, status: "closed", created_at: "2026-07-01T10:00:00Z", company: "Talleres" },
+      ],
+    }, now);
+    expect(r.items.map((i) => [i.id, i.pending])).toEqual([["support:s1", true], ["support:s2", false]]);
+    expect(r.items[0]).toMatchObject({ detail: "No encuentro el CIRBE", supportRequestId: "s1" });
+    expect(r.pendingCount).toBe(1);
+  });
+
+  it("a submission is pending until someone opens the case afterwards", () => {
+    const input: InboxInput = { ...base, cases: [{ id: "c1", company: "Talleres", submitted_at: "2026-09-28T10:00:00Z", consent_withdrawn_at: null }] };
+    expect(buildInbox(input, now).items[0]).toMatchObject({ kind: "submitted", pending: true });
+    expect(buildInbox({ ...input, views: [{ case_id: "c1", at: "2026-09-27T10:00:00Z" }] }, now).items[0].pending).toBe(true); // viewed before
+    expect(buildInbox({ ...input, views: [{ case_id: "c1", at: "2026-09-28T11:00:00Z" }] }, now).items[0].pending).toBe(false);
+  });
+
+  it("withdrawn consent and documents to review; pending first, newest first; old events drop out", () => {
+    const r = buildInbox({
+      ...base,
+      cases: [
+        { id: "c2", company: "Beta", submitted_at: "2026-05-01T00:00:00Z", consent_withdrawn_at: "2026-09-25T00:00:00Z" },
+        { id: "c3", company: "Gamma", submitted_at: "2026-09-26T00:00:00Z", consent_withdrawn_at: null },
+      ],
+      views: [{ case_id: "c3", at: "2026-09-27T00:00:00Z" }],
+      needsReview: [{ id: "d1", case_id: "c2", kind: "cirbe", uploaded_at: "2026-09-24T00:00:00Z", company: "Beta" }],
+    }, now);
+    expect(r.items.map((i) => i.id)).toEqual(["consent:c2", "review:d1", "submitted:c3"]);
+    expect(r.pendingCount).toBe(2);
+  });
+});

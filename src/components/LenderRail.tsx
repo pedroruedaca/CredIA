@@ -2,8 +2,8 @@
 
 /**
  * Lender navigation: 72px icon rail on the soft surface (design/lender-case-view2.html). The active item is a
- * white 44px tile with a small shadow. Sections not built yet are shown but disabled. On phones the rail
- * becomes a top bar.
+ * white 44px tile with a small shadow. Bandeja shows its pending count. Sections not built yet are shown but
+ * disabled. On phones the rail becomes a top bar.
  */
 import { Briefcase, FileText, Inbox, Settings, type LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -21,14 +21,14 @@ interface Item {
 
 const MAIN: Item[] = [
   { label: "Casos", icon: Briefcase, href: "/casos", match: /^\/casos(\/|$)/ },
-  { label: "Bandeja", icon: Inbox, href: null },
+  { label: "Bandeja", icon: Inbox, href: "/bandeja", match: /^\/bandeja(\/|$)/ },
   { label: "Plantillas", icon: FileText, href: null },
 ];
-const SETTINGS: Item = { label: "Ajustes", icon: Settings, href: null };
+const SETTINGS: Item = { label: "Ajustes", icon: Settings, href: "/ajustes", match: /^\/ajustes(\/|$)/ };
 
-const tile = "flex size-11 items-center justify-center rounded-[14px] transition-colors duration-150 ease-out";
+const tile = "relative flex size-11 items-center justify-center rounded-[14px] transition-colors duration-150 ease-out";
 
-function RailItem({ item, pathname }: { item: Item; pathname: string }) {
+function RailItem({ item, pathname, badge = 0 }: { item: Item; pathname: string; badge?: number }) {
   const Icon = item.icon;
   const active = !!item.match?.test(pathname);
   if (!item.href) {
@@ -47,12 +47,17 @@ function RailItem({ item, pathname }: { item: Item; pathname: string }) {
       className={cx(tile, active ? "bg-surface text-ink shadow-tile" : "text-muted hover:bg-surface/70 hover:text-ink")}
     >
       <Icon size={20} strokeWidth={1.8} aria-hidden />
-      <span className="sr-only">{item.label}</span>
+      <span className="sr-only">{item.label}{badge > 0 ? ` (${badge} pendiente${badge === 1 ? "" : "s"})` : ""}</span>
+      {badge > 0 && (
+        <span aria-hidden className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 font-mono text-[10px] font-semibold text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </Link>
   );
 }
 
-export function LenderRail({ email, lenderName }: { email: string; lenderName: string }) {
+export function LenderRail({ email, lenderName, inboxCount = 0 }: { email: string; lenderName: string; inboxCount?: number }) {
   const pathname = usePathname() ?? "";
   return (
     <nav
@@ -62,7 +67,7 @@ export function LenderRail({ email, lenderName }: { email: string; lenderName: s
       <Link href="/casos" aria-label="credIA, inicio" className="mr-3 text-[17px] font-bold tracking-[-0.03em] text-ink hover:text-ink hover:no-underline sm:mb-5 sm:mr-0">
         c<span className="text-accent">IA</span>
       </Link>
-      {MAIN.map((i) => <RailItem key={i.label} item={i} pathname={pathname} />)}
+      {MAIN.map((i) => <RailItem key={i.label} item={i} pathname={pathname} badge={i.href === "/bandeja" ? inboxCount : 0} />)}
       <div className="grow" />
       <RailItem item={SETTINGS} pathname={pathname} />
       <details className="relative">

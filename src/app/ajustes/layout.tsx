@@ -1,5 +1,5 @@
 import { LenderShell } from "@/components/LenderShell";
 
-export default function CasosLayout({ children }: { children: React.ReactNode }) {
+export default function AjustesLayout({ children }: { children: React.ReactNode }) {
   return <LenderShell>{children}</LenderShell>;
 }
