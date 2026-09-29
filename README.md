@@ -24,7 +24,12 @@ npm run seed:lender -- --email you@fondo.es --lender "Fondo Ejemplo Capital"
 |---|---|
 | `supabase/migrations/0001_init.sql` | Schema + RLS by lender, Holded connection/sync tables |
 | `supabase/migrations/0002_case_request_and_requirements.sql` | Request details on cases, `case_requirements`, `updated_at` |
+| `supabase/migrations/0003_borrower_portal.sql` | Upload metadata, `rejected` documents, `case_delegates` (gestoría links), submission, consent withdrawal |
 | `src/app/casos/` | Lender case list and "Nuevo caso" (magic link generated on create) |
+| `src/app/s/[token]/` | Borrower portal: checklist, uploads, Holded, gestoría link, consent card |
+| `src/app/api/borrower/[token]/` | Borrower routes: `documents/upload-url` → browser uploads to Storage → `documents/complete`; `delegate`, `submit`, `consent`, `holded`, `holded/revoke` |
+| `src/lib/borrower/` | Token resolution (company or gestoría link), checklist states + freshness, upload validation/sniffing |
+| `src/content/banks.es.ts`, `borrower.es.ts` | Per-bank Norma 43 steps (placeholders) and portal copy |
 | `src/lib/supabase/` | Server (cookies), browser and service-role clients |
 | `src/lib/cif.ts`, `src/lib/magic-link.ts`, `src/lib/cases/` | CIF checksum, borrower tokens, requirements and new-case validation |
 | `src/lib/notify.ts` | Email stub (logs the invite in dev only) |

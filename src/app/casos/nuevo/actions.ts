@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { appBaseUrl } from "@/lib/app-url";
 import type { FieldErrors } from "@/lib/cases/new-case";
 import { parseNewCase } from "@/lib/cases/new-case";
 import { requireLender } from "@/lib/lender";
@@ -13,14 +13,6 @@ export type CreateCaseState =
   | { status: "invalid"; errors: FieldErrors; values: Record<string, string> }
   | { status: "failed"; message: string; values: Record<string, string> }
   | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean };
-
-async function appBaseUrl(): Promise<string> {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 export async function createCase(_prev: CreateCaseState, formData: FormData): Promise<CreateCaseState> {
   const lender = await requireLender();

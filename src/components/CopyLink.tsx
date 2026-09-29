@@ -3,14 +3,14 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
-export function CopyLink({ link }: { link: string }) {
+export function CopyLink({ link, label = "Enlace para la empresa" }: { link: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex flex-col gap-2 sm:flex-row">
       <input
         readOnly
         value={link}
-        aria-label="Enlace para la empresa"
+        aria-label={label}
         onFocus={(e) => e.currentTarget.select()}
         className="h-11 min-w-0 grow rounded-lg border border-line-strong bg-surface-subtle px-3 font-mono text-sm"
       />
