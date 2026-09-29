@@ -59,7 +59,9 @@ export function NewLinkButton({ caseId, companyName, compact = false }: { caseId
                 {result.emailSent
                   ? `También se ha enviado a ${result.borrowerEmail}.`
                   : result.borrowerEmail
-                    ? `No hay un servicio de correo configurado: envía tú el enlace a ${result.borrowerEmail}.`
+                    ? result.emailConfigured
+                      ? `No se ha podido enviar el correo a ${result.borrowerEmail}: envíale tú el enlace.`
+                      : `No hay un servicio de correo configurado: envía tú el enlace a ${result.borrowerEmail}.`
                     : "Envía tú el enlace a la empresa."}
               </p>
               <Button variant="secondary" onClick={close} className="self-end">Cerrar</Button>

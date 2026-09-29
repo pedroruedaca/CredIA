@@ -29,7 +29,9 @@ export function NewCaseForm() {
           <Pill tone={state.emailSent ? "ok" : "warn"}>{state.emailSent ? "Invitación enviada" : "Sin correo"}</Pill>
           {state.emailSent
             ? `Enviada a ${state.borrowerEmail}.`
-            : `No hay un servicio de correo configurado: envía tú el enlace a ${state.borrowerEmail}.`}
+            : state.emailConfigured
+              ? `No se ha podido enviar el correo a ${state.borrowerEmail}: envíale tú el enlace. Si se repite, revisa la cuenta de Resend.`
+              : `No hay un servicio de correo configurado: envía tú el enlace a ${state.borrowerEmail}.`}
         </p>
         <div>
           <ButtonLink href="/casos" variant="link">Volver a casos</ButtonLink>

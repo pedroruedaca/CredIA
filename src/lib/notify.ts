@@ -109,6 +109,11 @@ export function resendNotifier(apiKey: string, env: { from?: string; replyTo?: s
   };
 }
 
+/** True when real emails can go out (a failed send then means the provider rejected it, not "not set up"). */
+export function isEmailConfigured(): boolean {
+  return !!process.env.RESEND_API_KEY;
+}
+
 export function getNotifier(): Notifier {
   const key = process.env.RESEND_API_KEY;
   if (key) {

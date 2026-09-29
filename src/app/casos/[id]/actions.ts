@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
-import { getNotifier } from "@/lib/notify";
+import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; message: string };
@@ -104,6 +104,8 @@ export async function requestDocument(input: z.input<typeof RequestInput>): Prom
     ok: true,
     message: sent
       ? `Hemos avisado a la empresa por correo. ${spec.label} ya aparece en su página.`
-      : `${spec.label} ya aparece en la página de la empresa. No hay correo configurado: avísala tú.`,
+      : kase.borrower_email && isEmailConfigured()
+        ? `${spec.label} ya aparece en la página de la empresa, pero no se ha podido enviar el correo: avísala tú.`
+        : `${spec.label} ya aparece en la página de la empresa. No hay correo configurado: avísala tú.`,
   };
 }

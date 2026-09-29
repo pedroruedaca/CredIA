@@ -3,11 +3,11 @@
 import { appBaseUrl } from "@/lib/app-url";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
-import { getNotifier } from "@/lib/notify";
+import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { createClient } from "@/lib/supabase/server";
 
 export type RegenerateLinkResult =
-  | { ok: true; link: string; expiresInDays: number; borrowerEmail: string | null; emailSent: boolean }
+  | { ok: true; link: string; expiresInDays: number; borrowerEmail: string | null; emailSent: boolean; emailConfigured: boolean }
   | { ok: false; message: string };
 
 /**
@@ -55,5 +55,5 @@ export async function regenerateBorrowerLink(caseId: string): Promise<Regenerate
     }
   }
 
-  return { ok: true, link, expiresInDays: MAGIC_LINK_TTL_DAYS, borrowerEmail: kase.borrower_email, emailSent };
+  return { ok: true, link, expiresInDays: MAGIC_LINK_TTL_DAYS, borrowerEmail: kase.borrower_email, emailSent, emailConfigured: isEmailConfigured() };
 }

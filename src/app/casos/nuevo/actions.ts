@@ -5,14 +5,14 @@ import type { FieldErrors } from "@/lib/cases/new-case";
 import { parseNewCase } from "@/lib/cases/new-case";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
-import { getNotifier } from "@/lib/notify";
+import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { createClient } from "@/lib/supabase/server";
 
 export type CreateCaseState =
   | { status: "idle" }
   | { status: "invalid"; errors: FieldErrors; values: Record<string, string> }
   | { status: "failed"; message: string; values: Record<string, string> }
-  | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean };
+  | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean; emailConfigured: boolean };
 
 
 export async function createCase(_prev: CreateCaseState, formData: FormData): Promise<CreateCaseState> {
@@ -87,5 +87,5 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     });
   }
 
-  return { status: "created", caseId: created.id, companyName: c.name, borrowerEmail: c.borrowerEmail, link, expiresInDays: MAGIC_LINK_TTL_DAYS, emailSent: sent };
+  return { status: "created", caseId: created.id, companyName: c.name, borrowerEmail: c.borrowerEmail, link, expiresInDays: MAGIC_LINK_TTL_DAYS, emailSent: sent, emailConfigured: isEmailConfigured() };
 }
