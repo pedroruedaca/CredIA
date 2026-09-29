@@ -88,6 +88,13 @@ BORME adverse acts · Holded chart vs ledger reconciliation · closing-entries s
 - RLS on every table by `lender_id`; borrower access only through signed case tokens via server routes.
 - Tests: `npm test` (Vitest). Every parser and KPI change needs a test with a realistic fixture
   (`src/lib/__fixtures__/`: `tb-small-sl.ts` hand-checked TB; `holded-fake.ts` in-memory Holded API).
+- Integration tests: `npm run test:integration` against a **local** Supabase (`npx supabase start`; refuses any
+  non-localhost URL). `tests/integration/rls.test.ts` checks tenant isolation table by table: **every new
+  case-scoped table needs RLS by `lender_id`, a lender-match trigger (see `0008_lender_match_everywhere.sql`) and a
+  row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
+- E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
+  TB + Norma 43 → lender sees the package. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+- Lender reads of case data are audit-logged (`logCaseRead`, deduped per 15 min); exports and document opens too.
 - Imports inside `src/lib` use explicit `.ts` extensions (`allowImportingTsExtensions`); app code may use `@/`.
 
 ## Design language v2

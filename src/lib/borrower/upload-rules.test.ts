@@ -26,16 +26,28 @@ describe("checkDeclaredFile", () => {
   });
 });
 
+/** Minimal ZIP-like bytes: local header signature, then the entry names as stored in the central directory. */
+const zip = (...names: string[]) => new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, ...bytes(names.join("\u0000"))]);
+
 describe("contentMatchesExtension", () => {
   it("recognises PDF, XLSX and XLS signatures", () => {
-    expect(contentMatchesExtension(bytes("%PDF-1.7\n..."), "pdf")).toBe(true);
-    expect(contentMatchesExtension(bytes("\r\n%PDF-1.4"), "pdf")).toBe(true);
-    expect(contentMatchesExtension(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14]), "xlsx")).toBe(true);
+    expect(contentMatchesExtension(bytes("%PDF-1.7\n...\n%%EOF\n"), "pdf")).toBe(true);
+    expect(contentMatchesExtension(bytes("\r\n%PDF-1.4\n...%%EOF"), "pdf")).toBe(true);
+    expect(contentMatchesExtension(zip("[Content_Types].xml", "xl/workbook.xml", "xl/worksheets/sheet1.xml"), "xlsx")).toBe(true);
     expect(contentMatchesExtension(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), "xls")).toBe(true);
   });
-  it("catches renamed files", () => {
+  it("catches renamed and disguised files", () => {
     expect(contentMatchesExtension(new Uint8Array([0x50, 0x4b, 0x03, 0x04]), "pdf")).toBe(false);
-    expect(contentMatchesExtension(bytes("%PDF-1.7"), "xlsx")).toBe(false);
+    expect(contentMatchesExtension(bytes("%PDF-1.7\n%%EOF"), "xlsx")).toBe(false);
+    // Word document or plain ZIP renamed to .xlsx
+    expect(contentMatchesExtension(zip("[Content_Types].xml", "word/document.xml"), "xlsx")).toBe(false);
+    expect(contentMatchesExtension(zip("notas.txt"), "xlsx")).toBe(false);
+    // Web page that mentions %PDF- and a truncated PDF download
+    expect(contentMatchesExtension(bytes("<html><body>%PDF-1.7 descarga</body></html>"), "pdf")).toBe(false);
+    expect(contentMatchesExtension(bytes("%PDF-1.7\n1 0 obj\n<< /Type /Catalog"), "pdf")).toBe(false);
+    // Windows executable renamed to .n43 / .csv (binary: NUL bytes)
+    expect(contentMatchesExtension(new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00]), "n43")).toBe(false);
+    expect(contentMatchesExtension(new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00]), "csv")).toBe(false);
     expect(contentMatchesExtension(new Uint8Array([0x25, 0x50, 0x00, 0x46]), "n43")).toBe(false);
   });
   it("accepts Norma 43 text, including Latin-1 bytes", () => {

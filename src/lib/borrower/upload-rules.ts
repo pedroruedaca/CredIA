@@ -61,17 +61,30 @@ export function checkDeclaredFile(kind: RequirementKind, filename: string, size:
 }
 
 /** Checks that the bytes match the extension, so a renamed file is caught at upload rather than in processing. */
+/** True when the ASCII `needle` occurs anywhere in `bytes`. */
+function containsAscii(bytes: Uint8Array, needle: string): boolean {
+  const n = [...needle].map((c) => c.charCodeAt(0));
+  outer: for (let i = 0; i <= bytes.length - n.length; i++) {
+    for (let j = 0; j < n.length; j++) if (bytes[i + j] !== n[j]) continue outer;
+    return true;
+  }
+  return false;
+}
+
 export function contentMatchesExtension(bytes: Uint8Array, ext: string): boolean {
   const format = EXTENSIONS[ext];
   const starts = (sig: number[]) => sig.every((b, i) => bytes[i] === b);
   switch (format) {
     case "pdf": {
-      // "%PDF-" within the first 1 KB (some generators prepend a few bytes).
-      const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
-      return head.includes("%PDF-");
+      // "%PDF-" within the first 1 KB (some generators prepend a few bytes) and an end-of-file marker near the
+      // end (a page that merely mentions "%PDF-" is not a PDF; a truncated download has no end marker).
+      const latin1 = new TextDecoder("latin1");
+      return latin1.decode(bytes.subarray(0, 1024)).includes("%PDF-") && latin1.decode(bytes.subarray(Math.max(0, bytes.length - 2048))).includes("%%EOF");
     }
     case "xlsx":
-      return starts([0x50, 0x4b, 0x03, 0x04]); // ZIP container
+      // A ZIP container that is an Excel workbook: its central directory lists xl/workbook.xml (a renamed .docx,
+      // .zip or .jar does not).
+      return starts([0x50, 0x4b, 0x03, 0x04]) && containsAscii(bytes, "xl/workbook.xml");
     case "xls":
       return starts([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]); // OLE2 compound file
     case "text": {

@@ -163,6 +163,8 @@ export const AUDIT_LABEL: Record<string, string> = {
   "check.open": "Alerta reabierta",
   "package.exported": "Paquete exportado",
   "document.downloaded": "Documento abierto",
+  "case.viewed": "Caso consultado",
+  "case.tables_viewed": "Tablas completas consultadas",
 };
 
 export const ACTOR_LABEL: Record<string, string> = { borrower: "Empresa", delegate: "Gestoría", system: "Sistema" };

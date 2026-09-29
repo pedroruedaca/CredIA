@@ -10,7 +10,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "seed:lender": "tsx --env-file=.env.local scripts/seed-lender.ts",
-    "seed:demo": "tsx --conditions=react-server --env-file=.env.local scripts/seed-demo-case.ts"
+    "seed:demo": "tsx --conditions=react-server --env-file=.env.local scripts/seed-demo-case.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
@@ -26,6 +28,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

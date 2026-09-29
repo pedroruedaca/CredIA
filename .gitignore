@@ -4,3 +4,7 @@ node_modules
 !.env.example
 *.tsbuildinfo
 next-env.d.ts
+e2e/.auth/
+e2e/.files/
+test-results/
+playwright-report/

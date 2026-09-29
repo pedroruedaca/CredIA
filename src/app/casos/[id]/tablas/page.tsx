@@ -10,6 +10,7 @@ import { describeSource, formatAccount, sourceHref, type SourceDoc } from "@/lib
 import { statementTables, type TableRow } from "@/lib/case-view/tables";
 import { caseRef, formatDate, formatEurWhole } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
+import { logCaseRead } from "@/lib/lender-audit";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -79,9 +80,11 @@ function Table({ title, rows, columns, caseId, docs }: { title: string; rows: Ta
 export default async function TablasPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  await requireLender();
-  const data = await loadCaseView(await createClient(), id);
+  const lender = await requireLender();
+  const db = await createClient();
+  const data = await loadCaseView(db, id);
   if (!data) notFound();
+  await logCaseRead(db, lender, id, "case.tables_viewed");
   const { closed, ytd } = data.statements;
   const statements = [closed, ytd].filter((s) => s !== null);
   const columns = statements.map((s) => (s.period.kind === "closed_fy" ? `Cierre ${formatDate(s.period.end)}` : `YTD ${formatDate(s.period.end)}`));
