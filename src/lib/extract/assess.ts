@@ -171,23 +171,23 @@ function solvency(w: SolvencyWire, ctx: AssessContext, warnings: Warning[]): Ass
       warnings: [...warnings, { code: "solvency_no_date", message: "No se ha encontrado la fecha del informe de solvencia." }],
     };
   }
-  // Pages are clamped to null/1 rather than rejecting the whole report over one missing page number.
-  const page = (p: number | null | undefined) => pos(p) ?? 1;
+  // The wire uses sentinels instead of null (structured-output limit): "" for text, 0 for a page, -1 for an amount.
+  const page = (p: number) => pos(p) ?? 1; // a missing page number should not reject the whole report
+  const str = (v: string) => (v.trim() ? v.trim() : null);
+  const money = (v: number) => (v >= 0 ? v : null);
+  const pd = w.default_probability;
+  const total = w.payment_incidents_total;
   const parsed = SolvencyReportSchema.safeParse({
     nif: cleanNif(w.company_nif) ?? cleanNif(ctx.caseCif) ?? "",
     provider: w.provider,
-    providerName: w.provider_name,
+    providerName: str(w.provider_name),
     reportDate,
-    rating: w.rating.value ? { value: w.rating.value, scale: w.rating.scale, description: w.rating.description, page: pos(w.rating.page) } : null,
-    defaultProbability: w.default_probability.percent !== null && w.default_probability.percent >= 0 && w.default_probability.percent <= 100
-      ? { percent: w.default_probability.percent, horizonMonths: w.default_probability.horizon_months && w.default_probability.horizon_months > 0 ? w.default_probability.horizon_months : null, page: pos(w.default_probability.page) }
-      : null,
-    creditLimit: w.credit_limit.amount !== null ? { amount: w.credit_limit.amount, page: pos(w.credit_limit.page) } : null,
-    incidents: w.payment_incidents.map((i) => ({ registry: i.registry, registryName: i.registry_name, creditor: i.creditor, amount: i.amount, date: isoOrNull(i.date), status: i.status, page: page(i.page) })),
-    incidentsTotal: w.payment_incidents_total.count !== null || w.payment_incidents_total.amount !== null
-      ? { count: w.payment_incidents_total.count !== null && w.payment_incidents_total.count >= 0 ? w.payment_incidents_total.count : null, amount: w.payment_incidents_total.amount, page: pos(w.payment_incidents_total.page) }
-      : null,
-    judicial: w.judicial_incidents.map((j) => ({ type: j.type, description: j.description, amount: j.amount, date: isoOrNull(j.date), status: j.status, page: page(j.page) })),
+    rating: str(w.rating.value) ? { value: str(w.rating.value), scale: str(w.rating.scale), description: str(w.rating.description), page: pos(w.rating.page) } : null,
+    defaultProbability: pd.percent >= 0 && pd.percent <= 100 ? { percent: pd.percent, horizonMonths: pd.horizon_months > 0 ? pd.horizon_months : null, page: pos(pd.page) } : null,
+    creditLimit: money(w.credit_limit.amount) !== null ? { amount: w.credit_limit.amount, page: pos(w.credit_limit.page) } : null,
+    incidents: w.payment_incidents.map((i) => ({ registry: i.registry, registryName: str(i.registry_name), creditor: str(i.creditor), amount: money(i.amount), date: isoOrNull(i.date), status: i.status, page: page(i.page) })),
+    incidentsTotal: total.count >= 0 || money(total.amount) !== null ? { count: total.count >= 0 ? total.count : null, amount: money(total.amount), page: pos(total.page) } : null,
+    judicial: w.judicial_incidents.map((j) => ({ type: j.type, description: j.description, amount: money(j.amount), date: isoOrNull(j.date), status: j.status, page: page(j.page) })),
     financials: w.financials.map((f) => ({ fiscalYear: f.fiscal_year, revenue: f.revenue, netIncome: f.net_income, equity: f.equity, totalAssets: f.total_assets, page: page(f.page) })),
   });
   if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn: reportDate, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };

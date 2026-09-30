@@ -3,6 +3,11 @@
  * defaults or refinements, which JSON-schema structured output doesn't support. Every extraction first says what
  * the document actually is and whose it is, so a wrong or foreign document is caught before its numbers are used.
  * normalize.ts turns these into the canonical (Zod v3) shapes in schema/canonical.ts.
+ *
+ * Structured outputs allow at most 16 parameters with union types (nullable fields) per request. Where an absent value
+ * cannot be mistaken for a real one, use a sentinel instead of null: "" for text, 0 for a page, -1 for an amount or
+ * percentage that cannot be negative. Keep null only for figures that can legitimately be negative or zero.
+ * schemas.test.ts checks every schema against the limit.
  */
 import * as z from "zod/v4";
 
@@ -18,7 +23,7 @@ const common = {
 
 const figure = z.object({
   value: z.number().nullable().describe("Euros as a plain number (e.g. 1234567.89). Negative when the document shows a loss or negative figure. null if absent."),
-  page: z.number().int().nullable().describe("1-based PDF page where the value appears."),
+  page: z.number().int().describe("1-based PDF page where the value appears; 0 if not identifiable."),
 });
 
 export const AccountsWire = z.object({
@@ -64,7 +69,10 @@ export type CertificateWire = z.infer<typeof CertificateWire>;
 
 export const SOLVENCY_PROVIDERS = ["experian", "informa", "axesor", "iberinform", "einforma", "equifax", "other"] as const;
 const incidentStatus = z.enum(["active", "resolved", "unknown"]).describe("active if still pending/unpaid; resolved if the report marks it paid, cancelled or closed.");
-const optDate = z.string().nullable().describe("YYYY-MM-DD, null if not shown.");
+const text = (what: string) => z.string().describe(`${what} Empty string if not shown.`);
+const page = z.number().int().describe("1-based PDF page; 0 if not identifiable.");
+const amount = (what: string) => z.number().describe(`${what} Euros as a plain number; -1 if not shown.`);
+const date = z.string().describe("YYYY-MM-DD; empty string if not shown.");
 
 /**
  * Commercial credit report on a company (informe de solvencia / informe comercial). The provider's own rating,
@@ -74,58 +82,58 @@ const optDate = z.string().nullable().describe("YYYY-MM-DD, null if not shown.")
 export const SolvencyWire = z.object({
   ...common,
   provider: z.enum(SOLVENCY_PROVIDERS).describe("Who produced the report."),
-  provider_name: z.string().nullable().describe("Provider and product name as printed, e.g. 'Experian · Informe de empresa'."),
-  report_date: z.string().nullable().describe("Date the report was generated, YYYY-MM-DD."),
+  provider_name: text("Provider and product name as printed, e.g. 'Experian · Informe de empresa'."),
+  report_date: z.string().describe("Date the report was generated, YYYY-MM-DD; empty string if not found."),
   rating: z
     .object({
-      value: z.string().nullable().describe("The provider's score or rating exactly as printed, e.g. '7', '72', 'B+'."),
-      scale: z.string().nullable().describe("The scale if printed, e.g. '1-10', '0-100', 'AAA-D'."),
-      description: z.string().nullable().describe("Text label next to it, e.g. 'Riesgo bajo'."),
-      page: z.number().int().nullable(),
+      value: text("The provider's score or rating exactly as printed, e.g. '7', '72', 'B+'."),
+      scale: text("The scale if printed, e.g. '1-10', '0-100', 'AAA-D'."),
+      description: text("Text label next to it, e.g. 'Riesgo bajo'."),
+      page,
     })
-    .describe("The provider's own score/rating. All fields null if the report has none."),
+    .describe("The provider's own score/rating. value is an empty string if the report has none."),
   default_probability: z
     .object({
-      percent: z.number().nullable().describe("Probability of default as a percentage number: 1.25 for '1,25 %'."),
-      horizon_months: z.number().int().nullable().describe("Horizon of the probability, in months (12 if 'a un año')."),
-      page: z.number().int().nullable(),
+      percent: z.number().describe("Probability of default as a percentage number: 1.25 for '1,25 %'; -1 if the report gives none."),
+      horizon_months: z.number().int().describe("Horizon of the probability, in months (12 if 'a un año'); 0 if not stated."),
+      page,
     })
     .describe("Probabilidad de impago / de incumplimiento, if the report gives one."),
   credit_limit: z
     .object({
-      amount: z.number().nullable().describe("Recommended or maximum credit limit (límite de crédito / riesgo máximo recomendado), euros."),
-      page: z.number().int().nullable(),
+      amount: amount("Recommended or maximum credit limit (límite de crédito / riesgo máximo recomendado)."),
+      page,
     })
     .describe("The provider's recommended credit limit, if any."),
   payment_incidents: z
     .array(
       z.object({
         registry: z.enum(["rai", "asnef_empresas", "experian_bureau", "badexcug", "other"]).describe("File the incident comes from: RAI, ASNEF-Empresas, Experian Bureau de Crédito, BADEXCUG or other."),
-        registry_name: z.string().nullable().describe("Registry name as printed."),
-        creditor: z.string().nullable().describe("Creditor or declaring entity, if shown."),
-        amount: z.number().nullable().describe("Unpaid amount, euros."),
-        date: optDate,
+        registry_name: text("Registry name as printed."),
+        creditor: text("Creditor or declaring entity."),
+        amount: amount("Unpaid amount."),
+        date,
         status: incidentStatus,
-        page: z.number().int(),
+        page,
       }),
     )
     .describe("Each unpaid debt listed in a payment-incident file (RAI, ASNEF-Empresas, bureau). Empty if none."),
   payment_incidents_total: z
     .object({
-      count: z.number().int().nullable().describe("Number of payment incidents in the report's summary."),
-      amount: z.number().nullable().describe("Total unpaid amount in the summary, euros."),
-      page: z.number().int().nullable(),
+      count: z.number().int().describe("Number of payment incidents in the report's summary; 0 if it states there are none; -1 if it gives no summary."),
+      amount: amount("Total unpaid amount in the summary."),
+      page,
     })
-    .describe("Summary totals of payment incidents, when the report gives them (also when it lists no detail). count 0 if the report states there are none."),
+    .describe("Summary totals of payment incidents, when the report gives them (also when it lists no detail)."),
   judicial_incidents: z
     .array(
       z.object({
         type: z.enum(["concurso", "embargo", "lawsuit", "public_claim", "other"]).describe("concurso = insolvency proceedings; embargo = seizure; lawsuit = court claim; public_claim = claim or seizure by AEAT, TGSS or another public body."),
         description: z.string().describe("Short description as printed."),
-        amount: z.number().nullable(),
-        date: optDate,
+        amount: amount("Amount claimed or seized."),
+        date,
         status: incidentStatus,
-        page: z.number().int(),
+        page,
       }),
     )
     .describe("Judicial and administrative incidents (concursos, embargos, demandas, reclamaciones de organismos públicos). Empty if none."),
@@ -133,11 +141,11 @@ export const SolvencyWire = z.object({
     .array(
       z.object({
         fiscal_year: z.number().int().describe("Ejercicio (year the fiscal period starts)."),
-        revenue: z.number().nullable().describe("Importe neto de la cifra de negocios / ventas, euros."),
-        net_income: z.number().nullable().describe("Resultado del ejercicio, euros."),
-        equity: z.number().nullable().describe("Patrimonio neto / fondos propios, euros."),
-        total_assets: z.number().nullable().describe("Total activo, euros."),
-        page: z.number().int(),
+        revenue: z.number().nullable().describe("Importe neto de la cifra de negocios / ventas, euros; null if not shown."),
+        net_income: z.number().nullable().describe("Resultado del ejercicio, euros (negative for a loss); null if not shown."),
+        equity: z.number().nullable().describe("Patrimonio neto / fondos propios, euros; null if not shown."),
+        total_assets: z.number().nullable().describe("Total activo, euros; null if not shown."),
+        page,
       }),
     )
     .describe("Financial figures the report shows per year (from the deposited annual accounts). Empty if none."),

@@ -5,7 +5,7 @@ import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
 import { WIRE_FOR, type AccountsWire, type CertificateWire, type CirbeWire } from "./schemas.ts";
 
 const CTX: AssessContext = { fileName: "doc.pdf", caseCif: "B12345674", companyName: "Distribuciones Ejemplo SL", lenderName: "Fondo Ejemplo Capital", expectedFiscalYear: 2025 };
-const f = (value: number | null, page: number | null = 3) => ({ value, page });
+const f = (value: number | null, page = 3) => ({ value, page });
 const base = { company_nif: "B12345674", company_name: "DISTRIBUCIONES EJEMPLO SL", legible: true };
 
 const m200: AccountsWire = {
@@ -99,18 +99,35 @@ describe("assessExtraction · informe de solvencia", () => {
       },
     });
   });
-  it("leaves out provider figures the report does not have, and clamps bad pages", () => {
+  it("turns the wire's sentinels (empty text, -1, page 0) into absent values, and clamps bad pages", () => {
     const a = assessExtraction("solvency_report", {
       ...solvencyWireSample,
-      rating: { value: null, scale: null, description: null, page: null },
-      default_probability: { percent: 140, horizon_months: 0, page: null },
-      credit_limit: { amount: null, page: null },
-      payment_incidents: [{ ...solvencyWireSample.payment_incidents[0], page: 0 }],
+      provider_name: "",
+      rating: { value: " ", scale: "", description: "", page: 0 },
+      default_probability: { percent: -1, horizon_months: 0, page: 0 },
+      credit_limit: { amount: -1, page: 0 },
+      payment_incidents: [{ ...solvencyWireSample.payment_incidents[0], creditor: "", amount: -1, date: "", page: 0 }],
+      payment_incidents_total: { count: -1, amount: -1, page: 0 },
+      judicial_incidents: [{ ...solvencyWireSample.judicial_incidents[0], amount: -1, date: "" }],
     }, CTX);
-    expect(a.canonical).toMatchObject({ kind: "solvency", data: { rating: null, defaultProbability: null, creditLimit: null, incidents: [{ page: 1 }] } });
+    expect(a.canonical).toMatchObject({
+      kind: "solvency",
+      data: {
+        providerName: null,
+        rating: null,
+        defaultProbability: null,
+        creditLimit: null,
+        incidents: [{ creditor: null, amount: null, date: null, page: 1 }],
+        incidentsTotal: null,
+        judicial: [{ amount: null, date: null }],
+      },
+    });
+    // A limit of 0 € and "no incidents" (count 0) are real values, not absent ones.
+    const zero = assessExtraction("solvency_report", { ...solvencyWireSample, credit_limit: { amount: 0, page: 1 }, payment_incidents_total: { count: 0, amount: -1, page: 2 } }, CTX);
+    expect(zero.canonical).toMatchObject({ data: { creditLimit: { amount: 0 }, incidentsTotal: { count: 0, amount: null } } });
   });
   it("needs review without a report date; fails another company's report", () => {
-    expect(assessExtraction("solvency_report", { ...solvencyWireSample, report_date: null }, CTX)).toMatchObject({ status: "needs_review", issuedOn: null });
+    expect(assessExtraction("solvency_report", { ...solvencyWireSample, report_date: "" }, CTX)).toMatchObject({ status: "needs_review", issuedOn: null });
     expect(assessExtraction("solvency_report", { ...solvencyWireSample, company_nif: "A58818501" }, CTX).status).toBe("failed");
   });
 });
