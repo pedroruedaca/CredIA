@@ -29,6 +29,28 @@ describe("exports", () => {
     expect(wb.getWorksheet("Trazabilidad")!.rowCount).toBeGreaterThan(10);
   });
 
+  it("PDF includes the Registro Mercantil section with officers and acts", async () => {
+    const { BORME_A_VALENCIA_TEXT } = await import("../__fixtures__/borme-a-valencia.ts");
+    const { parseSectionA } = await import("../borme/parse.ts");
+    const { toActRows } = await import("../borme/rows.ts");
+    const { buildProfile } = await import("../borme/profile.ts");
+    const { pdfText } = await import("../borme/fetch.ts");
+    const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT).data, { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA", pdfUrl: "x" });
+    const withRegistry = {
+      ...sample,
+      registry: { coverage: { from: "2023-10-02", to: "2026-09-29" }, match: { status: "confirmed" as const, sheet: "V-123456", decidedAt: at }, candidates: [], profile: buildProfile(rows.filter((r) => r.registry_sheet === "V-123456")) },
+    };
+    const p = buildPackage(withRegistry);
+    expect(p.sources.map((x) => x.label)).toContain("BORME · hoja V-123456");
+    const text = await pdfText(new Uint8Array(await packagePdf(withRegistry, p, at)));
+    expect(text).toContain("Registro Mercantil · BORME revisado desde 2 oct 2023");
+    expect(text).toContain("GARCIA RUIZ MARIA");
+    expect(text).toContain("Ampliación de capital");
+    expect(text).toContain("60.000 €");
+    // Without a confirmed company the section says why it is empty.
+    expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).toContain("El BORME aún no se ha importado.");
+  }, 30_000);
+
   it("PDF renders", async () => {
     const buf = await packagePdf(sample, pkg, at);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");

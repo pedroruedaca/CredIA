@@ -78,7 +78,11 @@ DB: `ingest.ts`, `case.ts`), cron `src/app/api/cron/borme/route.ts`, UI `src/com
 4. Checks (`bormeChecks`): insolvency, dissolution/extinction, closed sheet (high); capital reduction 24m, ≥2
    administrator changes 12m, address change 12m, incorporated < 24m (warn); `borme_no_adverse_acts` pass, stating
    the coverage start. source_ref `borme:<date>:<BORME-A id>:entry:<n>` links to the PDF on boe.es.
-5. Verified against the live BORME (29 Sep 2026: 2,215 entries; 12 Mar 2025: 2,922 entries, ~15 s per day without DB):
+5. **Watching:** after each daily import, `notifyNewActs` (`watch.ts`) finds cases whose confirmed company has acts in
+   days of the job's window not yet notified (`borme_days.notified_at`, 0011), writes `borme.new_acts` to the audit log
+   (a Bandeja item, pending until the case is opened) and reprocesses the case. Backfilled days never notify.
+   The committee PDF and the JSON export include the Registro Mercantil section.
+6. Verified against the live BORME (29 Sep 2026: 2,215 entries; 12 Mar 2025: 2,922 entries, ~15 s per day without DB):
    every published label recognised, ~0.1 % of entries without a usable sheet (sheets without registry letters).
    Real-world shapes are in `BORME_A_REAL_SHAPES_TEXT`. In the cloud sandbox Node's fetch needs `NODE_USE_ENV_PROXY=1`.
 

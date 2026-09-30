@@ -1,4 +1,5 @@
-/** Bandeja: what needs attention across all cases (help requests, submissions, withdrawn consent, reviews). */
+/** Bandeja: what needs attention across all cases (help requests, submissions, withdrawn consent, reviews,
+ * new BORME acts). */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -24,19 +25,21 @@ function Row({ item, canEdit, now }: { item: InboxItem; canEdit: boolean; now: D
       ? item.detail
         ? `«${item.detail}» · ${ACTOR_LABEL[item.actor ?? "borrower"]}`
         : `Sin mensaje · ${ACTOR_LABEL[item.actor ?? "borrower"]}`
-      : item.kind === "needs_review"
-        ? `${DOC_KIND_LABEL[item.detail ?? ""] ?? "Documento"}: credIA no ha podido leerlo con seguridad`
-        : item.kind === "submitted"
-          ? "Abre el caso para ver el paquete"
-          : "Ya no puede aportar documentos";
+      : item.kind === "registry"
+        ? (item.detail ?? "Nuevos actos publicados")
+        : item.kind === "needs_review"
+          ? `${DOC_KIND_LABEL[item.detail ?? ""] ?? "Documento"}: credIA no ha podido leerlo con seguridad`
+          : item.kind === "submitted"
+            ? "Abre el caso para ver el paquete"
+            : "Ya no puede aportar documentos";
   return (
     <li className={cx("-mx-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-row px-4 py-3.5 transition-colors duration-150 hover:bg-soft", !item.pending && "opacity-60")}>
-      <SeverityDot tone={item.pending ? INBOX_TONE[item.kind] : "neutral"} className="size-2.5" />
+      <SeverityDot tone={item.pending ? (item.tone ?? INBOX_TONE[item.kind]) : "neutral"} className="size-2.5" />
       <Link href={`/casos/${item.caseId}`} className="flex min-w-0 grow basis-64 flex-col gap-0.5 text-ink hover:text-ink hover:no-underline">
         <span className="text-[15px] font-medium">{INBOX_TITLE[item.kind](item.company)}</span>
         <span className="line-clamp-2 text-[13px] text-muted">{sub}</span>
       </Link>
-      <Pill tone={item.pending ? INBOX_TONE[item.kind] : "neutral"} dot={false} className="hidden sm:inline-flex">{INBOX_KIND_LABEL[item.kind]}</Pill>
+      <Pill tone={item.pending ? (item.tone ?? INBOX_TONE[item.kind]) : "neutral"} dot={false} className="hidden sm:inline-flex">{INBOX_KIND_LABEL[item.kind]}</Pill>
       <time dateTime={item.at} className="w-24 text-right text-[13px] text-muted">{relativeTime(item.at, now)}</time>
       {item.kind === "support" && item.pending && canEdit && item.supportRequestId ? (
         <CloseButton id={item.supportRequestId} />

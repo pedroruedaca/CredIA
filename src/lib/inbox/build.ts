@@ -1,12 +1,12 @@
 /**
  * Bandeja: what needs the lender's attention across cases, from rows the lender can already read. Pure.
- * An item is pending until it is handled: help marked attended, the case opened after a submission or consent
- * withdrawal, or the document no longer needing review.
+ * An item is pending until it is handled: help marked attended, the case opened after a submission, a consent
+ * withdrawal or new BORME acts, or the document no longer needing review.
  */
 
 export const INBOX_WINDOW_DAYS = 30;
 
-export type InboxKind = "support" | "submitted" | "consent_withdrawn" | "needs_review";
+export type InboxKind = "support" | "submitted" | "consent_withdrawn" | "needs_review" | "registry";
 
 export interface InboxItem {
   id: string;
@@ -19,6 +19,8 @@ export interface InboxItem {
   detail: string | null;
   actor?: "borrower" | "delegate";
   supportRequestId?: string;
+  /** Registry items: the most severe act sets the tone. */
+  tone?: "high" | "warn" | "info";
 }
 
 export interface InboxInput {
@@ -27,6 +29,8 @@ export interface InboxInput {
   /** Case views by anyone at the lender (audit_log case.viewed). */
   views: { case_id: string; at: string }[];
   needsReview: { id: string; case_id: string; kind: string; uploaded_at: string; company: string }[];
+  /** New BORME acts for a case's confirmed company (audit_log borme.new_acts). */
+  registry?: { id: string; case_id: string; at: string; company: string; acts: { label: string; severity: "high" | "warn" | "info" | null }[] }[];
 }
 
 export function buildInbox(input: InboxInput, now = new Date()): { items: InboxItem[]; pendingCount: number } {
@@ -47,6 +51,12 @@ export function buildInbox(input: InboxInput, now = new Date()): { items: InboxI
     if (c.consent_withdrawn_at && c.consent_withdrawn_at >= since) {
       items.push({ id: `consent:${c.id}`, kind: "consent_withdrawn", caseId: c.id, company: c.company, at: c.consent_withdrawn_at, pending: !viewedAfter(c.id, c.consent_withdrawn_at), detail: null });
     }
+  }
+  for (const r of input.registry ?? []) {
+    if (r.at < since) continue;
+    const labels = [...new Set(r.acts.map((a) => a.label))];
+    const tone = r.acts.some((a) => a.severity === "high") ? "high" : r.acts.some((a) => a.severity === "warn") ? "warn" : "info";
+    items.push({ id: `registry:${r.id}`, kind: "registry", caseId: r.case_id, company: r.company, at: r.at, pending: !viewedAfter(r.case_id, r.at), detail: labels.join(" · ") || null, tone });
   }
   for (const d of input.needsReview) {
     items.push({ id: `review:${d.id}`, kind: "needs_review", caseId: d.case_id, company: d.company, at: d.uploaded_at, pending: true, detail: d.kind });

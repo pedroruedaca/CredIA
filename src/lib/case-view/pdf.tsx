@@ -129,6 +129,75 @@ function Table({ title, rows, cols }: { title: string; rows: TableRow[]; cols: s
   );
 }
 
+const PDF_ACTS = 12;
+
+/** Registro Mercantil: the confirmed company's registry facts, current officers and latest BORME acts. */
+function Registry({ d }: { d: CaseViewData }) {
+  const { coverage, match, profile } = d.registry;
+  const since = coverage ? `BORME revisado desde ${formatDate(coverage.from)}` : null;
+  if (!profile) {
+    const why = !coverage
+      ? "El BORME aún no se ha importado."
+      : match?.status === "none"
+        ? "La entidad indicó que la empresa no figura entre los resultados del BORME."
+        : "La entidad aún no ha confirmado qué empresa del BORME es la del caso.";
+    return (
+      <View wrap={false}>
+        <Text style={s.h2}>Registro Mercantil</Text>
+        <Text style={{ color: C.ink2 }}>{why}</Text>
+      </View>
+    );
+  }
+  const facts = [
+    ["Hoja registral", profile.sheet],
+    ["Constitución", profile.constitutedOn ? formatDate(profile.constitutedOn) : `Antes de ${formatDate(coverage?.from)}`],
+    ["Capital", profile.capital ? `${eur(profile.capital.amount)} €` : "Sin datos"],
+    ["Provincia", profile.province],
+  ];
+  return (
+    <View>
+      <View wrap={false}>
+        <Text style={s.h2}>Registro Mercantil{since ? ` · ${since}` : ""}</Text>
+        <Text style={{ fontWeight: 500 }}>{profile.name}{profile.formerNames.length ? <Text style={s.muted}>{`  · antes: ${profile.formerNames.join(", ")}`}</Text> : null}</Text>
+        <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
+          {facts.map(([label, value]) => (
+            <View key={label} style={{ flex: 1, gap: 2 }}>
+              <Text style={[s.muted, { fontSize: 8 }]}>{label}</Text>
+              <Text style={s.mono}>{value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>Cargos vigentes</Text>
+      {profile.officers.length === 0 && <Text style={{ color: C.ink2 }}>No hay nombramientos publicados en el periodo importado.</Text>}
+      {profile.officers.map((o) => (
+        <View key={`${o.role}|${o.name}`} style={s.tableRow} wrap={false}>
+          <Text style={{ flex: 1 }}>{o.name}</Text>
+          <Text style={[{ width: 110 }, { color: C.ink2 }]}>{o.role}</Text>
+          <Text style={[s.mono, s.muted, { width: 70, textAlign: "right" }]}>{o.since ? formatDate(o.since) : "—"}</Text>
+        </View>
+      ))}
+      <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>
+        Actos publicados{profile.timeline.length > PDF_ACTS ? ` · últimos ${PDF_ACTS} de ${profile.timeline.length}` : ""}
+      </Text>
+      {profile.timeline.slice(0, PDF_ACTS).map((t, i) => (
+        <View key={`${t.source}-${i}`} style={s.tableRow} wrap={false}>
+          <Text style={[s.mono, s.muted, { width: 70 }]}>{formatDate(t.date)}</Text>
+          <View style={{ flex: 1, gap: 1 }}>
+            <View style={{ flexDirection: "row", gap: 5 }}>
+              {t.severity && <View style={[s.dot, { marginTop: 3, backgroundColor: DOT[t.severity] }]} />}
+              <Text style={{ fontWeight: 500 }}>{t.label}</Text>
+            </View>
+            {t.text ? <Text style={{ color: C.ink2, fontSize: 8.5 }}>{t.text.length > 220 ? `${t.text.slice(0, 219)}…` : t.text}</Text> : null}
+          </View>
+          <Text style={[s.mono, s.muted, { width: 90, textAlign: "right", fontSize: 8 }]}>{`anuncio ${t.source.split(":").at(-1)}`}</Text>
+        </View>
+      ))}
+      <Text style={[s.muted, { fontSize: 8, marginTop: 6 }]}>Fuente: BORME, sección primera (actos inscritos). Cada anuncio se puede consultar en boe.es; el enlace está en la exportación JSON.</Text>
+    </View>
+  );
+}
+
 function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; generatedAt: string }) {
   const { kase } = d;
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
@@ -215,6 +284,8 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
             <Text style={[s.muted, { fontSize: 8 }]}>Agrupado por código PGC de 3 dígitos. YTD sin anualizar. El detalle por cuenta y su origen está en la exportación Excel (hoja Trazabilidad).</Text>
           </View>
         )}
+
+        <Registry d={d} />
 
         <Text style={s.h2}>Fuentes</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>

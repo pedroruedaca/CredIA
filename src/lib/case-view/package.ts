@@ -47,6 +47,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
 
   const sources: SourceChip[] = [];
   if (d.holded) sources.push({ label: `Holded · ${d.holded.entries.toLocaleString("es-ES")} apuntes`, docId: null });
+  if (d.registry.profile) sources.push({ label: `BORME · hoja ${d.registry.profile.sheet}`, docId: null });
   const usable = d.documents.filter((x) => x.status !== "failed");
   const byKind = new Map<string, typeof usable>();
   for (const doc of usable) byKind.set(doc.kind, [...(byKind.get(doc.kind) ?? []), doc]);

@@ -186,6 +186,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   "borme.match_confirmed": "Empresa confirmada en el BORME",
   "borme.match_none": "Empresa no encontrada en el BORME",
   "borme.match_clear": "Empresa del BORME por confirmar de nuevo",
+  "borme.new_acts": "Nuevos actos en el BORME",
 };
 
 export const ACTOR_LABEL: Record<string, string> = { borrower: "Empresa", delegate: "Gestoría", system: "Sistema" };

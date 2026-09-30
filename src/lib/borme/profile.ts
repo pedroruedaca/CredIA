@@ -67,7 +67,7 @@ function monthsBefore(date: string, months: number): string {
 const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const eur = (n: number) => `${Math.round(n).toLocaleString("es-ES", { useGrouping: "always" } as unknown as Intl.NumberFormatOptions)} €`;
 
-const SEVERITY: Partial<Record<ActType, Severity>> = {
+export const SEVERITY: Partial<Record<ActType, Severity>> = {
   insolvency: "high",
   dissolution: "high",
   extinction: "high",

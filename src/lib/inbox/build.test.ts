@@ -39,4 +39,18 @@ describe("buildInbox", () => {
     expect(r.items.map((i) => i.id)).toEqual(["consent:c2", "review:d1", "submitted:c3"]);
     expect(r.pendingCount).toBe(2);
   });
+
+  it("new BORME acts are pending until the case is opened, toned by the most severe act", () => {
+    const registry: InboxInput["registry"] = [
+      { id: "7", case_id: "c1", at: "2026-09-28T09:00:00Z", company: "Talleres", acts: [{ label: "Nombramientos", severity: null }, { label: "Situación concursal", severity: "high" }, { label: "Nombramientos", severity: null }] },
+      { id: "8", case_id: "c2", at: "2026-09-27T09:00:00Z", company: "Beta", acts: [{ label: "Cambio de domicilio social", severity: null }] },
+      { id: "9", case_id: "c3", at: "2026-07-01T09:00:00Z", company: "Old", acts: [] },
+    ];
+    const r = buildInbox({ ...base, registry, views: [{ case_id: "c2", at: "2026-09-27T10:00:00Z" }] }, now);
+    expect(r.items.map((i) => [i.id, i.pending, i.tone, i.detail])).toEqual([
+      ["registry:7", true, "high", "Nombramientos · Situación concursal"],
+      ["registry:8", false, "info", "Cambio de domicilio social"],
+    ]);
+    expect(r.pendingCount).toBe(1);
+  });
 });
