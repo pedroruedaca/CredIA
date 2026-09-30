@@ -136,15 +136,16 @@ function Requirements({ values, error }: { values: Record<string, string>; error
       {REQUIREMENT_SPECS.map((spec) => <input key={spec.kind} type="hidden" name={`req_${spec.kind}`} value={levels[spec.kind]} />)}
 
       {selected.length > 0 && (
-        <ul className="flex flex-col">
+        // One grid for all rows (subgrid), so the choice pills line up on the left whether they have two or three options.
+        <ul className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           {selected.map((spec) => (
-            <li key={spec.kind} className="-mx-4 flex flex-col gap-3 rounded-row px-4 py-3 hover:bg-soft sm:flex-row sm:items-center">
+            <li key={spec.kind} className="-mx-4 flex flex-col gap-3 rounded-row px-4 py-3 hover:bg-soft sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-x-3">
               <div className="min-w-0 grow">
                 <div className="text-[15px] font-medium">{spec.label}</div>
                 <div className="text-[13px] text-muted">{spec.hint}</div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-              <div role="group" aria-label={`${spec.label}: ${spec.byCif ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex gap-1 rounded-full bg-soft-control p-1">
+              <div className="flex shrink-0 items-center gap-3 sm:contents">
+              <div role="group" aria-label={`${spec.label}: ${spec.byCif ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
                 {(spec.byCif ? (["required", "optional", "cif"] as const) : (["required", "optional"] as const)).map((lvl) => (
                   <button
                     key={lvl}
