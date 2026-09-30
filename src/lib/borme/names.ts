@@ -30,6 +30,7 @@ export function companyKey(name: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toUpperCase()
+    .replace(/\(R\.\s?M\.[^)]*\)/g, " ") // "SL(R.M. SANTIAGO DE COMPOSTELA)": the registry, not the name
     .replace(/&/g, " Y ")
     .replace(/(\b[A-Z])\.(?=[A-Z]\b\.?)/g, "$1") // S.L. → SL., S.A.U. → SAU.
     .replace(/[^A-Z0-9]+/g, " ")

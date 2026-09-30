@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BORME_A_VALENCIA_TEXT } from "../__fixtures__/borme-a-valencia.ts";
+import { BORME_A_REAL_SHAPES_TEXT, BORME_A_VALENCIA_TEXT } from "../__fixtures__/borme-a-valencia.ts";
+import { companyKey } from "./names.ts";
 import { cleanText, parseRegistry, parseSectionA } from "./parse.ts";
 
 describe("parseSectionA", () => {
@@ -75,6 +76,49 @@ describe("parseSectionA", () => {
     );
     expect(r.data.map((e) => [e.number, e.company])).toEqual([[100, "ALFA SL"], [101, "BETA SL"]]);
     expect(r.data[1].acts.map((a) => a.type)).toEqual(["dissolution"]);
+  });
+});
+
+describe("parseSectionA on shapes from the live BORME", () => {
+  const { data, warnings } = parseSectionA(BORME_A_REAL_SHAPES_TEXT, { province: "BARCELONA" });
+  const e = (n: number) => data.find((x) => x.number === n)!;
+
+  it("parses every entry with its sheet and date, and no page furniture in the text", () => {
+    expect(warnings).toEqual([]);
+    expect(data.map((x) => [x.number, x.registry?.sheet, x.registeredOn])).toEqual([
+      [500001, "B-700001", "2026-09-22"],
+      [500002, "SC-1234", "2026-08-07"],
+      [500003, "SE-145246", "2026-09-18"],
+      [500004, "AL-39922", "2026-09-22"],
+    ]);
+    expect(JSON.stringify(data)).not.toMatch(/BOLET|cve:|Verificable|ISSN/);
+  });
+
+  it("finds 'Datos registrales' without a full stop before it", () => {
+    expect(e(500001).acts.map((a) => a.type)).toEqual(["constitution", "appointments", "other"]);
+    expect(e(500001).acts[2].text).toBe("DECLARACION DE SOCIEDAD UNIPERSONAL, SIENDO SOCIO UNICO ANNA PUIG SOLER");
+    expect(e(500003).acts.map((a) => a.type)).toEqual(["cessations", "appointments", "other"]);
+  });
+
+  it("reads roles in capitals, with slashes and digits", () => {
+    expect(e(500001).acts[1].details.officers).toEqual([{ role: "ADM.UNICO", name: "PUIG SOLER ANNA" }]);
+    expect(e(500002).acts[0].details.officers).toEqual([
+      { role: "APOD.SOL/MAN", name: "VIDAL MAS JORDI" },
+      { role: "APOD.SOL/MAN", name: "ROCA PONS MARTA" },
+      { role: "REPR.143 RRM", name: "SERRA COLL PAU" },
+    ]);
+  });
+
+  it("ends the name at '(R.M. …)' and ignores it in the company key", () => {
+    expect(e(500002).company).toBe("EJEMPLO SUR DEL NORTE SL(R.M. SANTIAGO DE COMPOSTELA)");
+    expect(companyKey(e(500002).company)).toBe("EJEMPLO SUR DEL NORTE");
+  });
+
+  it("recognises a closure label that contains 'Art.485'", () => {
+    expect(e(500004).acts.map((a) => [a.type, a.label])).toEqual([
+      ["sheet_closed", "Cierre provisional hoja registral Art.485 TRLC"],
+      ["insolvency", "Situación concursal"],
+    ]);
   });
 });
 

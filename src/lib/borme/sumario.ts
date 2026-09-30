@@ -35,7 +35,9 @@ export function sectionAPdfs(json: unknown, date: string): SectionAPdf[] {
     if (!v || typeof v !== "object") return;
     const o = v as Record<string, unknown>;
     const id = typeof o.identificador === "string" ? o.identificador : null;
-    if (id && ID.test(id) && !out.has(id)) {
+    const title = typeof o.titulo === "string" ? o.titulo : "";
+    // The day's alphabetical index is published as a Section A item too; it has no announcements.
+    if (id && ID.test(id) && !out.has(id) && !/^[IÍ]NDICE/i.test(title.trim())) {
       const url = urlOf(o.url_pdf);
       out.set(id, {
         id,

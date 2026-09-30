@@ -78,8 +78,9 @@ DB: `ingest.ts`, `case.ts`), cron `src/app/api/cron/borme/route.ts`, UI `src/com
 4. Checks (`bormeChecks`): insolvency, dissolution/extinction, closed sheet (high); capital reduction 24m, ≥2
    administrator changes 12m, address change 12m, incorporated < 24m (warn); `borme_no_adverse_acts` pass, stating
    the coverage start. source_ref `borme:<date>:<BORME-A id>:entry:<n>` links to the PDF on boe.es.
-5. **Unverified against the live site** (the dev sandbox cannot reach boe.es): run `borme:probe` first and adjust
-   `sumario.ts` / `LABELS` in `parse.ts` if the real output differs.
+5. Verified against the live BORME (29 Sep 2026: 2,215 entries; 12 Mar 2025: 2,922 entries, ~15 s per day without DB):
+   every published label recognised, ~0.1 % of entries without a usable sheet (sheets without registry letters).
+   Real-world shapes are in `BORME_A_REAL_SHAPES_TEXT`. In the cloud sandbox Node's fetch needs `NODE_USE_ENV_PROXY=1`.
 
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
@@ -137,4 +138,4 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
 ## Build order
 W1: scaffold + auth + RLS + case/upload flow · TB parser + PGC mapping · canonical schema + KPI engine
 W2: Holded connector ✅ (starter) — wire into borrower page, verify against a real account · N43 parser · LLM extractors (Modelo 200, CIRBE, certificates) · checks engine
-W3: BORME ✅ (verify with `borme:probe`, then backfill) · case view with drill-down to source · memo PDF · audit log · beta onboarding
+W3: BORME ✅ (apply 0010, set CRON_SECRET, backfill) · case view with drill-down to source · memo PDF · audit log · beta onboarding

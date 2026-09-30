@@ -99,14 +99,15 @@ const LABELS: [RegExp, ActType][] = [
   [/P[eé]rdida del car[aá]cter de unipersonalidad/, "sole_shareholder_lost"],
   [/Disoluci[oó]n/, "dissolution"],
   [/Extinci[oó]n/, "extinction"],
-  [/Reactivaci[oó]n de la sociedad[^.]*/, "reactivation"],
+  [/Reactivaci[oó]n de la sociedad(?:[^.]|\.(?=\S))*/, "reactivation"],
   [/Situaci[oó]n concursal/, "insolvency"],
   [/Suspensi[oó]n de pagos/, "insolvency"],
   [/Fusi[oó]n por absorci[oó]n/, "merger"],
   [/Fusi[oó]n por uni[oó]n/, "merger"],
   [/Escisi[oó]n (?:parcial|total)/, "spin_off"],
+  [/Segregaci[oó]n/, "spin_off"],
   [/Transformaci[oó]n de sociedad/, "transformation"],
-  [/Cierre provisional[^.]*/, "sheet_closed"],
+  [/Cierre provisional(?:[^.]|\.(?=\S))*/, "sheet_closed"],
   [/Reapertura hoja registral/, "sheet_reopened"],
   [/Cancelaciones de oficio de nombramientos/, "officers_cancelled"],
   [/Modificaci[oó]n de poderes/, "other"],
@@ -128,10 +129,11 @@ const LABELS: [RegExp, ActType][] = [
 ];
 const REGISTRY_LABEL = /Datos registrales/;
 
-// One alternation with a group per label; a label counts only at the start of the body or after ". ", and must be
-// followed by "." or ":" (the details of an act use "Role: value", never "Label.").
+// One alternation with a group per label; a label counts only at the start of the body or after ". " (or ") " after a
+// "(R.M. …)" suffix), and must be followed by "." or ":" (act details use "Role: value", never "Label.").
+// "Datos registrales" is distinctive enough to count after any space: some registries omit the full stop before it.
 const LABEL_RE = new RegExp(
-  `(?:^|(?<=\\.)\\s+)(${[...LABELS.map(([r]) => r.source), REGISTRY_LABEL.source].map((s) => `(${s})`).join("|")})(?=[.:](?:\\s|$))`,
+  `(?:^|(?<=[.)])\\s+|\\s+(?=Datos registrales[.:]))(${[...LABELS.map(([r]) => r.source), REGISTRY_LABEL.source].map((s) => `(${s})`).join("|")})(?=[.:](?:\\s|$))`,
   "giu",
 );
 
@@ -146,8 +148,8 @@ function labelType(groups: (string | undefined)[]): ActType | "registry" {
 
 /** Page furniture repeated on every page of a BORME PDF. */
 const FURNITURE = [
-  /^BOLET[IÍ]N OFICIAL DEL REGISTRO MERCANTIL$/i,
-  /^N[uú]m\. \d+ .*P[aá]g\. \d+$/i,
+  /^(?:https?:\/\/www\.boe\.es\s+)?BOLET[IÍ]N OFICIAL DEL REGISTRO MERCANTIL(?:\s+D\.L\.: .*)?$/i,
+  /^N[uú]m\. \d+ .*P[aá]g\. \d+\s*(?:cve: BORME-[A-Z]-\d{4}-\d+-\d+)?$/i,
   /^cve: BORME-[A-Z]-\d{4}-\d+-\d+$/i,
   /^Verificable en https?:\/\/www\.boe\.es$/i,
   /^D\.L\.: .*ISSN: .*$/i,
@@ -178,14 +180,14 @@ export function cleanText(raw: string, province?: string): string {
 // ---------------------------------------------------------------------------------------------------------------
 // Details
 
-const DATE_RE = /\((\d{2})\.(\d{2})\.(\d{2})\)\s*\.?\s*$/;
+const DATE_RE = /\(\s*(\d{1,2})\.(\d{2})\.(\d{2})\)\s*\.?\s*$/;
 
 function parseDate(m: RegExpExecArray | null): string | null {
   if (!m) return null;
   const [, d, mo, y] = m;
   const day = Number(d), month = Number(mo);
   if (day < 1 || day > 31 || month < 1 || month > 12) return null;
-  return `20${y}-${mo}-${d}`;
+  return `20${y}-${mo}-${d.padStart(2, "0")}`;
 }
 
 /** "T 12345 , F 120, S 8, H V 123456, I/A 7 (21.09.26)." → sheet "V-123456". */
@@ -197,15 +199,16 @@ export function parseRegistry(text: string): RegistryData {
 /** "Role: A;B. Role: C." pairs. Roles are short mixed-case keys ("Adm. Unico", "Consejero", "Apo.Sol."). */
 function roleValues(text: string): [string, string][] {
   const out: [string, string][] = [];
-  // A role key starts the text or follows ". ", and has lower-case letters (names are published in capitals).
-  const key = /^([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚÑáéíóúñ.]*(?: [A-Za-zÁÉÍÓÚÑáéíóúñ.]+){0,3})\s*:\s*/;
+  // A role key starts the text or follows ". ": "Adm. Unico", "Apo.Sol.", or in capitals in some registries ("ADM.UNICO").
+  // Roles may carry "/", "-" or digits: "APOD.SOL/MAN", "REPR.143 RRM", "V-SEC NO CON", "Vsecr4.NC.".
+  const key = /^([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚÑáéíóúñ0-9./-]*(?: [A-Za-zÁÉÍÓÚÑáéíóúñ0-9./-]+){0,3})\s*:\s*/;
   const keys: { role: string; start: number; end: number }[] = [];
   const candidates = [0, ...[...text.matchAll(/\.\s+/g)].map((m) => m.index! + m[0].length)];
   let from = 0;
   for (const c of candidates) {
     if (c < from) continue;
     const m = key.exec(text.slice(c));
-    if (!m || !/[a-záéíóúñ]/.test(m[1])) continue;
+    if (!m) continue;
     keys.push({ role: m[1].trim(), start: c, end: c + m[0].length });
     from = c + m[0].length;
   }
