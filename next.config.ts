@@ -9,7 +9,8 @@ const tokenHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["@react-pdf/renderer"],
+  // unpdf (BORME PDFs) uses import.meta, which webpack cannot bundle safely: load it from node_modules.
+  serverExternalPackages: ["@react-pdf/renderer", "unpdf"],
   // The assistant reads its guide at runtime; make sure it ships with the serverless bundle.
   outputFileTracingIncludes: {
     "/api/borrower/[token]/assistant": ["./src/content/docs-guide.es.md"],
