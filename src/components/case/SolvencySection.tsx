@@ -8,10 +8,11 @@
  */
 import { Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { prepareLenderUpload, registerLenderUpload } from "@/app/casos/[id]/actions";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button } from "@/components/ui/Button";
+import { cx } from "@/components/ui/cx";
 import { Figure } from "@/components/ui/Figure";
 import { ListRow } from "@/components/ui/ListRow";
 import { Pill, SourcePill } from "@/components/ui/Pill";
@@ -28,16 +29,15 @@ const Eur = ({ value }: { value: number | null }) =>
 
 const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "tu entidad" } as const;
 
-function UploadReport({ caseId }: { caseId: string }) {
+/** Lender upload (signed URL straight to Storage, then registered); shared by the button and drag-and-drop. */
+function useLenderUpload(caseId: string) {
   const router = useRouter();
-  const inputId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-
   const upload = (file: File) =>
     start(async () => {
       setError(null);
+      if (!/\.pdf$/i.test(file.name)) return setError(`«${file.name}» no es un PDF. Sube el informe en PDF, tal como lo entrega el proveedor.`);
       const prep = await prepareLenderUpload({ caseId, kind: "solvency_report", filename: file.name, size: file.size });
       if (!prep.ok) return setError(prep.message);
       const { error: upErr } = await createClient().storage.from("case-files").uploadToSignedUrl(prep.path, prep.token, file, { contentType: file.type || "application/pdf" });
@@ -48,33 +48,76 @@ function UploadReport({ caseId }: { caseId: string }) {
       // The report is read in the background: pick up the result without a manual reload.
       for (const ms of [5_000, 15_000, 40_000]) setTimeout(() => router.refresh(), ms);
     });
+  return { upload, pending, error };
+}
 
+function FileInput({ id, disabled, onFile }: { id: string; disabled: boolean; onFile: (f: File) => void }) {
   return (
-    <span className="inline-flex flex-col items-end gap-1">
-      <label htmlFor={inputId} className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-soft-control px-4 text-[13px] font-medium text-ink transition-colors hover:bg-track/70 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
-        {pending ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Upload size={15} strokeWidth={1.8} aria-hidden />}
-        {pending ? "Subiendo…" : "Subir informe"}
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="file"
-          accept=".pdf"
-          disabled={pending}
-          className="sr-only"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-            e.target.value = "";
-          }}
-        />
-      </label>
-      {error && <ErrorLine message={error} />}
-    </span>
+    <input
+      id={id}
+      type="file"
+      accept=".pdf,application/pdf"
+      disabled={disabled}
+      className="sr-only"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) onFile(f);
+        e.target.value = "";
+      }}
+    />
+  );
+}
+
+/** Drop zone shown when the case has no report yet (same look as the company's portal). */
+function DropZone({ inputId, pending, dragOver, onFile }: { inputId: string; pending: boolean; dragOver: boolean; onFile: (f: File) => void }) {
+  return (
+    <label
+      htmlFor={inputId}
+      className={cx(
+        "relative flex cursor-pointer items-center gap-4 rounded-zone px-5 py-4 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-6 sm:py-5",
+        dragOver ? "bg-accent-ring" : "bg-accent-tint hover:bg-accent-ring",
+      )}
+    >
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
+        {pending ? <Loader2 size={20} className="animate-spin text-accent" aria-hidden /> : <Upload size={20} strokeWidth={2} className="text-accent" aria-hidden />}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-[15px] font-semibold">{pending ? "Subiendo el informe…" : "Suelta aquí el informe de solvencia"}</span>
+        <span className="text-sm text-ink-2">
+          o <span className="text-accent underline underline-offset-[3px]">búscalo en tu equipo</span> · PDF de Experian, Informa, Axesor u otro proveedor
+        </span>
+      </span>
+      <FileInput id={inputId} disabled={pending} onFile={onFile} />
+    </label>
   );
 }
 
 export function SolvencySection({ caseId, solvency, canEdit, requested }: { caseId: string; solvency: CaseViewData["solvency"]; canEdit: boolean; requested: boolean }) {
   const [showAll, setShowAll] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const { upload, pending, error } = useLenderUpload(caseId);
+  const buttonInputId = useId();
+  const zoneInputId = useId();
+  // The whole section accepts a dropped PDF, so dropping onto the button or the report works too.
+  const dropProps = canEdit
+    ? {
+        onDragOver: (e: React.DragEvent) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDragOver(true);
+        },
+        onDragLeave: (e: React.DragEvent) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+        },
+        onDrop: (e: React.DragEvent) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f && !pending) upload(f);
+        },
+      }
+    : {};
   const r = solvency?.report ?? null;
   const who = r ? (SOLVENCY_PROVIDER_LABEL[r.provider] ?? SOLVENCY_PROVIDER_LABEL.other) : null;
   const src = (page: number | null) => (solvency ? sourceHref(caseId, solvency.docId, page) : undefined);
@@ -82,10 +125,10 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
   let body: React.ReactNode;
   if (!solvency) {
     body = (
-      <p className="text-[15px] text-ink-2">
-        {requested ? "Pedido a la empresa; aún no lo ha subido." : "No hay informe de solvencia."}
-        {canEdit && " Puedes subir el que tengas de Experian, Informa, Axesor u otro proveedor."}
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="text-[15px] text-ink-2">{requested ? "Pedido a la empresa; aún no lo ha subido. También puedes subir tú el que tengas." : "No hay informe de solvencia."}</p>
+        {canEdit && <DropZone inputId={zoneInputId} pending={pending} dragOver={dragOver} onFile={upload} />}
+      </div>
     );
   } else if (!r) {
     body =
@@ -228,7 +271,11 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
   }
 
   return (
-    <section aria-labelledby="solvencia" className="flex flex-col gap-4">
+    <section
+      aria-labelledby="solvencia"
+      {...dropProps}
+      className={cx("-mx-4 flex flex-col gap-4 rounded-row px-4 py-1 transition-colors duration-150", dragOver && solvency && "bg-accent-tint ring-2 ring-accent")}
+    >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         <h2 id="solvencia" className="heading-section">Informe de solvencia</h2>
         {r && solvency && (
@@ -237,9 +284,16 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
           </span>
         )}
         <div className="grow" />
-        {canEdit && <UploadReport caseId={caseId} />}
+        {canEdit && solvency && (
+          <label htmlFor={buttonInputId} className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-soft-control px-4 text-[13px] font-medium text-ink transition-colors hover:bg-track/70 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+            {pending ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Upload size={15} strokeWidth={1.8} aria-hidden />}
+            {pending ? "Subiendo…" : "Subir otro informe"}
+            <FileInput id={buttonInputId} disabled={pending} onFile={upload} />
+          </label>
+        )}
       </div>
       {body}
+      {error && <ErrorLine message={error} />}
     </section>
   );
 }
