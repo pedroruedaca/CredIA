@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { SourcePill } from "@/components/ui/Pill";
 import { cx } from "@/components/ui/cx";
 import { loadCaseView } from "@/lib/case-view/load";
-import { describeSource, formatAccount, sourceHref, type SourceDoc } from "@/lib/case-view/present";
+import { describeSource, formatAccount, isAccountCode, sourceHref, type SourceDoc } from "@/lib/case-view/present";
 import { statementTables, type TableRow } from "@/lib/case-view/tables";
 import { caseRef, formatDate, formatEurWhole } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
@@ -61,7 +61,7 @@ function Table({ title, rows, columns, caseId, docs }: { title: string; rows: Ta
                   return (
                     <li key={`${col}-${i}`} className={cx("grid items-center gap-x-4 text-[13px] text-ink-2", grid)}>
                       <span className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="font-mono">{formatAccount(c.account)}</span>
+                        <span className={isAccountCode(c.account) ? "font-mono" : undefined}>{formatAccount(c.account)}</span>
                         <SourcePill href={sourceHref(caseId, src.docId, src.page)} className="min-h-6 px-2 text-[11px]">{src.label}</SourcePill>
                       </span>
                       {columns.map((_, j) => <span key={j} className="text-right font-mono tabular-nums">{j === col ? eur(c.amount) : ""}</span>)}

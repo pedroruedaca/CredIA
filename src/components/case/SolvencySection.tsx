@@ -6,10 +6,10 @@
  * provider's figures, always attributed; incidents and yearly figures link to their page in the PDF. The lender
  * can upload a report from its own subscription here.
  */
-import { Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
-import { prepareLenderUpload, registerLenderUpload } from "@/app/casos/[id]/actions";
+import { requestDocument } from "@/app/casos/[id]/actions";
+import { DropZone, UploadPill, useLenderUpload } from "@/components/case/LenderUpload";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button } from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
@@ -21,7 +21,6 @@ import { INCIDENT_REGISTRY_LABEL, INCIDENT_STATUS_LABEL, JUDICIAL_TYPE_LABEL, PR
 import type { CaseViewData } from "@/lib/case-view/load";
 import { sourceHref } from "@/lib/case-view/present";
 import { formatDate, formatEurWhole, formatFigure } from "@/lib/format";
-import { createClient } from "@/lib/supabase/browser";
 
 /** Whole euros in tables, so every row reads on the same scale (Figure switches to M€ above a million). */
 const Eur = ({ value }: { value: number | null }) =>
@@ -29,95 +28,31 @@ const Eur = ({ value }: { value: number | null }) =>
 
 const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "tu entidad" } as const;
 
-/** Lender upload (signed URL straight to Storage, then registered); shared by the button and drag-and-drop. */
-function useLenderUpload(caseId: string) {
+export function SolvencySection({
+  caseId,
+  solvency,
+  canEdit,
+  requested,
+}: {
+  caseId: string;
+  solvency: CaseViewData["solvency"];
+  canEdit: boolean;
+  /** How it was requested: the lender obtains it by CIF, the company uploads it, or not requested. */
+  requested: "cif" | "borrower" | null;
+}) {
   const router = useRouter();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const upload = (file: File) =>
-    start(async () => {
-      setError(null);
-      if (!/\.pdf$/i.test(file.name)) return setError(`«${file.name}» no es un PDF. Sube el informe en PDF, tal como lo entrega el proveedor.`);
-      const prep = await prepareLenderUpload({ caseId, kind: "solvency_report", filename: file.name, size: file.size });
-      if (!prep.ok) return setError(prep.message);
-      const { error: upErr } = await createClient().storage.from("case-files").uploadToSignedUrl(prep.path, prep.token, file, { contentType: file.type || "application/pdf" });
-      if (upErr) return setError("La subida se ha interrumpido. Inténtalo de nuevo.");
-      const r = await registerLenderUpload({ caseId, path: prep.path, filename: file.name });
-      if (!r.ok) return setError(r.message);
-      router.refresh();
-      // The report is read in the background: pick up the result without a manual reload.
-      for (const ms of [5_000, 15_000, 40_000]) setTimeout(() => router.refresh(), ms);
+  const [asking, startAsk] = useTransition();
+  const [askResult, setAskResult] = useState<{ ok: boolean; message?: string } | null>(null);
+  const askCompany = () =>
+    startAsk(async () => {
+      const r = await requestDocument({ caseId, kind: "solvency_report" });
+      setAskResult(r);
+      if (r.ok) router.refresh();
     });
-  return { upload, pending, error };
-}
-
-function FileInput({ id, disabled, onFile }: { id: string; disabled: boolean; onFile: (f: File) => void }) {
-  return (
-    <input
-      id={id}
-      type="file"
-      accept=".pdf,application/pdf"
-      disabled={disabled}
-      className="sr-only"
-      onChange={(e) => {
-        const f = e.target.files?.[0];
-        if (f) onFile(f);
-        e.target.value = "";
-      }}
-    />
-  );
-}
-
-/** Drop zone shown when the case has no report yet (same look as the company's portal). */
-function DropZone({ inputId, pending, dragOver, onFile }: { inputId: string; pending: boolean; dragOver: boolean; onFile: (f: File) => void }) {
-  return (
-    <label
-      htmlFor={inputId}
-      className={cx(
-        "relative flex cursor-pointer items-center gap-4 rounded-zone px-5 py-4 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-6 sm:py-5",
-        dragOver ? "bg-accent-ring" : "bg-accent-tint hover:bg-accent-ring",
-      )}
-    >
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
-        {pending ? <Loader2 size={20} className="animate-spin text-accent" aria-hidden /> : <Upload size={20} strokeWidth={2} className="text-accent" aria-hidden />}
-      </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[15px] font-semibold">{pending ? "Subiendo el informe…" : "Suelta aquí el informe de solvencia"}</span>
-        <span className="text-sm text-ink-2">
-          o <span className="text-accent underline underline-offset-[3px]">búscalo en tu equipo</span> · PDF de Experian, Informa, Axesor u otro proveedor
-        </span>
-      </span>
-      <FileInput id={inputId} disabled={pending} onFile={onFile} />
-    </label>
-  );
-}
-
-export function SolvencySection({ caseId, solvency, canEdit, requested }: { caseId: string; solvency: CaseViewData["solvency"]; canEdit: boolean; requested: boolean }) {
   const [showAll, setShowAll] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const { upload, pending, error } = useLenderUpload(caseId);
+  const { upload, pending, error, dragOver, dropProps } = useLenderUpload(caseId, "solvency_report", (name) => `«${name}» no es un PDF. Sube el informe en PDF, tal como lo entrega el proveedor.`);
   const buttonInputId = useId();
   const zoneInputId = useId();
-  // The whole section accepts a dropped PDF, so dropping onto the button or the report works too.
-  const dropProps = canEdit
-    ? {
-        onDragOver: (e: React.DragEvent) => {
-          if (!e.dataTransfer.types.includes("Files")) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          setDragOver(true);
-        },
-        onDragLeave: (e: React.DragEvent) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
-        },
-        onDrop: (e: React.DragEvent) => {
-          e.preventDefault();
-          setDragOver(false);
-          const f = e.dataTransfer.files?.[0];
-          if (f && !pending) upload(f);
-        },
-      }
-    : {};
   const r = solvency?.report ?? null;
   const who = r ? (SOLVENCY_PROVIDER_LABEL[r.provider] ?? SOLVENCY_PROVIDER_LABEL.other) : null;
   const src = (page: number | null) => (solvency ? sourceHref(caseId, solvency.docId, page) : undefined);
@@ -126,8 +61,14 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
   if (!solvency) {
     body = (
       <div className="flex flex-col gap-3">
-        <p className="text-[15px] text-ink-2">{requested ? "Pedido a la empresa; aún no lo ha subido. También puedes subir tú el que tengas." : "No hay informe de solvencia."}</p>
-        {canEdit && <DropZone inputId={zoneInputId} pending={pending} dragOver={dragOver} onFile={upload} />}
+        <p className="text-[15px] text-ink-2">{requested === "cif"
+            ? "Por CIF: obtén el informe de tu proveedor (Experian, Informa, Axesor, Iberinform…) con el CIF de la empresa y súbelo aquí."
+            : requested
+              ? "Pedido a la empresa; aún no lo ha subido. También puedes subir tú el que tengas."
+              : "No hay informe de solvencia."}</p>
+        {canEdit && (
+          <DropZone inputId={zoneInputId} pending={pending} dragOver={dragOver} onFile={upload} title="Suelta aquí el informe de solvencia" pendingTitle="Subiendo el informe…" hint="PDF de Experian, Informa, Axesor u otro proveedor" />
+        )}
       </div>
     );
   } else if (!r) {
@@ -273,7 +214,7 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
   return (
     <section
       aria-labelledby="solvencia"
-      {...dropProps}
+      {...dropProps(canEdit)}
       className={cx("-mx-4 flex flex-col gap-4 rounded-row px-4 py-1 transition-colors duration-150", dragOver && solvency && "bg-accent-tint ring-2 ring-accent")}
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
@@ -283,16 +224,16 @@ export function SolvencySection({ caseId, solvency, canEdit, requested }: { case
             {r.providerName ?? who} · {formatDate(r.reportDate)} · subido por {BY_LABEL[solvency.uploadedBy]}
           </span>
         )}
+        {requested === "cif" && !r && <Pill tone="neutral">Por CIF · pendiente</Pill>}
         <div className="grow" />
-        {canEdit && solvency && (
-          <label htmlFor={buttonInputId} className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-soft-control px-4 text-[13px] font-medium text-ink transition-colors hover:bg-track/70 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
-            {pending ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Upload size={15} strokeWidth={1.8} aria-hidden />}
-            {pending ? "Subiendo…" : "Subir otro informe"}
-            <FileInput id={buttonInputId} disabled={pending} onFile={upload} />
-          </label>
+        {canEdit && requested === "cif" && !r && (
+          <Button variant="link" size="sm" onClick={askCompany} disabled={asking}>{asking ? "Pidiendo…" : "Pedir a la empresa"}</Button>
         )}
+        {canEdit && solvency && <UploadPill inputId={buttonInputId} pending={pending} onFile={upload} label="Subir otro informe" />}
       </div>
       {body}
+      {askResult?.ok && <p role="status" className="text-[13px] text-ink-2">{askResult.message ?? "Pedido a la empresa; aparecerá en su página."}</p>}
+      {askResult && !askResult.ok && <ErrorLine message={askResult.message ?? "No se ha podido pedir."} />}
       {error && <ErrorLine message={error} />}
     </section>
   );

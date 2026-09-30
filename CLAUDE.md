@@ -30,7 +30,8 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 | Sumas y saldos (xlsx/csv) | Deterministic, per-software template (A3, Sage, Contasol, Holded, Odoo) | LLM only for header/column detection |
 | **Holded API (borrower-supplied key)** | `src/lib/connectors/holded.ts` | Produces the same `LedgerBalance[]` as a trial balance upload |
 | Norma 43 | Deterministic fixed-width parser | LLM for transaction categorisation |
-| Modelo 200 / cuentas anuales PDF | Claude structured output → Zod | Verification anchor for closed year |
+| Modelo 200 PDF | Claude structured output → Zod | Verification anchor for closed year |
+| Cuentas anuales PDF (official model) | Claude structured output → Zod (`AnnualAccountsWire`) | Full balance + P&L, current and prior year; closed-year statement when there is no TB/Holded |
 | CIRBE PDF | Claude structured output → Zod | Debt exposure |
 | AEAT / TGSS certificates | Claude structured output | Validity + status |
 | Informe de solvencia PDF (Experian, Informa…) | Claude structured output → Zod (`SolvencyWire`) | Company or lender uploads; incidents, judicial, provider figures |
@@ -106,6 +107,22 @@ ASNEF-Empresas, bureau) high; open concurso/embargo high, lawsuits and public-bo
 for the closed year (10 % / 5.000 €) warn. Provider rating / PD / limit: case view, PDF and JSON only, with the note
 `PROVIDER_FIGURES_NOTE`. UI `src/components/case/SolvencySection.tsx`; copy `src/content/solvency.es.ts`.
 Not yet tested against real provider PDFs: adjust the schema descriptions when the first real reports arrive.
+
+## Cuentas anuales and "Por CIF"
+- **Financials from cuentas anuales alone:** `AnnualAccountsWire` reads every line of the official model (normal,
+  abreviado, PYMES; current and prior column; units scaled in `assess.ts`). `statementFromAnnualAccounts`
+  (`src/lib/pgc/annual-accounts.ts`, pure, tested with `__fixtures__/annual-accounts.ts`) maps model headings onto the
+  canonical lines and computes subtotals with the same `assembleStatement` as the TB mapping. Lines not named are
+  reconciled against printed totals (residual → the block's "other" line; operating residual kept out of EBITDA) and
+  mismatches become `ca_*` warnings. Lineage labels are model lines (not account codes) with `doc:<id>:page:<n>`.
+  Financial expenses are taken as interest (said in the lineage).
+- **Ranking:** in `recompute`, the closed year uses trial balance / Holded (newest wins) and falls back to the
+  annual accounts (`financial_statements.source = 'annual_accounts'`, 0014). The summary says so.
+- **Por CIF** (`case_requirements.source = 'cif'`, 0014): third option in the new-case form, only for kinds with
+  `byCif` (cuentas_anuales, solvency_report). Not shown to or uploadable by the company; not in completeness. The
+  lender uploads the PDF from the case view (`LENDER_UPLOAD_KINDS`, `AnnualAccountsSection`, `SolvencySection`) or
+  hands it to the company ("Pedir a la empresa" → `requestDocument`, source back to 'borrower'). No provider API yet:
+  a contracted provider would fetch the PDF by CIF and register it like a lender upload.
 
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).

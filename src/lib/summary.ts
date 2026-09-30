@@ -20,7 +20,13 @@ function periodPhrase(s: CanonicalStatement): string {
 
 const pct = (n: number) => `${Math.round(n * 100).toLocaleString("es-ES")} %`;
 
-export function caseSummary(input: { closed: CanonicalStatement | null; ytd: CanonicalStatement | null; cirbe: CirbeExtraction | null }): SummarySegment[] | null {
+export function caseSummary(input: {
+  closed: CanonicalStatement | null;
+  ytd: CanonicalStatement | null;
+  cirbe: CirbeExtraction | null;
+  /** Where the closed year's statement comes from: upload | holded | annual_accounts. */
+  closedSource?: string | null;
+}): SummarySegment[] | null {
   const out: SummarySegment[] = [];
   const t = (text: string) => out.push({ text });
   const fig = (text: string) => out.push({ text, emphasis: "figure" });
@@ -58,6 +64,8 @@ export function caseSummary(input: { closed: CanonicalStatement | null; ytd: Can
       }
     }
   }
+  // Without ledger data the closed year is rebuilt from the deposited model: coarser, and the lender should know.
+  if (input.closed && input.closedSource === "annual_accounts") t(`${out.length ? " " : ""}El ejercicio cerrado se ha construido con las cuentas anuales, sin sumas y saldos.`);
   return out.length ? out : null;
 }
 

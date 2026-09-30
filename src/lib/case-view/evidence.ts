@@ -7,7 +7,7 @@ import { CHECK_NAME, VALUE_LABEL } from "../../content/case-view.es.ts";
 import { formatCompactEur, formatDate, formatEurWhole, formatFigure, type FigureUnit } from "../format.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { CirbeExtraction } from "../schema/canonical.ts";
-import { formatAccount, type CheckRow } from "./present.ts";
+import { formatAccount, isAccountCode, type CheckRow } from "./present.ts";
 
 export interface EvidenceRow {
   label: string;
@@ -114,7 +114,7 @@ export function evidenceView(
       if (bookLines.length) {
         base.values = [
           ...base.values,
-          ...bookLines.map((l) => ({ label: `Cuenta ${formatAccount(l.account)}`, value: eurText(l.amount) })),
+          ...bookLines.map((l) => ({ label: isAccountCode(l.account) ? `Cuenta ${formatAccount(l.account)}` : l.account, value: eurText(l.amount) })),
         ];
       }
       base.gaps.push("La contabilidad no identifica la entidad de cada préstamo, así que no se empareja cada posición CIRBE con una cuenta: se muestran ambas listas.");

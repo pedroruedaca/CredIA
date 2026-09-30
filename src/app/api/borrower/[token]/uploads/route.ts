@@ -32,6 +32,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     .from("case_requirements")
     .select("id")
     .eq("case_id", access.caseId)
+    .neq("source", "cif")
     .eq("doc_kind", kind)
     .maybeSingle();
   if (!requirement) return jsonError("Este documento no forma parte de tu solicitud.", 400);

@@ -32,8 +32,10 @@ const KIND_SHORT: Record<string, string> = {
   solvency_report: "Informe de solvencia",
 };
 
-/** "4300001" → "430·0001": PGC group, then subaccount, as the design writes accounts. */
-export const formatAccount = (acct: string) => (acct.length > 3 ? `${acct.slice(0, 3)}·${acct.slice(3)}` : acct);
+/** "4300001" → "430·0001": PGC group, then subaccount, as the design writes accounts. Model lines (annual accounts) stay as named. */
+export const formatAccount = (acct: string) => (isAccountCode(acct) && acct.length > 3 ? `${acct.slice(0, 3)}·${acct.slice(3)}` : acct);
+/** A ledger account number, as opposed to a line of the annual-accounts model ("Existencias"). */
+export const isAccountCode = (acct: string) => /^\d+$/.test(acct);
 
 /**
  * Turns a source_ref into something a lender can read and open:

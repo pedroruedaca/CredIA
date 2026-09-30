@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
-import type { CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
+import type { AnnualAccountsExtraction, CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
 import type { CheckRow, SourceDoc } from "./present.ts";
 
 const KPI_UNIT: Record<string, Kpi["unit"]> = {
@@ -34,7 +34,7 @@ export interface CaseViewData {
   checks: CheckRow[];
   reviews: Record<string, { status: "open" | "reviewed" | "clarification_requested"; note: string | null; at: string }>;
   documents: (SourceDoc & { status: string; uploaded_at: string; attention_message: string | null; summary: Record<string, unknown> | null })[];
-  requirements: { doc_kind: string; required: boolean; max_age_days: number | null }[];
+  requirements: { doc_kind: string; required: boolean; max_age_days: number | null; source: "borrower" | "cif" }[];
   cirbe: CirbeExtraction | null;
   cirbeDocId: string | null;
   holded: { status: string; mode: string; lastSyncAt: string | null; entries: number } | null;
@@ -53,6 +53,15 @@ export interface CaseViewData {
     attention: string | null;
     report: SolvencyReport | null;
   } | null;
+  /** Latest cuentas anuales: parsed (fiscal year, model) or the latest upload's state. */
+  annualAccounts: {
+    docId: string;
+    fileName: string;
+    uploadedBy: "borrower" | "delegate" | "lender";
+    status: string;
+    attention: string | null;
+    accounts: Pick<AnnualAccountsExtraction, "fiscalYear" | "model" | "periodEnd" | "pages"> & { hasPrior: boolean } | null;
+  } | null;
   /** Company name as entered for the case (null when only the CIF is known). */
   registeredName: string | null;
 }
@@ -67,7 +76,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -76,7 +85,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       .select("id, kind, status, original_filename, uploaded_at, issued_on, attention_message, extractions(summary, created_at)")
       .eq("case_id", caseId)
       .order("uploaded_at", { ascending: false }),
-    db.from("case_requirements").select("doc_kind, required, max_age_days").eq("case_id", caseId),
+    db.from("case_requirements").select("doc_kind, required, max_age_days, source").eq("case_id", caseId),
     db.from("debt_positions").select("document_id, as_of, entity, product, drawn, limit_amount, overdue, maturity, source_ref").eq("case_id", caseId),
     db.from("holded_connections").select("status, mode, last_sync_at, created_at, holded_syncs(entries_fetched, created_at)").eq("case_id", caseId).order("created_at", { ascending: false }),
     db.from("audit_log").select("action, actor, at, detail").eq("case_id", caseId).order("at", { ascending: false }).limit(40),
@@ -88,7 +97,23 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       .eq("kind", "solvency_report")
       .order("uploaded_at", { ascending: false })
       .limit(10),
+    db
+      .from("documents")
+      .select("id, status, original_filename, uploaded_by, attention_message, extractions(output, created_at)")
+      .eq("case_id", caseId)
+      .eq("kind", "cuentas_anuales")
+      .order("uploaded_at", { ascending: false })
+      .limit(10),
   ]);
+
+  type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
+  const accountsRows = (accountsDocs.data ?? []) as unknown as AccountsRow[];
+  const accountsOf = (r: AccountsRow) => {
+    const latest = [...(r.extractions ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const c = latest?.output?.canonical;
+    return c?.kind === "annual_accounts" ? { fiscalYear: c.data.fiscalYear, model: c.data.model, periodEnd: c.data.periodEnd, pages: c.data.pages, hasPrior: c.data.prior !== null } : null;
+  };
+  const shownAccounts = accountsRows.find((r) => r.status === "parsed" && accountsOf(r)) ?? accountsRows[0] ?? null;
 
   type SolvencyRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: SolvencyReport } }; created_at: string }[] | null };
   const solvencyRows = (solvencyDocs.data ?? []) as unknown as SolvencyRow[];
@@ -155,7 +180,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       ...d,
       summary: [...((extractions as { summary: Record<string, unknown>; created_at: string }[] | null) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.summary ?? null,
     })),
-    requirements: reqs.data ?? [],
+    requirements: (reqs.data ?? []).map((r) => ({ ...r, source: r.source === "cif" ? "cif" : "borrower" })),
     cirbe,
     cirbeDocId: debtRows[0]?.document_id ?? null,
     holded: h ? { status: h.status, mode: h.mode, lastSyncAt: h.last_sync_at, entries: syncs.reduce((s, x) => s + (x.entries_fetched ?? 0), 0) } : null,
@@ -163,6 +188,16 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     registry,
     solvency: shown
       ? { docId: shown.id, fileName: shown.original_filename ?? "informe.pdf", uploadedBy: shown.uploaded_by, status: shown.status, attention: shown.attention_message, report: shown.status === "parsed" ? reportOf(shown) : null }
+      : null,
+    annualAccounts: shownAccounts
+      ? {
+          docId: shownAccounts.id,
+          fileName: shownAccounts.original_filename ?? "cuentas-anuales.pdf",
+          uploadedBy: shownAccounts.uploaded_by,
+          status: shownAccounts.status,
+          attention: shownAccounts.attention_message,
+          accounts: shownAccounts.status === "parsed" ? accountsOf(shownAccounts) : null,
+        }
       : null,
     registeredName: c.borrower_name,
   };

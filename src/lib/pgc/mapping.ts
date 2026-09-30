@@ -170,23 +170,23 @@ export interface CanonicalStatement {
   lineage: Partial<Record<Line | "interestExpense", LineContribution[]>>;
 }
 
-const ASSET_LINES: AssetLine[] = [
+export const ASSET_LINES: AssetLine[] = [
   "nonCurrentAssets", "inventories", "tradeReceivables", "otherReceivables",
   "shortTermInvestments", "cash", "prepayments",
 ];
-const LIAB_LINES: LiabilityLine[] = [
+export const LIAB_LINES: LiabilityLine[] = [
   "equity", "provisions", "longTermFinancialDebt", "longTermOtherLiabilities",
   "shortTermFinancialDebt", "relatedPartyShortTerm", "tradePayables", "otherCurrentLiabilities",
 ];
-const INCOME_LINES: IncomeLine[] = [
+export const INCOME_LINES: IncomeLine[] = [
   "revenue", "otherOperatingIncome", "grantsTransferred", "nonRecurringResult", "financialIncome",
 ];
-const EXPENSE_LINES: ExpenseLine[] = [
+export const EXPENSE_LINES: ExpenseLine[] = [
   "cogs", "externalServices", "otherTaxes", "personnel", "otherOperatingExpenses",
   "depreciation", "operatingImpairments", "financialExpense", "financialImpairments", "incomeTax",
 ];
 
-const zero = <K extends string>(keys: K[]) =>
+export const zero = <K extends string>(keys: K[]) =>
   Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -261,21 +261,10 @@ export function buildStatement(
     }
   }
 
-  const operatingResult =
-    pnl.revenue + pnl.otherOperatingIncome + pnl.grantsTransferred + pnl.nonRecurringResult
-    - pnl.cogs - pnl.externalServices - pnl.otherTaxes - pnl.personnel - pnl.otherOperatingExpenses
-    - pnl.depreciation - pnl.operatingImpairments;
-  const ebitda =
-    operatingResult + pnl.depreciation + pnl.operatingImpairments
-    - pnl.nonRecurringResult - pnl.grantsTransferred;
-  const financialResult = pnl.financialIncome - pnl.financialExpense - pnl.financialImpairments;
-  const preTaxResult = operatingResult + financialResult;
-  const netIncome = preTaxResult - pnl.incomeTax;
-
+  const pnlResult = netIncomeOf(pnl);
   // A pre-closing trial balance still has groups 6/7 open: their net is the current-year result
   // and must be added to equity for the balance sheet to balance.
-  const currentYearResultIncluded = pnlTouched ? netIncome : 0;
-  liabs.equity += currentYearResultIncluded;
+  const data = assembleStatement({ period, assets, liabs, pnl, interestExpense, lineage, pnlAvailable: pnlTouched, currentYearResultIncluded: pnlTouched ? pnlResult : 0 });
 
   if (!pnlTouched) {
     const has129 = balances.some((b) => (b.pgc3 || toPgc3(b.account)) === "129" && Math.abs(b.debit - b.credit) > 0.005);
@@ -286,13 +275,52 @@ export function buildStatement(
         : "No hay cuentas de resultados en este periodo.",
     });
   }
+  if (Math.abs(data.balanceSheet.imbalance) > 1) {
+    warnings.push({ code: "balance_sheet_imbalance", message: `El activo y el patrimonio neto más pasivo difieren en ${data.balanceSheet.imbalance} €`, detail: { unmapped: r2(unmapped) } });
+  }
+  return { data, warnings };
+}
+
+type PnlLines = Record<IncomeLine | ExpenseLine, number>;
+const netIncomeOf = (pnl: PnlLines) => results(pnl).netIncome;
+
+/** The P&L subtotals every statement uses, whatever its source. */
+function results(pnl: PnlLines) {
+  const operatingResult =
+    pnl.revenue + pnl.otherOperatingIncome + pnl.grantsTransferred + pnl.nonRecurringResult
+    - pnl.cogs - pnl.externalServices - pnl.otherTaxes - pnl.personnel - pnl.otherOperatingExpenses
+    - pnl.depreciation - pnl.operatingImpairments;
+  const ebitda =
+    operatingResult + pnl.depreciation + pnl.operatingImpairments
+    - pnl.nonRecurringResult - pnl.grantsTransferred;
+  const financialResult = pnl.financialIncome - pnl.financialExpense - pnl.financialImpairments;
+  const preTaxResult = operatingResult + financialResult;
+  const netIncome = preTaxResult - pnl.incomeTax;
+  return { operatingResult, ebitda, financialResult, preTaxResult, netIncome };
+}
+
+/**
+ * Canonical statement from classified lines: subtotals, totals, derived figures, rounding. Shared by the trial
+ * balance mapping (buildStatement) and the annual-accounts model (annual-accounts.ts) so both compute alike.
+ * `currentYearResultIncluded` is added to equity (open P&L groups in a pre-closing trial balance).
+ */
+export function assembleStatement(input: {
+  period: Period;
+  assets: Record<AssetLine, number>;
+  liabs: Record<LiabilityLine, number>;
+  pnl: PnlLines;
+  interestExpense: number;
+  lineage: CanonicalStatement["lineage"];
+  pnlAvailable: boolean;
+  currentYearResultIncluded: number;
+}): CanonicalStatement {
+  const { period, assets, pnl, interestExpense, lineage, pnlAvailable, currentYearResultIncluded } = input;
+  const liabs = { ...input.liabs, equity: input.liabs.equity + currentYearResultIncluded };
+  const { operatingResult, ebitda, financialResult, preTaxResult, netIncome } = results(pnl);
 
   const totalAssets = ASSET_LINES.reduce((s, k) => s + assets[k], 0);
   const totalEL = LIAB_LINES.reduce((s, k) => s + liabs[k], 0);
   const imbalance = r2(totalAssets - totalEL);
-  if (Math.abs(imbalance) > 1) {
-    warnings.push({ code: "balance_sheet_imbalance", message: `El activo y el patrimonio neto más pasivo difieren en ${imbalance} €`, detail: { unmapped: r2(unmapped) } });
-  }
 
   const financialDebt = liabs.longTermFinancialDebt + liabs.shortTermFinancialDebt;
   const currentAssets = assets.inventories + assets.tradeReceivables + assets.otherReceivables
@@ -304,35 +332,32 @@ export function buildStatement(
     Object.fromEntries(Object.entries(o).map(([k, v]) => [k, r2(v)])) as T;
 
   return {
-    data: {
-      period,
-      months: monthsBetween(period.start, period.end),
-      currency: "EUR",
-      pnlAvailable: pnlTouched,
-      balanceSheet: {
-        assets: { ...round(assets), total: r2(totalAssets) },
-        equityAndLiabilities: { ...round(liabs), currentYearResultIncluded: r2(currentYearResultIncluded), total: r2(totalEL) },
-        imbalance,
-      },
-      incomeStatement: {
-        ...round(pnl),
-        interestExpense: r2(interestExpense),
-        operatingResult: r2(operatingResult),
-        ebitda: r2(ebitda),
-        financialResult: r2(financialResult),
-        preTaxResult: r2(preTaxResult),
-        netIncome: r2(netIncome),
-      },
-      derived: {
-        financialDebt: r2(financialDebt),
-        netDebt: r2(financialDebt - assets.cash - assets.shortTermInvestments),
-        workingCapital: r2(currentAssets - currentLiabilities),
-        currentAssets: r2(currentAssets),
-        currentLiabilities: r2(currentLiabilities),
-      },
-      lineage,
+    period,
+    months: monthsBetween(period.start, period.end),
+    currency: "EUR",
+    pnlAvailable,
+    balanceSheet: {
+      assets: { ...round(assets), total: r2(totalAssets) },
+      equityAndLiabilities: { ...round(liabs), currentYearResultIncluded: r2(currentYearResultIncluded), total: r2(totalEL) },
+      imbalance,
     },
-    warnings,
+    incomeStatement: {
+      ...round(pnl),
+      interestExpense: r2(interestExpense),
+      operatingResult: r2(operatingResult),
+      ebitda: r2(ebitda),
+      financialResult: r2(financialResult),
+      preTaxResult: r2(preTaxResult),
+      netIncome: r2(netIncome),
+    },
+    derived: {
+      financialDebt: r2(financialDebt),
+      netDebt: r2(financialDebt - assets.cash - assets.shortTermInvestments),
+      workingCapital: r2(currentAssets - currentLiabilities),
+      currentAssets: r2(currentAssets),
+      currentLiabilities: r2(currentLiabilities),
+    },
+    lineage,
   };
 }
 

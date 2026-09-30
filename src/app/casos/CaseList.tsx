@@ -16,7 +16,7 @@ export interface CaseRow {
   requested_product: string | null;
   requested_amount: number | null;
   requested_term_months: number | null;
-  case_requirements: { doc_kind: string; required: boolean }[];
+  case_requirements: { doc_kind: string; required: boolean; source: string }[];
   documents: { kind: string; status: string }[];
   holded_connections: { status: string }[];
 }

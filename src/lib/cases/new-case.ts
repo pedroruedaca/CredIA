@@ -3,7 +3,7 @@ import { z } from "zod";
 import { PRODUCTS } from "../../content/products.es.ts";
 import { isValidCif, normalizeCif } from "../cif.ts";
 import { toNumber } from "../types.ts";
-import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind } from "./requirements.ts";
+import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind, type RequirementSource } from "./requirements.ts";
 
 /** Amounts typed by Spanish users: "250.000" is two hundred fifty thousand, not 250. */
 export function parseAmountEs(raw: string): number {
@@ -39,14 +39,17 @@ export const newCaseSchema = z.object({
 });
 
 export type NewCase = z.infer<typeof newCaseSchema> & {
-  requirements: { kind: RequirementKind; required: boolean; maxAgeDays: number | null }[];
+  requirements: { kind: RequirementKind; required: boolean; maxAgeDays: number | null; source: RequirementSource }[];
 };
 
 export type FieldErrors = Partial<Record<keyof z.input<typeof newCaseSchema> | "requirements", string>>;
 
 type FormValues = Record<string, string | undefined>;
 
-/** Requirement fields are `req_<kind>` = required | optional | none, and `age_<kind>` = days. */
+/**
+ * Requirement fields are `req_<kind>` = required | optional | cif | none, and `age_<kind>` = days. `cif` (the lender
+ * obtains it by the company's CIF) only for documents that can be; it counts as required and the company is not asked.
+ */
 export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const parsed = newCaseSchema.safeParse({
@@ -70,6 +73,10 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
     const choice = values[`req_${kind}`] ?? "none";
     if (choice === "none") continue;
     const spec = REQUIREMENT_SPECS.find((s) => s.kind === kind)!;
+    if (choice === "cif" && !spec.byCif) {
+      errors.requirements ??= `«${spec.label}» no se puede obtener por CIF; pídeselo a la empresa.`;
+      continue;
+    }
     const ageRaw = (values[`age_${kind}`] ?? "").trim();
     let maxAgeDays: number | null = null;
     if (spec.supportsMaxAge && ageRaw !== "") {
@@ -78,7 +85,7 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
         errors.requirements ??= `La antigüedad máxima de «${spec.label}» debe ser un número de días entre 1 y 3650.`;
       } else maxAgeDays = n;
     }
-    requirements.push({ kind, required: choice === "required", maxAgeDays });
+    requirements.push({ kind, required: choice !== "optional", maxAgeDays, source: choice === "cif" ? "cif" : "borrower" });
   }
   if (requirements.length === 0) errors.requirements ??= "Solicita al menos un documento.";
 

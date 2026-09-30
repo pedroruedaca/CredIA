@@ -21,7 +21,7 @@ export default async function CasosPage() {
   const { data, error } = await supabase
     .from("cases")
     .select(
-      "id, borrower_cif, borrower_name, status, updated_at, requested_product, requested_amount, requested_term_months, case_requirements(doc_kind, required), documents(kind, status), holded_connections(status)",
+      "id, borrower_cif, borrower_name, status, updated_at, requested_product, requested_amount, requested_term_months, case_requirements(doc_kind, required, source), documents(kind, status), holded_connections(status)",
     )
     .neq("status", "archived")
     .order("updated_at", { ascending: false })

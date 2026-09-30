@@ -39,6 +39,82 @@ export const AccountsWire = z.object({
 });
 export type AccountsWire = z.infer<typeof AccountsWire>;
 
+/** Euros as printed, 0 when the line is not in the model; sign as printed (expenses and losses negative). */
+const line = (label: string) => z.number().describe(`${label}. Amount as printed, in the document's units; negative when printed negative or in parentheses; 0 if the line is not in the model.`);
+
+/**
+ * One year column of the official annual-accounts model (normal, abreviado or PYMES) as deposited in the Registro
+ * Mercantil: enough lines to rebuild the balance sheet and the profit and loss account. No nulls (structured-output
+ * union limit): a line absent from the model is 0; totals are always printed, so the rest can be reconciled.
+ */
+const AccountsYear = z.object({
+  // Balance: activo
+  non_current_assets: line("A) ACTIVO NO CORRIENTE (total; clave 11000 in the deposit forms)"),
+  current_assets: line("B) ACTIVO CORRIENTE (total; clave 12000)"),
+  inventories: line("Existencias"),
+  trade_and_other_receivables: line("Deudores comerciales y otras cuentas a cobrar (total of the heading)"),
+  customers: line("Clientes por ventas y prestaciones de servicios (within Deudores comerciales)"),
+  short_term_investments: line("Inversiones financieras a corto plazo plus Inversiones en empresas del grupo y asociadas a corto plazo"),
+  short_term_accruals_assets: line("Periodificaciones a corto plazo (activo corriente)"),
+  cash: line("Efectivo y otros activos líquidos equivalentes"),
+  total_assets: line("TOTAL ACTIVO (clave 10000)"),
+  // Balance: patrimonio neto y pasivo
+  equity: line("A) PATRIMONIO NETO (total; clave 20000)"),
+  non_current_liabilities: line("B) PASIVO NO CORRIENTE (total; clave 31000)"),
+  long_term_provisions: line("Provisiones a largo plazo"),
+  long_term_bank_debt: line("Deudas con entidades de crédito, within Deudas a largo plazo"),
+  long_term_finance_leases: line("Acreedores por arrendamiento financiero, within Deudas a largo plazo"),
+  long_term_other_debts: line("Otras deudas a largo plazo, within Deudas a largo plazo"),
+  long_term_group_debts: line("Deudas con empresas del grupo y asociadas a largo plazo"),
+  current_liabilities: line("C) PASIVO CORRIENTE (total; clave 32000)"),
+  short_term_provisions: line("Provisiones a corto plazo"),
+  short_term_bank_debt: line("Deudas con entidades de crédito, within Deudas a corto plazo"),
+  short_term_finance_leases: line("Acreedores por arrendamiento financiero, within Deudas a corto plazo"),
+  short_term_other_debts: line("Otras deudas a corto plazo, within Deudas a corto plazo"),
+  short_term_group_debts: line("Deudas con empresas del grupo y asociadas a corto plazo"),
+  trade_and_other_payables: line("Acreedores comerciales y otras cuentas a pagar (total of the heading)"),
+  suppliers: line("Proveedores (within Acreedores comerciales; include Proveedores empresas del grupo)"),
+  total_equity_and_liabilities: line("TOTAL PATRIMONIO NETO Y PASIVO (clave 30000)"),
+  // Pérdidas y ganancias
+  revenue: line("1. Importe neto de la cifra de negocios (clave 40100)"),
+  inventory_change: line("2. Variación de existencias de productos terminados y en curso de fabricación"),
+  own_work_capitalised: line("3. Trabajos realizados por la empresa para su activo"),
+  supplies: line("4. Aprovisionamientos (negative)"),
+  other_operating_income: line("5. Otros ingresos de explotación"),
+  personnel: line("6. Gastos de personal (negative)"),
+  other_operating_expenses: line("7. Otros gastos de explotación (negative)"),
+  depreciation: line("8. Amortización del inmovilizado (negative)"),
+  grants_transferred: line("9. Imputación de subvenciones de inmovilizado no financiero y otras"),
+  provision_surpluses: line("10. Excesos de provisiones"),
+  fixed_asset_impairment_and_disposals: line("11. Deterioro y resultado por enajenaciones del inmovilizado"),
+  other_results: line("Otros resultados (within the operating result)"),
+  operating_result: line("A.1) RESULTADO DE EXPLOTACIÓN (clave 49100)"),
+  financial_income: line("Ingresos financieros"),
+  financial_expenses: line("Gastos financieros (negative)"),
+  other_financial_results: line("Sum of Variación de valor razonable en instrumentos financieros, Diferencias de cambio and Deterioro y resultado por enajenaciones de instrumentos financieros"),
+  financial_result: line("A.2) RESULTADO FINANCIERO"),
+  pre_tax_result: line("A.3) RESULTADO ANTES DE IMPUESTOS (clave 49300)"),
+  income_tax: line("Impuestos sobre beneficios (negative when an expense)"),
+  net_income: line("RESULTADO DEL EJERCICIO (clave 49500)"),
+});
+export type AccountsYearWire = z.infer<typeof AccountsYear>;
+
+/** Cuentas anuales (deposited annual accounts): the full model, current and prior year columns. */
+export const AnnualAccountsWire = z.object({
+  ...common,
+  model: z.enum(["normal", "abreviado", "pymes", "other"]).describe("Which official model the accounts follow: normal, abreviado, PYMES; other if none."),
+  units: z.enum(["euros", "thousands", "millions"]).describe("Units the figures are printed in (euros unless the document says miles de euros or millones)."),
+  fiscal_year: z.number().int().describe("Ejercicio of the current-year column (year the fiscal period starts); 0 if not found."),
+  period_end: z.string().describe("Closing date of the current-year column, YYYY-MM-DD; empty string if not printed."),
+  period_months: z.number().int().describe("Length of the fiscal period in months (12 unless the document says otherwise); 0 if unknown."),
+  balance_sheet_page: z.number().int().describe("1-based PDF page of the current-year balance sheet (first page if it spans several); 0 if not identifiable."),
+  income_statement_page: z.number().int().describe("1-based PDF page of the profit and loss account; 0 if not identifiable."),
+  current_year: AccountsYear.describe("The current-year column (ejercicio N)."),
+  prior_year_shown: z.boolean().describe("true if the model also prints the prior-year column (ejercicio N-1)."),
+  prior_year: AccountsYear.describe("The prior-year column (ejercicio N-1); every line 0 if not shown."),
+});
+export type AnnualAccountsWire = z.infer<typeof AnnualAccountsWire>;
+
 export const CirbeWire = z.object({
   ...common,
   as_of: z.string().nullable().describe("Date the report refers to (fecha de los datos / mes de declaración), YYYY-MM-DD; last day of the month if only month is given."),
@@ -156,7 +232,7 @@ export type ExtractKind = "modelo200" | "cuentas_anuales" | "cirbe" | "aeat_cert
 
 export const WIRE_FOR = {
   modelo200: AccountsWire,
-  cuentas_anuales: AccountsWire,
+  cuentas_anuales: AnnualAccountsWire,
   cirbe: CirbeWire,
   aeat_cert: CertificateWire,
   tgss_cert: CertificateWire,
@@ -167,7 +243,7 @@ export const EXTRACT_INSTRUCTIONS: Record<ExtractKind, string> = {
   modelo200:
     "This should be a Spanish corporate income tax return (Modelo 200, Impuesto sobre Sociedades). Extract the figures from the balance sheet and profit and loss pages of the return.",
   cuentas_anuales:
-    "These should be Spanish annual accounts (cuentas anuales: balance, cuenta de pérdidas y ganancias, memoria). Extract the figures for the current year column, not the prior year.",
+    "These should be Spanish annual accounts (cuentas anuales: balance, cuenta de pérdidas y ganancias, memoria), often the deposit in the Registro Mercantil on the official model (normal, abreviado or PYMES). Extract every requested line of the balance sheet and the profit and loss account for the current-year column and, when printed, the prior-year column. Copy amounts as printed, with their sign, in the document's units; do not add, compute or reclassify lines: a line the model does not show is 0.",
   cirbe:
     "This should be a Banco de España CIRBE report (Central de Información de Riesgos). List every risk position declared for the company.",
   aeat_cert:

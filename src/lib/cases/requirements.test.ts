@@ -25,6 +25,9 @@ describe("completeness", () => {
   it("needs_review documents are not complete", () => {
     expect(isRequirementMet("cirbe", [{ kind: "cirbe", status: "needs_review" }], [])).toBe(false);
   });
+  it("documents the lender obtains by CIF do not count against the company", () => {
+    expect(completeness([...reqs, { doc_kind: "solvency_report", required: true, source: "cif" }], [{ kind: "norma43", status: "parsed" }], [])).toEqual({ done: 1, total: 3, pct: 33 });
+  });
   it("a case with no required documents is complete", () => {
     expect(completeness([{ doc_kind: "cirbe", required: false }], [], [])).toEqual({ done: 0, total: 0, pct: 100 });
   });

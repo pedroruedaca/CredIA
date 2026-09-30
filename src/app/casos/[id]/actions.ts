@@ -60,7 +60,8 @@ const RequestInput = z.object({
 
 /**
  * "Pedir documento": adds (or makes required) a requirement so it appears in the company's page, reopens the case
- * for documents, and emails the company when an address is on file. No new link is issued.
+ * for documents, and emails the company when an address is on file. No new link is issued. A document the lender was
+ * to obtain by CIF becomes the company's to upload ("Pedir a la empresa").
  */
 export async function requestDocument(input: z.input<typeof RequestInput>): Promise<ActionResult> {
   const lender = await requireLender();
@@ -83,7 +84,7 @@ export async function requestDocument(input: z.input<typeof RequestInput>): Prom
   const spec = REQUIREMENT_SPECS.find((s) => s.kind === kind)!;
   const { error } = await supabase
     .from("case_requirements")
-    .upsert({ case_id: caseId, lender_id: kase.lender_id, doc_kind: kind, required: true, max_age_days: spec.defaultMaxAgeDays }, { onConflict: "case_id,doc_kind" });
+    .upsert({ case_id: caseId, lender_id: kase.lender_id, doc_kind: kind, required: true, max_age_days: spec.defaultMaxAgeDays, source: "borrower" }, { onConflict: "case_id,doc_kind" });
   if (error) return { ok: false, message: "No hemos podido añadir el documento. Inténtalo de nuevo." };
   if (kase.status === "ready" || kase.status === "needs_review") {
     await supabase.from("cases").update({ status: "awaiting_documents", submitted_at: null }).eq("id", caseId);
@@ -207,7 +208,8 @@ export async function refreshBormeSheet(caseId: string): Promise<ActionResult> {
 }
 
 /** Documents the lender can upload itself (from its own subscriptions). */
-const LENDER_UPLOAD_KINDS = ["solvency_report"] as const;
+const LENDER_UPLOAD_KINDS = ["solvency_report", "cuentas_anuales"] as const;
+export type LenderUploadKind = (typeof LENDER_UPLOAD_KINDS)[number];
 
 const PrepareInput = z.object({ caseId: CaseId, kind: z.enum(LENDER_UPLOAD_KINDS), filename: z.string().min(1).max(255), size: z.number().int() });
 

@@ -32,6 +32,7 @@ describe("describeSource", () => {
   it("formats accounts as group·subaccount", () => {
     expect(formatAccount("57200002")).toBe("572·00002");
     expect(formatAccount("430")).toBe("430");
+    expect(formatAccount("Existencias")).toBe("Existencias"); // annual-accounts model line
   });
 });
 

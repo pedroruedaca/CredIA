@@ -60,7 +60,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
   }
 
   return {
-    summary: caseSummary(ctx),
+    summary: caseSummary({ ...ctx, closedSource: d.statements.closedSource }),
     tiles: kpiTiles(
       closed ? { statement: closed, kpis: d.kpis.closed } : null,
       ytd ? { statement: ytd, kpis: d.kpis.ytd } : null,

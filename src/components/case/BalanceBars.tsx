@@ -7,7 +7,7 @@
 import { useRef, useState } from "react";
 import { SourcePill } from "@/components/ui/Pill";
 import { cx } from "@/components/ui/cx";
-import { describeSource, formatAccount, sourceHref, type SourceDoc } from "@/lib/case-view/present";
+import { describeSource, formatAccount, isAccountCode, sourceHref, type SourceDoc } from "@/lib/case-view/present";
 import type { BalanceBars as Bars, BalanceSegment, SegmentTone } from "@/lib/case-view/balance";
 import type { LineContribution } from "@/lib/pgc/mapping";
 import { formatCompactEur } from "@/lib/format";
@@ -120,7 +120,7 @@ export function SegmentDetail({
             return (
               <span key={`${a.account}-${i}`} className="inline-flex items-center gap-1.5">
                 {i > 0 && <span className="mr-1">{a.amount < 0 ? "−" : "+"}</span>}
-                <span className="font-mono">{formatAccount(a.account)}</span>
+                <span className={isAccountCode(a.account) ? "font-mono" : undefined}>{formatAccount(a.account)}</span>
                 <span>{formatCompactEur(i > 0 ? Math.abs(a.amount) : a.amount)}</span>
                 <SourcePill href={sourceHref(caseId, src.docId, src.page)} className="min-h-6 px-2 text-[11px]">{src.label}</SourcePill>
               </span>

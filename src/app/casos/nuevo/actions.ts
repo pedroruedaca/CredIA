@@ -59,6 +59,7 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
       doc_kind: r.kind,
       required: r.required,
       max_age_days: r.maxAgeDays,
+      source: r.source,
     })),
   );
   if (reqErr) {
@@ -71,7 +72,7 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     case_id: created.id,
     actor: lender.userId,
     action: "case.created",
-    detail: { requirements: c.requirements.map((r) => r.kind), link_expires_at: expiresAt },
+    detail: { requirements: c.requirements.map((r) => r.kind), by_cif: c.requirements.filter((r) => r.source === "cif").map((r) => r.kind), link_expires_at: expiresAt },
   });
 
   const link = borrowerLink(await appBaseUrl(), token);

@@ -11,6 +11,7 @@ import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { KpiRow } from "@/components/case/KpiRow";
 import { PnlSankey } from "@/components/case/PnlSankey";
 import { RegistrySection } from "@/components/case/RegistrySection";
+import { AnnualAccountsSection } from "@/components/case/AnnualAccountsSection";
 import { SolvencySection } from "@/components/case/SolvencySection";
 import { StatusChip } from "@/components/StatusChip";
 import { Pill, SourcePill } from "@/components/ui/Pill";
@@ -88,7 +89,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
                 .flatMap((el, i) => (i === 0 ? [el] : [" · ", el]))}
             </p>
             <div className="grow" />
-            {canEdit && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required).map((r) => r.doc_kind)} />}
+            {canEdit && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "cif").map((r) => r.doc_kind)} />}
             <ExportMenu caseId={kase.id} />
           </div>
         </header>
@@ -101,7 +102,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           <div className="rounded-panel bg-soft px-8 py-12 text-center">
             <h2 className="heading-section">Aún no hay contabilidad procesada</h2>
             <p className="mx-auto mt-1 max-w-md text-[15px] text-ink-2">
-              Las cifras, indicadores y verificaciones aparecerán cuando la empresa suba su sumas y saldos o conecte Holded.
+              Las cifras, indicadores y verificaciones aparecerán cuando la empresa suba su sumas y saldos o conecte Holded, o cuando haya cuentas anuales.
             </p>
             <Link href={`/casos/${kase.id}/vista-empresa`} className="mt-2 inline-flex min-h-11 items-center text-[15px]">Ver qué ha subido la empresa</Link>
           </div>
@@ -194,7 +195,20 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           </section>
         )}
 
-        <SolvencySection caseId={kase.id} solvency={data.solvency} canEdit={canEdit} requested={data.requirements.some((r) => r.doc_kind === "solvency_report")} />
+        <AnnualAccountsSection
+          caseId={kase.id}
+          data={data.annualAccounts}
+          source={data.requirements.find((r) => r.doc_kind === "cuentas_anuales")?.source ?? null}
+          isClosedYearBasis={data.statements.closedSource === "annual_accounts"}
+          canEdit={canEdit}
+        />
+
+        <SolvencySection
+          caseId={kase.id}
+          solvency={data.solvency}
+          canEdit={canEdit}
+          requested={data.requirements.find((r) => r.doc_kind === "solvency_report")?.source ?? null}
+        />
 
         <RegistrySection caseId={kase.id} companyName={data.registeredName} registry={data.registry} canEdit={canEdit} />
 

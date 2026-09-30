@@ -17,8 +17,9 @@ import { computeKpis } from "../kpis/engine.ts";
 import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
 import { parseTrialBalance, type TrialBalanceParse } from "../parsers/trial-balance.ts";
+import { annualAccountsPeriod, statementFromAnnualAccounts } from "../pgc/annual-accounts.ts";
 import { buildStatement } from "../pgc/mapping.ts";
-import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
+import type { AnnualAccountsExtraction, CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import type { AdminClient } from "../borrower/access.ts";
 import type { LedgerBalance, Period, PeriodKind, Warning } from "../types.ts";
 import { todayMadrid } from "../format.ts";
@@ -51,6 +52,12 @@ export const PIPELINE_WARNING_SEVERITY: Record<string, Severity> = {
   n43_balance_mismatch: "warn",
   n43_malformed_lines: "warn",
   n43_non_eur: "warn",
+  ca_total_assets_mismatch: "warn",
+  ca_total_liabilities_mismatch: "warn",
+  ca_pre_tax_mismatch: "warn",
+  ca_lines_exceed_total: "warn",
+  ca_operating_lines_unreconciled: "warn",
+  ca_incomplete: "warn",
 };
 /** Warnings already covered by a dedicated check. */
 const SKIP_AS_CHECK = new Set(["cert_negative"]);
@@ -279,7 +286,13 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
     status: a.status,
     attention: a.attentionMessage,
     issuedOn: a.issuedOn,
-    extraction: { parser: `llm:${kind}@1`, status: a.status, output: { model: call.model, wire: call.value, canonical: a.canonical }, warnings: a.warnings },
+    extraction: {
+      parser: `llm:${kind}@1`,
+      status: a.status,
+      output: { model: call.model, wire: call.value, canonical: a.canonical },
+      warnings: a.warnings,
+      summary: a.canonical?.kind === "annual_accounts" ? { fiscal_year: a.canonical.data.fiscalYear, model: a.canonical.data.model, prior_year: a.canonical.data.prior !== null } : undefined,
+    },
   };
 }
 
@@ -427,20 +440,33 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   }
   const annualPrincipal = cirbe ? cirbeAnnualPrincipal(cirbe) : undefined;
 
-  // --- Statements + KPIs, per period, newest source wins
+  // --- Statements + KPIs, per period. Ledger data first (newest of trial balance and Holded wins); for the closed
+  // year, the deposited annual accounts when there is no ledger data.
   await db.from("financial_statements").delete().eq("case_id", kase.id);
   const statements: Partial<Record<PeriodKind, ReturnType<typeof buildStatement>["data"]>> = {};
+  const caDoc = latest("cuentas_anuales");
+  const annual = (caDoc?.output.canonical as Canonical | undefined)?.kind === "annual_accounts" ? (caDoc!.output.canonical as { data: AnnualAccountsExtraction }).data : null;
   for (const kind of ["closed_fy", "ytd"] as PeriodKind[]) {
     const up = uploadBalances.get(kind) ?? null;
     const hRows = (holdedRows ?? []).filter((r) => r.period_kind === kind);
-    const source = chooseSource(up?.at ?? null, hRows.length ? holdedAt(kind) ?? "0" : null);
+    const ledger = chooseSource(up?.at ?? null, hRows.length ? holdedAt(kind) ?? "0" : null);
+    const caPeriod = kind === "closed_fy" && !ledger && annual ? annualAccountsPeriod(annual, kase.fiscal_year_end) : null;
+    const source = ledger ?? (caPeriod ? "annual_accounts" : null);
     if (!source) continue;
-    const period: Period = source === "upload" ? up!.period : { kind, start: hRows[0].period_start, end: hRows[0].period_end };
-    const balances: LedgerBalance[] =
-      source === "upload"
-        ? up!.balances
-        : hRows.map((r) => ({ account: r.account, pgc3: r.pgc3, name: r.account_name ?? undefined, debit: Number(r.debit), credit: Number(r.credit), source: "holded", sourceRef: r.source_ref }));
-    const { data: statement, warnings } = buildStatement(balances, period);
+    let built: ReturnType<typeof buildStatement>;
+    let period: Period;
+    if (source === "annual_accounts") {
+      period = caPeriod!;
+      built = statementFromAnnualAccounts(annual!, caDoc!.id, period);
+    } else {
+      period = source === "upload" ? up!.period : { kind, start: hRows[0].period_start, end: hRows[0].period_end };
+      const balances: LedgerBalance[] =
+        source === "upload"
+          ? up!.balances
+          : hRows.map((r) => ({ account: r.account, pgc3: r.pgc3, name: r.account_name ?? undefined, debit: Number(r.debit), credit: Number(r.credit), source: "holded", sourceRef: r.source_ref }));
+      built = buildStatement(balances, period);
+    }
+    const { data: statement, warnings } = built;
     statements[kind] = statement;
     addWarnings(warnings, null, `[${kind === "closed_fy" ? "Ejercicio cerrado" : "Año en curso"}] `);
     const kpis = computeKpis(statement, annualPrincipal !== undefined ? { annualPrincipal, annualPrincipalSource: `CIRBE ${cirbe!.asOf}` } : {});

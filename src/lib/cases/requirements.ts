@@ -12,6 +12,9 @@ export const REQUIREMENT_KINDS = [
 ] as const;
 export type RequirementKind = (typeof REQUIREMENT_KINDS)[number];
 
+/** Who provides a requested document: the company (portal) or the lender itself, by the company's CIF. */
+export type RequirementSource = "borrower" | "cif";
+
 export interface RequirementSpec {
   kind: RequirementKind;
   label: string;
@@ -19,23 +22,32 @@ export interface RequirementSpec {
   defaultRequired: boolean | null; // null = not requested by default
   defaultMaxAgeDays: number | null;
   supportsMaxAge: boolean;
+  /** Can be obtained without the company, from its CIF (Registro Mercantil, credit-report providers). */
+  byCif?: boolean;
 }
 
 export const REQUIREMENT_SPECS: RequirementSpec[] = [
   { kind: "trial_balance", label: "Contabilidad", hint: "Sumas y saldos o conexión con Holded", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
   { kind: "norma43", label: "Extractos bancarios (Norma 43)", hint: "Últimos 12 meses, todas las cuentas", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
   { kind: "modelo200", label: "Modelo 200", hint: "Impuesto sobre Sociedades del último ejercicio", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
-  { kind: "cuentas_anuales", label: "Cuentas anuales", hint: "Depositadas en el Registro Mercantil", defaultRequired: false, defaultMaxAgeDays: null, supportsMaxAge: false },
+  { kind: "cuentas_anuales", label: "Cuentas anuales", hint: "Depositadas en el Registro Mercantil", defaultRequired: false, defaultMaxAgeDays: null, supportsMaxAge: false, byCif: true },
   { kind: "cirbe", label: "Informe CIRBE", hint: "Banco de España", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "aeat_cert", label: "Certificado AEAT", hint: "Estar al corriente con Hacienda", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "tgss_cert", label: "Certificado TGSS", hint: "Estar al corriente con la Seguridad Social", defaultRequired: true, defaultMaxAgeDays: 90, supportsMaxAge: true },
-  { kind: "solvency_report", label: "Informe de solvencia", hint: "Experian, Informa, Axesor, Iberinform…", defaultRequired: null, defaultMaxAgeDays: 90, supportsMaxAge: true },
+  { kind: "solvency_report", label: "Informe de solvencia", hint: "Experian, Informa, Axesor, Iberinform…", defaultRequired: null, defaultMaxAgeDays: 90, supportsMaxAge: true, byCif: true },
 ];
+
+export const canBeObtainedByCif = (kind: string) => REQUIREMENT_SPECS.some((s) => s.kind === kind && s.byCif);
 
 export interface CaseRequirement {
   doc_kind: string;
   required: boolean;
+  /** Missing before migration 0014 and in older rows: the company. */
+  source?: RequirementSource | string | null;
 }
+
+/** Requirements the company provides through its portal (not the ones the lender obtains by CIF). */
+export const borrowerRequirements = <T extends CaseRequirement>(reqs: T[]) => reqs.filter((r) => r.source !== "cif");
 export interface CaseDocument {
   kind: string;
   status: string;
@@ -52,9 +64,9 @@ export function isRequirementMet(kind: string, docs: CaseDocument[], holded: Cas
   return kind === "trial_balance" && holded.some((h) => h.status === "synced");
 }
 
-/** Share of required documents provided. Optional ones don't count toward the total. */
+/** Share of required documents the company has provided. Optional ones and those obtained by CIF don't count. */
 export function completeness(reqs: CaseRequirement[], docs: CaseDocument[], holded: CaseHoldedConnection[]) {
-  const required = reqs.filter((r) => r.required);
+  const required = borrowerRequirements(reqs).filter((r) => r.required);
   const done = required.filter((r) => isRequirementMet(r.doc_kind, docs, holded)).length;
   const total = required.length;
   return { done, total, pct: total === 0 ? 100 : Math.round((done / total) * 100) };

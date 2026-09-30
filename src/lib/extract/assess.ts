@@ -6,6 +6,8 @@
 import { DOC_TYPE_LABEL } from "../../content/extraction.es.ts";
 import { isValidCif, normalizeCif } from "../cif.ts";
 import {
+  AnnualAccountsExtractionSchema,
+  type AnnualAccountsExtraction,
   CertificateExtractionSchema,
   CirbeExtractionSchema,
   Modelo200ExtractionSchema,
@@ -16,7 +18,7 @@ import {
   type Modelo200Extraction,
 } from "../schema/canonical.ts";
 import type { Warning } from "../types.ts";
-import type { AccountsWire, CertificateWire, CirbeWire, ExtractKind, SolvencyWire } from "./schemas.ts";
+import type { AccountsWire, AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, SolvencyWire } from "./schemas.ts";
 
 export interface AssessContext {
   fileName: string;
@@ -29,6 +31,7 @@ export interface AssessContext {
 
 export type Canonical =
   | { kind: "accounts"; data: Modelo200Extraction; periodEnd: string | null }
+  | { kind: "annual_accounts"; data: AnnualAccountsExtraction }
   | { kind: "cirbe"; data: CirbeExtraction }
   | { kind: "certificate"; data: CertificateExtraction }
   | { kind: "solvency"; data: SolvencyReport };
@@ -55,7 +58,7 @@ export function cleanNif(raw: string | null | undefined): string | null {
 
 const fail = (attentionMessage: string, warnings: Warning[] = []): Assessment => ({ status: "failed", attentionMessage, issuedOn: null, canonical: null, warnings });
 
-type Wire = AccountsWire | CirbeWire | CertificateWire | SolvencyWire;
+type Wire = AccountsWire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
 
 /** Checks shared by every kind: legible, right document, right company. */
 function identity(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment | Warning[] {
@@ -112,6 +115,46 @@ function accounts(kind: "modelo200" | "cuentas_anuales", w: AccountsWire, ctx: A
   return { status: "parsed", attentionMessage: null, issuedOn: null, canonical: { kind: "accounts", data: parsed.data, periodEnd: isoOrNull(w.period_end) }, warnings };
 }
 
+const pos = (p: number | null | undefined) => (p && p > 0 ? p : null);
+const UNIT_FACTOR = { euros: 1, thousands: 1_000, millions: 1_000_000 } as const;
+const camel = (k: string) => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/** A model year column in euros, keys as in the canonical schema. */
+function yearInEuros(y: AccountsYearWire, factor: number): AnnualAccountsExtraction["current"] {
+  return Object.fromEntries(Object.entries(y).map(([k, v]) => [camel(k), Math.round(v * factor * 100) / 100])) as AnnualAccountsExtraction["current"];
+}
+
+/** Cuentas anuales on the official model: the full balance sheet and P&L, current and prior year. */
+function annualAccounts(w: AnnualAccountsWire, ctx: AssessContext, warnings: Warning[]): Assessment {
+  const fiscalYear = w.fiscal_year > 0 ? w.fiscal_year : null;
+  if (ctx.expectedFiscalYear && fiscalYear && fiscalYear !== ctx.expectedFiscalYear) {
+    return fail(`«${ctx.fileName}» son las cuentas anuales del ejercicio ${fiscalYear}. ${ctx.lenderName} necesita las del ejercicio ${ctx.expectedFiscalYear}.`, [
+      ...warnings,
+      { code: "doc_fiscal_year_mismatch", message: `Fiscal year ${fiscalYear}, expected ${ctx.expectedFiscalYear}`, detail: { found: fiscalYear, expected: ctx.expectedFiscalYear } },
+    ]);
+  }
+  const cur = w.current_year;
+  if (Object.values(cur).every((v) => v === 0)) {
+    return fail(`No encontramos el balance ni la cuenta de resultados en «${ctx.fileName}». Sube las cuentas anuales completas, con el balance y la cuenta de pérdidas y ganancias.`, warnings);
+  }
+  if (cur.total_assets === 0 || (cur.revenue === 0 && cur.net_income === 0 && cur.operating_result === 0)) {
+    warnings.push({ code: "ca_incomplete", message: "Las cuentas anuales no muestran el balance o la cuenta de resultados completos." });
+  }
+  const factor = UNIT_FACTOR[w.units];
+  const parsed = AnnualAccountsExtractionSchema.safeParse({
+    nif: cleanNif(w.company_nif) ?? cleanNif(ctx.caseCif) ?? "",
+    fiscalYear: fiscalYear ?? ctx.expectedFiscalYear ?? 0,
+    periodEnd: isoOrNull(w.period_end),
+    months: w.period_months > 0 && w.period_months <= 24 ? w.period_months : 12,
+    model: w.model,
+    pages: { balanceSheet: pos(w.balance_sheet_page), incomeStatement: pos(w.income_statement_page) },
+    current: yearInEuros(cur, factor),
+    prior: w.prior_year_shown && !Object.values(w.prior_year).every((v) => v === 0) ? yearInEuros(w.prior_year, factor) : null,
+  });
+  if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn: null, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };
+  return { status: "parsed", attentionMessage: null, issuedOn: null, canonical: { kind: "annual_accounts", data: parsed.data }, warnings };
+}
+
 function cirbe(w: CirbeWire, ctx: AssessContext, warnings: Warning[]): Assessment {
   const asOf = isoOrNull(w.as_of);
   if (!asOf) {
@@ -158,8 +201,6 @@ function certificate(kind: "aeat_cert" | "tgss_cert", w: CertificateWire, ctx: A
   return { status: "parsed", attentionMessage: null, issuedOn, canonical: { kind: "certificate", data: parsed.data }, warnings };
 }
 
-const pos = (p: number | null | undefined) => (p && p > 0 ? p : null);
-
 function solvency(w: SolvencyWire, ctx: AssessContext, warnings: Warning[]): Assessment {
   const reportDate = isoOrNull(w.report_date);
   if (!reportDate) {
@@ -199,8 +240,9 @@ export function assessExtraction(kind: ExtractKind, wire: Wire, ctx: AssessConte
   if (!Array.isArray(id)) return id;
   switch (kind) {
     case "modelo200":
-    case "cuentas_anuales":
       return accounts(kind, wire as AccountsWire, ctx, id);
+    case "cuentas_anuales":
+      return annualAccounts(wire as AnnualAccountsWire, ctx, id);
     case "cirbe":
       return cirbe(wire as CirbeWire, ctx, id);
     case "aeat_cert":

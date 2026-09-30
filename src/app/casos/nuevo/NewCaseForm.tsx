@@ -102,11 +102,12 @@ export function NewCaseForm() {
   );
 }
 
-type Level = "required" | "optional" | "none";
+type Level = "required" | "optional" | "cif" | "none";
+const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", cif: "Por CIF" } as const;
 
 /**
- * Requested documents as toggle pills. Selected documents show "Obligatorio / Opcional" and, where it applies,
- * a maximum age. Posts the same `req_<kind>` / `age_<kind>` fields the server action already validates.
+ * Requested documents as toggle pills. Selected documents show "Obligatorio / Opcional" (plus "Por CIF" for those
+ * the lender can obtain without the company) and, where it applies, a maximum age. Posts the same `req_<kind>` / `age_<kind>` fields the server action already validates.
  */
 function Requirements({ values, error }: { values: Record<string, string>; error?: string }) {
   const [levels, setLevels] = useState<Record<string, Level>>(() =>
@@ -123,7 +124,7 @@ function Requirements({ values, error }: { values: Record<string, string>; error
   return (
     <fieldset className="flex flex-col gap-4" aria-describedby={error ? "requirements-error" : "requirements-hint"}>
       <legend className="heading-section mb-1">Documentación solicitada</legend>
-      <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima.</p>
+      <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima. «Por CIF»: los obtienes tú con el CIF de la empresa y no se le piden.</p>
       {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
       <div className="flex flex-wrap gap-2">
         {REQUIREMENT_SPECS.map((spec) => (
@@ -143,8 +144,8 @@ function Requirements({ values, error }: { values: Record<string, string>; error
                 <div className="text-[13px] text-muted">{spec.hint}</div>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-              <div role="group" aria-label={`${spec.label}: obligatorio u opcional`} className="flex gap-1 rounded-full bg-soft-control p-1">
-                {(["required", "optional"] as const).map((lvl) => (
+              <div role="group" aria-label={`${spec.label}: ${spec.byCif ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex gap-1 rounded-full bg-soft-control p-1">
+                {(spec.byCif ? (["required", "optional", "cif"] as const) : (["required", "optional"] as const)).map((lvl) => (
                   <button
                     key={lvl}
                     type="button"
@@ -152,7 +153,7 @@ function Requirements({ values, error }: { values: Record<string, string>; error
                     onClick={() => set(spec.kind, lvl)}
                     className={`min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors ${levels[spec.kind] === lvl ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink"}`}
                   >
-                    {lvl === "required" ? "Obligatorio" : "Opcional"}
+                    {LEVEL_LABEL[lvl]}
                   </button>
                 ))}
               </div>

@@ -61,6 +61,37 @@ export const Modelo200ExtractionSchema = z.object({
   sourcePages: z.record(z.number().int().positive()),
 });
 
+const accountsYear = z.object({
+  nonCurrentAssets: money, currentAssets: money, inventories: money, tradeAndOtherReceivables: money, customers: money,
+  shortTermInvestments: money, shortTermAccrualsAssets: money, cash: money, totalAssets: money,
+  equity: money, nonCurrentLiabilities: money, longTermProvisions: money, longTermBankDebt: money, longTermFinanceLeases: money,
+  longTermOtherDebts: money, longTermGroupDebts: money, currentLiabilities: money, shortTermProvisions: money,
+  shortTermBankDebt: money, shortTermFinanceLeases: money, shortTermOtherDebts: money, shortTermGroupDebts: money,
+  tradeAndOtherPayables: money, suppliers: money, totalEquityAndLiabilities: money,
+  revenue: money, inventoryChange: money, ownWorkCapitalised: money, supplies: money, otherOperatingIncome: money,
+  personnel: money, otherOperatingExpenses: money, depreciation: money, grantsTransferred: money, provisionSurpluses: money,
+  fixedAssetImpairmentAndDisposals: money, otherResults: money, operatingResult: money, financialIncome: money,
+  financialExpenses: money, otherFinancialResults: money, financialResult: money, preTaxResult: money, incomeTax: money,
+  netIncome: money,
+});
+
+/**
+ * Cuentas anuales on the official model: every line in euros (already scaled from the printed units), signs as
+ * printed (expenses negative). Enough to rebuild a full statement when there is no trial balance.
+ */
+export const AnnualAccountsExtractionSchema = z.object({
+  nif: z.string(),
+  fiscalYear: z.number().int(),
+  periodEnd: date.nullable(),
+  months: z.number().int().positive(),
+  model: z.enum(["normal", "abreviado", "pymes", "other"]),
+  pages: z.object({ balanceSheet: z.number().int().positive().nullable(), incomeStatement: z.number().int().positive().nullable() }),
+  current: accountsYear,
+  prior: accountsYear.nullable(),
+});
+export type AccountsYear = z.infer<typeof accountsYear>;
+export type AnnualAccountsExtraction = z.infer<typeof AnnualAccountsExtractionSchema>;
+
 /** LLM extraction target for a CIRBE report. */
 export const CirbeExtractionSchema = z.object({
   nif: z.string(),
