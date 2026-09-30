@@ -113,15 +113,15 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
           void handle(e.dataTransfer.files);
         }}
         aria-disabled={blocked || undefined}
-        className={`relative flex items-center gap-5 rounded-panel px-6 py-6 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-8 sm:py-7 ${
+        className={`relative flex items-center gap-4 rounded-zone px-5 py-4 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-6 sm:py-5 ${
           blocked ? "cursor-not-allowed bg-soft opacity-70" : dragOver ? "cursor-pointer bg-accent-ring" : "cursor-pointer bg-accent-tint hover:bg-accent-ring"
         }`}
       >
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
-          {busy ? <Loader2 size={24} className="animate-spin text-accent" aria-hidden /> : <Upload size={24} strokeWidth={2} className="text-accent" aria-hidden />}
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
+          {busy ? <Loader2 size={20} className="animate-spin text-accent" aria-hidden /> : <Upload size={20} strokeWidth={2} className="text-accent" aria-hidden />}
         </span>
-        <span className="flex min-w-0 flex-col gap-1">
-          <span className="text-[17px] font-semibold">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[15px] font-semibold">
             {blocked ? "Indica primero la fecha de emisión" : (label ?? (rule.multiple ? "Suelta aquí tus ficheros" : "Suelta aquí el fichero"))}
           </span>
           <span className="text-sm text-ink-2">

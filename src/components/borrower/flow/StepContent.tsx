@@ -20,9 +20,9 @@ import { UploadDropzone } from "../UploadDropzone";
 /** Numbered instructions with mono "01 02 03". */
 export function Steps({ steps }: { steps: string[] }) {
   return (
-    <ol className="flex flex-col gap-3.5 text-base leading-normal">
+    <ol className="flex flex-col gap-2.5 text-[15px] leading-normal">
       {steps.map((s, i) => (
-        <li key={s} className="flex gap-3.5">
+        <li key={s} className="flex gap-3">
           <span aria-hidden className="w-5 shrink-0 font-mono text-faint">{String(i + 1).padStart(2, "0")}</span>
           <span><RichText text={s} /></span>
         </li>
@@ -92,20 +92,20 @@ function AccountingStep({ item, token, today }: { item: ChecklistItem; token: st
       aria-pressed={mode === value}
       onClick={() => setMode(value)}
       className={cx(
-        "flex flex-col items-start gap-3 rounded-panel p-6 text-left transition-colors duration-150 ease-out",
+        "flex flex-col items-start gap-2 rounded-zone p-5 text-left transition-colors duration-150 ease-out",
         mode === value ? "bg-accent-tint ring-2 ring-accent" : "bg-soft hover:bg-soft-control",
       )}
     >
-      <span className="flex size-11 items-center justify-center rounded-full bg-surface shadow-tile">
-        <Icon size={20} strokeWidth={1.8} className="text-accent" aria-hidden />
+      <span className="flex size-10 items-center justify-center rounded-full bg-surface shadow-tile">
+        <Icon size={18} strokeWidth={1.8} className="text-accent" aria-hidden />
       </span>
-      <span className="text-[17px] font-semibold">{title}</span>
+      <span className="text-[15px] font-semibold">{title}</span>
       <span className="text-sm text-ink-2">{sub}</span>
     </button>
   );
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-2.5 sm:grid-cols-2">
         {tile("holded", Link2, "Conectar Holded", connected ? "Conectado · solo lectura" : "Importamos tu contabilidad directamente. Solo lectura.")}
         {tile("upload", FileSpreadsheet, "Subir sumas y saldos", "Desde A3, Sage, ContaSol, Odoo… en Excel o CSV.")}
       </div>
@@ -118,7 +118,7 @@ function AccountingStep({ item, token, today }: { item: ChecklistItem; token: st
         <ConnectHolded token={token} />
       ))}
       {mode === "upload" && (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Steps steps={ITEM_COPY.trial_balance.steps} />
           <UploadDropzone token={token} kind="trial_balance" today={today} />
         </div>
@@ -131,7 +131,7 @@ function Norma43Step({ token, today }: { token: string; today: string }) {
   const [bankId, setBankId] = useState(BANKS[0].id);
   const bank = BANKS.find((b) => b.id === bankId)!;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
         <div className="text-sm text-muted" id="bank-label">¿Con qué banco trabajas?</div>
         <div role="group" aria-labelledby="bank-label" className="flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export function StepContent({ item, token, lenderName, today, readOnly }: { item
   if (item.kind === "trial_balance") return <AccountingStep item={item} token={token} today={today} />;
   if (item.kind === "norma43") return <Norma43Step token={token} today={today} />;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <Steps steps={ITEM_COPY[item.kind].steps} />
       {item.maxAgeDays && <p className="text-[15px] text-ink-2">{lenderName} necesita que sea {freshnessWindow(item.maxAgeDays)}.</p>}
       <UploadDropzone token={token} kind={item.kind} needsIssueDate={item.maxAgeDays !== null} today={today} />

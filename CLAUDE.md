@@ -107,7 +107,7 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
   Buttons: primary = ink pill, secondary = soft pill, tertiary = accent link. `faint` is decorative only.
 - Status and severity = pill with a 6px dot (`Pill`, `SeverityDot`), never a coloured box.
 - Type: Geist for text, **Geist Mono for every figure, code and ID** (`Figure`: mono number + muted unit, Spanish
-  formatting). Page headings 44px/600/−0.035em (`heading-page`), section titles 17px/600 (`heading-section`).
+  formatting). Page headings 30–34px/600/−0.03em (`heading-page`), section titles 17px/600 (`heading-section`).
 - Radii: pills full; rows/inline panels 14–16px; inputs 14px; drop zones and floating panels 24–28px.
 - Inputs: soft fill, no border, 44px min height, 2px accent focus ring. Targets ≥ 44px.
 - Lists, not cards: `ListRow` with hover/selected soft fill and negative margin so text aligns with headings.

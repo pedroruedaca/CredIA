@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Documentation assistant as a floating layer at the bottom of the main column (design/borrower-flow2.html):
- * a static tip for the current step, suggestion pills, and a pinned input bar. Sending a question expands the
- * thread upward (max ~60% height); Esc or a click outside collapses it back to the bar.
+ * Documentation assistant as a floating layer at the bottom of the main column (design/borrower-flow2.html).
+ * At rest it is only a slim input bar so it never covers the step; focusing it reveals the tip for the current
+ * step and suggestion pills. Sending a question expands the thread upward (max ~50% height); Esc or a click
+ * outside collapses it back to the bar.
  * Same API route, grounding and guardrails as before; only the UI changed.
  */
 import { ArrowUp, Sparkles, X } from "lucide-react";
@@ -84,14 +85,17 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [humanState, setHumanState] = useState<"idle" | "sending" | "sent">("idle");
-  const [tipHiddenFor, setTipHiddenFor] = useState<StepId | null>(null);
+  const [hints, setHints] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
   const threadId = useId();
   const base = `/api/borrower/${encodeURIComponent(token)}`;
 
-  useDismiss(open, () => setOpen(false), rootRef, true);
+  useDismiss(open || hints, () => {
+    setOpen(false);
+    setHints(false);
+  }, rootRef, true);
   useEffect(() => {
     if (open) listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, open]);
@@ -102,6 +106,7 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
     const q = question.trim();
     if (!q || busy) return;
     setInput("");
+    setHints(false);
     setOpen(true);
     setBusy(true);
     setMessages((prev) => [...prev, { role: "user", content: q }, { role: "assistant", content: "" }]);
@@ -154,55 +159,58 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
   return (
     <div
       ref={rootRef}
-      className="pointer-events-none fixed inset-x-4 bottom-4 z-30 flex flex-col gap-3 sm:inset-x-10 lg:bottom-9 lg:left-[440px] lg:right-24 lg:max-w-[760px]"
+      className="pointer-events-none fixed inset-x-4 bottom-3 z-30 flex flex-col gap-2 sm:inset-x-10 sm:bottom-5 sm:max-w-[560px] lg:left-[356px] lg:max-w-[600px]"
     >
       {open ? (
         <section
           id={threadId}
           aria-label={ASSISTANT_COPY.title}
-          className="pointer-events-auto flex max-h-[60vh] flex-col overflow-hidden rounded-panel bg-surface shadow-float animate-[rise-in_200ms_ease-out]"
+          className="pointer-events-auto flex max-h-[50vh] flex-col overflow-hidden rounded-panel bg-surface shadow-float animate-[rise-in_200ms_ease-out]"
         >
-          <div className="flex items-center gap-3 px-5 pt-4">
-            <span className="flex size-7 items-center justify-center rounded-full bg-accent"><Sparkles size={14} strokeWidth={2.2} className="text-white" aria-hidden /></span>
-            <h2 className="grow heading-section">{ASSISTANT_COPY.title}</h2>
+          <div className="flex items-center gap-2.5 px-4 pt-2">
+            <span className="flex size-6 items-center justify-center rounded-full bg-accent"><Sparkles size={12} strokeWidth={2.2} className="text-white" aria-hidden /></span>
+            <h2 className="grow text-sm font-semibold">{ASSISTANT_COPY.title}</h2>
             <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar conversación" className="-mr-2 flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-soft">
               <X size={18} strokeWidth={1.8} aria-hidden />
             </button>
           </div>
-          <div ref={listRef} role="log" aria-live="polite" aria-busy={busy} className="flex min-h-0 grow flex-col gap-3 overflow-y-auto px-5 pb-4 pt-3 text-[15px] leading-normal">
+          <div ref={listRef} role="log" aria-live="polite" aria-busy={busy} className="flex min-h-0 grow flex-col gap-2.5 overflow-y-auto px-4 pb-3 pt-1 text-sm leading-normal">
             {messages.map((m, i) =>
               m.role === "user" ? (
-                <div key={i} className="max-w-[85%] self-end whitespace-pre-wrap break-words rounded-[20px_20px_6px_20px] bg-ink px-4 py-2.5 text-white">{m.content}</div>
+                <div key={i} className="max-w-[85%] self-end whitespace-pre-wrap break-words rounded-[18px_18px_6px_18px] bg-ink px-3.5 py-2 text-white">{m.content}</div>
               ) : (
-                <div key={i} className={cx("max-w-[90%] self-start break-words rounded-[20px_20px_20px_6px] px-4 py-2.5", m.tone === "notice" ? "bg-warn-bg text-warn" : "bg-soft text-ink")}>
+                <div key={i} className={cx("max-w-[90%] self-start break-words rounded-[18px_18px_18px_6px] px-3.5 py-2", m.tone === "notice" ? "bg-warn-bg text-warn" : "bg-soft text-ink")}>
                   {m.content ? <Answer text={m.content} steps={steps} onStep={goToStep} /> : <span className="text-muted">Escribiendo…</span>}
                 </div>
               ),
             )}
           </div>
-          <p className="px-5 pb-3 text-xs text-muted">{ASSISTANT_COPY.disclaimer}</p>
+          <p className="px-4 pb-3 text-xs text-muted">{ASSISTANT_COPY.disclaimer}</p>
         </section>
       ) : (
-        <>
-          {tipHiddenFor !== current && (
-            <div className="pointer-events-auto hidden max-w-[560px] items-start gap-3 self-start rounded-[22px_22px_22px_6px] bg-surface py-3.5 pl-[18px] pr-2 text-sm leading-normal shadow-float sm:flex">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent"><Sparkles size={14} strokeWidth={2.2} className="text-white" aria-hidden /></span>
-              <span className="pt-1">{STEP_TIP[current]}</span>
-              <button type="button" onClick={() => setTipHiddenFor(current)} aria-label="Ocultar consejo" className="-my-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink">
+        hints && (
+          <section aria-label={ASSISTANT_COPY.title} className="pointer-events-auto flex flex-col gap-3 rounded-[22px] bg-surface p-3 pl-4 shadow-float animate-[fade-in_150ms_ease-out]">
+            <div className="flex items-start gap-2.5 text-sm leading-normal">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-accent"><Sparkles size={12} strokeWidth={2.2} className="text-white" aria-hidden /></span>
+              <span className="grow pt-0.5">{STEP_TIP[current]}</span>
+              <button type="button" onClick={() => setHints(false)} aria-label="Ocultar consejo" className="-my-1.5 flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-soft hover:text-ink">
                 <X size={14} strokeWidth={2} aria-hidden />
               </button>
             </div>
-          )}
-          {suggestions.length > 0 && (
-            <div className="pointer-events-auto hidden flex-wrap gap-2 sm:flex">
-              {suggestions.map((s) => (
-                <button key={s} type="button" onClick={() => ask(s)} className="min-h-9 rounded-full bg-soft-control px-3.5 py-1.5 text-[13px] text-ink shadow-tile transition-colors hover:bg-track/70">
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((s) => (
+                  <button key={s} type="button" onClick={() => ask(s)} className="min-h-8 rounded-full bg-soft-control px-3 py-1 text-[13px] text-ink transition-colors hover:bg-track/70">
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="min-h-9 self-start text-xs text-accent underline-offset-4 hover:underline disabled:text-muted sm:hidden">
+              {humanState === "sent" ? "Aviso enviado" : "o habla con una persona"}
+            </button>
+          </section>
+        )
       )}
 
       <form
@@ -210,7 +218,7 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
           e.preventDefault();
           void ask(input);
         }}
-        className="pointer-events-auto flex h-[60px] items-center gap-2.5 rounded-full bg-surface pl-5 pr-2 shadow-[0_0_0_1px_var(--color-hairline),0_16px_40px_rgba(17,19,21,0.10)]"
+        className="pointer-events-auto flex h-12 items-center gap-2 rounded-full bg-surface pl-4 pr-1.5 shadow-[0_0_0_1px_var(--color-hairline),0_8px_24px_rgba(17,19,21,0.08)]"
       >
         <label htmlFor={inputId} className="sr-only">Pregunta al asistente</label>
         <input
@@ -219,25 +227,22 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
           value={input}
           maxLength={1000}
           autoComplete="off"
-          onFocus={() => messages.length > 1 && setOpen(true)}
+          onFocus={() => (messages.length > 1 ? setOpen(true) : setHints(true))}
           onChange={(e) => setInput(e.target.value)}
           placeholder={ASSISTANT_COPY.barPlaceholder}
           aria-controls={open ? threadId : undefined}
-          className="h-11 min-w-0 grow bg-transparent text-[15px] text-ink outline-none placeholder:text-muted"
+          className="h-11 min-w-0 grow bg-transparent text-sm text-ink outline-none placeholder:text-muted"
         />
         <span className="hidden whitespace-nowrap text-xs text-muted sm:inline">
           o{" "}
-          <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="min-h-11 text-xs text-accent underline-offset-4 hover:underline disabled:text-muted disabled:no-underline">
+          <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="min-h-9 text-xs text-accent underline-offset-4 hover:underline disabled:text-muted disabled:no-underline">
             {humanState === "sent" ? "aviso enviado" : "habla con una persona"}
           </button>
         </span>
-        <button type="submit" disabled={busy || !input.trim()} aria-label="Enviar pregunta" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
-          <ArrowUp size={18} strokeWidth={2.2} aria-hidden />
+        <button type="submit" disabled={busy || !input.trim()} aria-label="Enviar pregunta" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
+          <ArrowUp size={16} strokeWidth={2.2} aria-hidden />
         </button>
       </form>
-      <button type="button" onClick={askHuman} disabled={humanState !== "idle"} className="pointer-events-auto -my-2 min-h-11 self-center px-3 text-xs text-accent underline-offset-4 hover:underline disabled:text-muted sm:hidden">
-        {humanState === "sent" ? "Aviso enviado" : "o habla con una persona"}
-      </button>
     </div>
   );
 }

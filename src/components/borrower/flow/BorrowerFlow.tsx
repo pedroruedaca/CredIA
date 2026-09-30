@@ -81,9 +81,9 @@ function ReviewStep({ p }: { p: BorrowerFlowProps }) {
   const { checklist } = p;
   return (
     <>
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3">
         <h1 className="heading-page">{REVIEW_STEP.heading}</h1>
-        <p className="max-w-[600px] text-lg leading-relaxed text-ink-2">
+        <p className="max-w-[600px] text-base leading-relaxed text-ink-2">
           {checklist.allRequiredDone
             ? `Tienes todo lo que ${p.lenderName} ha pedido. Revisa la lista y envía cuando quieras.`
             : "Aún faltan documentos obligatorios. Puedes volver a cualquier paso desde aquí."}
@@ -124,9 +124,9 @@ function CurrentStep({ p }: { p: BorrowerFlowProps }) {
   const next = nextStep(item.kind, p.checklist.items);
   return (
     <>
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3">
         <h1 className="heading-page">{copy.heading}</h1>
-        <p className="max-w-[600px] text-lg leading-relaxed text-ink-2">
+        <p className="max-w-[600px] text-base leading-relaxed text-ink-2">
           {copy.why(p.lenderName)}
           {!item.required && " Es opcional."}
         </p>
@@ -145,8 +145,8 @@ function CurrentStep({ p }: { p: BorrowerFlowProps }) {
       </div>
       <StepContent item={item} token={p.token} lenderName={p.lenderName} today={p.today} readOnly={!!p.readOnly} />
       <FilePills files={item.files} />
-      <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <ButtonLink href={`?paso=${next}`} className="min-h-[52px] px-7 text-base">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <ButtonLink href={`?paso=${next}`}>
           {next === REVIEW ? "Continuar a revisar y enviar" : "Continuar"}
         </ButtonLink>
         {p.actor === "borrower" && !p.readOnly && <DelegateDialog token={p.token} lenderName={p.lenderName} inline />}
@@ -161,11 +161,11 @@ export function BorrowerFlow(p: BorrowerFlowProps) {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Desktop: left column */}
-      <aside className="hidden w-[360px] shrink-0 flex-col gap-9 bg-soft px-8 py-9 lg:sticky lg:top-0 lg:flex lg:h-screen lg:overflow-y-auto">
+      <aside className="hidden w-[300px] shrink-0 flex-col gap-7 bg-soft px-6 py-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:overflow-y-auto">
         <CoBrand lenderName={p.lenderName} brandColor={p.brandColor} />
         <div className="flex flex-col gap-1.5">
           <div className="text-[13px] text-muted">Tu solicitud</div>
-          <div className="text-xl font-semibold leading-tight tracking-[-0.02em]">{p.companyName}</div>
+          <div className="text-lg font-semibold leading-tight tracking-[-0.02em]">{p.companyName}</div>
           <div className="text-sm text-ink-2">{p.requestLine}</div>
           {p.actor === "delegate" && <div className="mt-1 text-[13px] text-accent">Aportas la documentación en nombre de la empresa.</div>}
         </div>
@@ -180,11 +180,11 @@ export function BorrowerFlow(p: BorrowerFlowProps) {
         <MobileSteps items={p.checklist.items} current={p.current} allDone={p.checklist.allRequiredDone} footer={privacy} />
       </header>
 
-      <main className={cx("flex min-w-0 grow flex-col gap-8 px-4 pt-8 sm:px-10 lg:px-20 lg:pt-14", p.floating ? "pb-80" : "pb-16")}>
-        <div className="flex w-full max-w-[720px] flex-col gap-8">
+      <main className={cx("flex min-w-0 grow flex-col px-4 pt-6 sm:px-10 lg:px-14 lg:pt-10", p.floating ? "pb-36" : "pb-16")}>
+        <div className="flex w-full max-w-[640px] flex-col gap-6">
           <Progress current={p.current} checklist={p.checklist} />
           {p.checklist.items.length === 0 ? (
-            <p className="text-lg text-ink-2">{p.lenderName} no ha pedido ningún documento en esta solicitud. No tienes que hacer nada más.</p>
+            <p className="text-base text-ink-2">{p.lenderName} no ha pedido ningún documento en esta solicitud. No tienes que hacer nada más.</p>
           ) : p.current === REVIEW ? (
             <ReviewStep p={p} />
           ) : (
