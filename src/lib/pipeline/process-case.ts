@@ -17,7 +17,7 @@ import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
 import { parseTrialBalance, type TrialBalanceParse } from "../parsers/trial-balance.ts";
 import { buildStatement } from "../pgc/mapping.ts";
-import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction } from "../schema/canonical.ts";
+import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import type { AdminClient } from "../borrower/access.ts";
 import type { LedgerBalance, Period, PeriodKind, Warning } from "../types.ts";
 import { todayMadrid } from "../format.ts";
@@ -28,6 +28,7 @@ import {
   checkModelo200VsBooks,
   checkN43InflowsVsRevenue,
   checkOverdrafts,
+  checkSolvencyReport,
   cirbeAnnualPrincipal,
   type CheckResult,
   type Severity,
@@ -244,7 +245,7 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
   }
 
   const kind = doc.kind as ExtractKind;
-  if (!["modelo200", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert"].includes(kind)) return { status: "uploaded" };
+  if (!["modelo200", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report"].includes(kind)) return { status: "uploaded" };
   const call = await extractPdf(kind, bytes);
   if (!call.ok) {
     if (call.reason === "api_error" || call.reason === "not_configured") return { status: "uploaded" };
@@ -463,6 +464,11 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     const cert = (doc?.output.canonical as Canonical | undefined)?.kind === "certificate" ? (doc!.output.canonical as { data: CertificateExtraction }).data : null;
     checks.push(checkCertificate(kind, cert, doc?.id ?? null, req.max_age_days, today));
   }
+
+  // Informe de solvencia (latest report, uploaded by the company or the lender).
+  const solvencyDoc = latest("solvency_report");
+  const solvency = (solvencyDoc?.output.canonical as Canonical | undefined)?.kind === "solvency" ? (solvencyDoc!.output.canonical as { data: SolvencyReport }).data : null;
+  if (solvency && solvencyDoc) checks.push(...checkSolvencyReport(solvency, solvencyDoc.id, closed));
 
   // Registry (BORME), once the lender has confirmed which registry sheet is the company.
   checks.push(...(await caseBormeChecks(db, kase.id, today)));

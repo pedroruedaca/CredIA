@@ -5,6 +5,7 @@ export const DOC_TYPE_LABEL: Record<string, string> = {
   cirbe: "un informe CIRBE",
   aeat_cert: "un certificado de Hacienda",
   tgss_cert: "un certificado de la Seguridad Social",
+  solvency_report: "un informe de solvencia",
   bank_statement: "un extracto bancario",
   trial_balance: "un balance de sumas y saldos",
   invoice: "una factura",

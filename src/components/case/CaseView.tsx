@@ -11,6 +11,7 @@ import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { KpiRow } from "@/components/case/KpiRow";
 import { PnlSankey } from "@/components/case/PnlSankey";
 import { RegistrySection } from "@/components/case/RegistrySection";
+import { SolvencySection } from "@/components/case/SolvencySection";
 import { StatusChip } from "@/components/StatusChip";
 import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
@@ -192,6 +193,8 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
             <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
           </section>
         )}
+
+        <SolvencySection caseId={kase.id} solvency={data.solvency} canEdit={canEdit} requested={data.requirements.some((r) => r.doc_kind === "solvency_report")} />
 
         <RegistrySection caseId={kase.id} companyName={data.registeredName} registry={data.registry} canEdit={canEdit} />
 

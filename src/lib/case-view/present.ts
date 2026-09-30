@@ -29,6 +29,7 @@ const KIND_SHORT: Record<string, string> = {
   cirbe: "CIRBE",
   aeat_cert: "AEAT",
   tgss_cert: "TGSS",
+  solvency_report: "Informe de solvencia",
 };
 
 /** "4300001" → "430·0001": PGC group, then subaccount, as the design writes accounts. */

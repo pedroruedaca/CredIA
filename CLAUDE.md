@@ -8,8 +8,13 @@ credIA turns a Spanish SME's financial data into a **credit data package** for a
 The lender decides; credIA packages, normalises, computes and cross-checks. Never add scoring,
 approve/decline, or rate recommendations without an explicit product decision.
 
-Out of scope for MVP: scoring, PSD2 aggregators, bureaus (ASNEF/RAI), Informa, Holded OAuth,
+Out of scope for MVP: scoring, PSD2 aggregators, bureau API integrations (ASNEF/RAI, Informa), Holded OAuth,
 autónomos (natural persons → EU AI Act high-risk; only legal entities with a CIF).
+
+**Product decision (Sep 2026): informe de solvencia.** Commercial credit reports (Experian, Informa, Axesor,
+Iberinform…) are accepted as an **uploaded PDF**, by the company or by the lender. The provider's own rating,
+probability of default and recommended credit limit are extracted and shown **attributed to the provider**; credIA
+never computes, combines or uses them in checks. Still no bureau API integration.
 
 ## Stack
 Next.js (App Router) · TypeScript (strict) · Tailwind · Supabase (Postgres, Auth, Storage, RLS) ·
@@ -28,6 +33,7 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 | Modelo 200 / cuentas anuales PDF | Claude structured output → Zod | Verification anchor for closed year |
 | CIRBE PDF | Claude structured output → Zod | Debt exposure |
 | AEAT / TGSS certificates | Claude structured output | Validity + status |
+| Informe de solvencia PDF (Experian, Informa…) | Claude structured output → Zod (`SolvencyWire`) | Company or lender uploads; incidents, judicial, provider figures |
 | BORME | Fetch + parse | Officers, capital changes, insolvency |
 
 **Rule: every number carries a `source_ref`** (document id + page/row, or `holded:ledger:<start>..<end>:acct:<account>#sync:<id>`).
@@ -86,6 +92,16 @@ DB: `ingest.ts`, `case.ts`), cron `src/app/api/cron/borme/route.ts`, UI `src/com
    every published label recognised, ~0.1 % of entries without a usable sheet (sheets without registry letters).
    Real-world shapes are in `BORME_A_REAL_SHAPES_TEXT`. In the cloud sandbox Node's fetch needs `NODE_USE_ENV_PROXY=1`.
 
+## Informe de solvencia
+Kind `solvency_report` (0012): optional requirement (default max age 90 days) the lender can ask the company for, and a
+report the lender can upload itself from the case view (`prepareLenderUpload` / `registerLenderUpload`,
+`uploaded_by = 'lender'`; the company's portal never shows lender uploads). Generic schema for any provider
+(`SolvencyWire` → `SolvencyReportSchema`). Checks (`checkSolvencyReport`): active payment incidents (RAI,
+ASNEF-Empresas, bureau) high; open concurso/embargo high, lawsuits and public-body claims warn; report revenue vs books
+for the closed year (10 % / 5.000 €) warn. Provider rating / PD / limit: case view, PDF and JSON only, with the note
+`PROVIDER_FIGURES_NOTE`. UI `src/components/case/SolvencySection.tsx`; copy `src/content/solvency.es.ts`.
+Not yet tested against real provider PDFs: adjust the schema descriptions when the first real reports arrive.
+
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
 - Groups 46/47/55: classify by sign (debit → asset, credit → liability).
@@ -102,7 +118,8 @@ and `inputs` so the UI can show its derivation. Division by zero/negative denomi
 ## Cross-checks (`checks` table; severity info|warn|high)
 TB revenue vs N43 inflows (±25%) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,
 result, equity) · recurring debt payments in N43 vs declared debt · AEAT/TGSS certificates valid ·
-BORME adverse acts · Holded chart vs ledger reconciliation · closing-entries suspicion.
+BORME adverse acts · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
+closing-entries suspicion.
 
 ## Conventions
 - Money as `number` in euros inside the engine; parse decimal strings with `toNumber()`; round only for display.

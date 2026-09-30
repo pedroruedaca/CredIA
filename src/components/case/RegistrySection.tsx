@@ -93,7 +93,7 @@ export function RegistrySection({ caseId, companyName, registry, canEdit }: { ca
                       </span>
                       {t.text && <span className="line-clamp-2 text-[13px] text-ink-2">{t.text}</span>}
                     </span>
-                    <SourcePill href={src.url} className="hidden shrink-0 sm:inline-flex">{`anuncio ${t.source.split(":").at(-1)}`}</SourcePill>
+                    <span className="hidden shrink-0 sm:inline-flex"><SourcePill href={src.url}>{`anuncio ${t.source.split(":").at(-1)}`}</SourcePill></span>
                   </ListRow>
                 </li>
               );

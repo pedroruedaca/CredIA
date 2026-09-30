@@ -89,6 +89,47 @@ export const CertificateExtractionSchema = z.object({
   page: z.number().int().positive().nullable(),
 });
 
+const pageNum = z.number().int().positive();
+const incidentStatus = z.enum(["active", "resolved", "unknown"]);
+
+/** LLM extraction target for a commercial credit report. Provider figures are reported facts, never credIA's. */
+export const SolvencyReportSchema = z.object({
+  nif: z.string(),
+  provider: z.enum(["experian", "informa", "axesor", "iberinform", "einforma", "equifax", "other"]),
+  providerName: z.string().nullable(),
+  reportDate: date,
+  rating: z.object({ value: z.string(), scale: z.string().nullable(), description: z.string().nullable(), page: pageNum.nullable() }).nullable(),
+  defaultProbability: z.object({ percent: z.number().min(0).max(100), horizonMonths: z.number().int().positive().nullable(), page: pageNum.nullable() }).nullable(),
+  creditLimit: z.object({ amount: money, page: pageNum.nullable() }).nullable(),
+  incidents: z.array(z.object({
+    registry: z.enum(["rai", "asnef_empresas", "experian_bureau", "badexcug", "other"]),
+    registryName: z.string().nullable(),
+    creditor: z.string().nullable(),
+    amount: money.nullable(),
+    date: date.nullable(),
+    status: incidentStatus,
+    page: pageNum,
+  })),
+  incidentsTotal: z.object({ count: z.number().int().min(0).nullable(), amount: money.nullable(), page: pageNum.nullable() }).nullable(),
+  judicial: z.array(z.object({
+    type: z.enum(["concurso", "embargo", "lawsuit", "public_claim", "other"]),
+    description: z.string(),
+    amount: money.nullable(),
+    date: date.nullable(),
+    status: incidentStatus,
+    page: pageNum,
+  })),
+  financials: z.array(z.object({
+    fiscalYear: z.number().int(),
+    revenue: money.nullable(),
+    netIncome: money.nullable(),
+    equity: money.nullable(),
+    totalAssets: money.nullable(),
+    page: pageNum,
+  })),
+});
+
+export type SolvencyReport = z.infer<typeof SolvencyReportSchema>;
 export type Modelo200Extraction = z.infer<typeof Modelo200ExtractionSchema>;
 export type CirbeExtraction = z.infer<typeof CirbeExtractionSchema>;
 export type CertificateExtraction = z.infer<typeof CertificateExtractionSchema>;

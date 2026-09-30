@@ -1,9 +1,11 @@
 "use server";
 
+import { createHash, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { findCandidates } from "@/lib/borme/case";
+import { checkDeclaredFile, cleanFilename, CONTENT_TYPES, contentMatchesExtension, MAX_UPLOAD_BYTES, parseUploadPath, uploadPath } from "@/lib/borrower/upload-rules";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
@@ -167,6 +169,98 @@ export async function setBormeMatch(input: z.input<typeof MatchInput>): Promise<
     detail: parsed.data.status === "confirmed" ? { registry_sheet: parsed.data.sheet } : {},
   });
   after(() => processCase(createAdminClient(), caseId));
+  revalidatePath(`/casos/${caseId}`);
+  return { ok: true };
+}
+
+/** Documents the lender can upload itself (from its own subscriptions). */
+const LENDER_UPLOAD_KINDS = ["solvency_report"] as const;
+
+const PrepareInput = z.object({ caseId: CaseId, kind: z.enum(LENDER_UPLOAD_KINDS), filename: z.string().min(1).max(255), size: z.number().int() });
+
+/**
+ * Lender upload, step 1 (same two steps as the company's portal): checks the declared file and returns a signed
+ * upload URL, so the bytes go straight from the browser to Storage.
+ */
+export async function prepareLenderUpload(input: z.input<typeof PrepareInput>): Promise<{ ok: true; path: string; token: string } | { ok: false; message: string }> {
+  const lender = await requireLender();
+  if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar casos." };
+  const parsed = PrepareInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Datos no válidos." };
+  const { caseId, kind, filename, size } = parsed.data;
+  const { data: kase } = await (await createClient()).from("cases").select("id, status").eq("id", caseId).maybeSingle();
+  if (!kase) return { ok: false, message: "Caso no encontrado." };
+  if (kase.status === "archived") return { ok: false, message: "El caso está archivado." };
+  const check = checkDeclaredFile(kind, filename, size);
+  if (!check.ok) return { ok: false, message: check.message };
+  const { data, error } = await createAdminClient().storage.from("case-files").createSignedUploadUrl(uploadPath(caseId, kind, randomUUID(), check.ext));
+  if (error || !data) return { ok: false, message: "No hemos podido preparar la subida. Inténtalo de nuevo." };
+  return { ok: true, path: data.path, token: data.token };
+}
+
+const RegisterInput = z.object({ caseId: CaseId, path: z.string().min(1).max(300), filename: z.string().min(1).max(255) });
+
+/**
+ * Lender upload, step 2: checks the stored bytes, records the document as uploaded by the lender (the company's
+ * portal does not show it) and processes the case after the response.
+ */
+export async function registerLenderUpload(input: z.input<typeof RegisterInput>): Promise<ActionResult> {
+  const lender = await requireLender();
+  if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar casos." };
+  const parsed = RegisterInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Datos no válidos." };
+  const { caseId, path } = parsed.data;
+  const filename = cleanFilename(parsed.data.filename);
+  const supabase = await createClient();
+  const { data: kase } = await supabase.from("cases").select("id, lender_id").eq("id", caseId).maybeSingle();
+  if (!kase) return { ok: false, message: "Caso no encontrado." };
+  const target = parseUploadPath(caseId, path);
+  if (!target || !(LENDER_UPLOAD_KINDS as readonly string[]).includes(target.kind)) return { ok: false, message: "Datos no válidos." };
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin.from("documents").select("id").eq("storage_path", path).maybeSingle();
+  if (existing) return { ok: true, message: "Ya lo habías subido." };
+  const bucket = admin.storage.from("case-files");
+  const reject = async (message: string): Promise<ActionResult> => {
+    await bucket.remove([path]);
+    return { ok: false, message };
+  };
+  const { data: blob, error: dlErr } = await bucket.download(path);
+  if (dlErr || !blob) return { ok: false, message: "No hemos recibido el fichero. Vuelve a intentarlo." };
+  if (blob.size > MAX_UPLOAD_BYTES) return reject(`«${filename}» ocupa más de 20 MB.`);
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (!contentMatchesExtension(bytes, target.ext)) return reject(`«${filename}» no parece un PDF válido.`);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+  const { data: doc, error } = await admin
+    .from("documents")
+    .insert({
+      case_id: caseId,
+      lender_id: kase.lender_id,
+      kind: target.kind,
+      storage_path: path,
+      sha256,
+      original_filename: filename,
+      size_bytes: bytes.length,
+      content_type: CONTENT_TYPES[target.ext],
+      uploaded_by: "lender",
+    })
+    .select("id")
+    .single();
+  if (error?.code === "23505") {
+    await bucket.remove([path]);
+    return { ok: true, message: "Este informe ya estaba en el caso." };
+  }
+  if (error || !doc) return reject("No hemos podido guardar el documento. Inténtalo de nuevo.");
+
+  await supabase.from("audit_log").insert({
+    lender_id: kase.lender_id,
+    case_id: caseId,
+    actor: lender.userId,
+    action: "document.uploaded",
+    detail: { document_id: doc.id, kind: target.kind, sha256, size: bytes.length, by: "lender" },
+  });
+  after(() => processCase(admin, caseId));
   revalidatePath(`/casos/${caseId}`);
   return { ok: true };
 }

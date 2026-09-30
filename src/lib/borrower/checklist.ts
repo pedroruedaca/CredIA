@@ -93,6 +93,7 @@ const DOC_NOUN: Partial<Record<RequirementKind, string>> = {
   aeat_cert: "El certificado",
   tgss_cert: "El certificado",
   cirbe: "El informe",
+  solvency_report: "El informe",
 };
 
 // Fixed list: ICU versions disagree on Spanish abbreviations ("sep" vs "sept").

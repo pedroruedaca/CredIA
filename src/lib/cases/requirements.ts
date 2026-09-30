@@ -8,6 +8,7 @@ export const REQUIREMENT_KINDS = [
   "cirbe",
   "aeat_cert",
   "tgss_cert",
+  "solvency_report",
 ] as const;
 export type RequirementKind = (typeof REQUIREMENT_KINDS)[number];
 
@@ -28,6 +29,7 @@ export const REQUIREMENT_SPECS: RequirementSpec[] = [
   { kind: "cirbe", label: "Informe CIRBE", hint: "Banco de España", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "aeat_cert", label: "Certificado AEAT", hint: "Estar al corriente con Hacienda", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "tgss_cert", label: "Certificado TGSS", hint: "Estar al corriente con la Seguridad Social", defaultRequired: true, defaultMaxAgeDays: 90, supportsMaxAge: true },
+  { kind: "solvency_report", label: "Informe de solvencia", hint: "Experian, Informa, Axesor, Iberinform…", defaultRequired: null, defaultMaxAgeDays: 90, supportsMaxAge: true },
 ];
 
 export interface CaseRequirement {

@@ -168,6 +168,26 @@ export function evidenceView(
       base.evidenceLine = `Ejercicio ${values.fiscal_year ?? "—"} · Modelo 200 ${compact(declared)} · libros ${compact(books)}`;
       break;
     }
+    case "solvency_vs_books_revenue": {
+      const report = num(values.report);
+      const books = num(values.books);
+      const diff = num(values.difference);
+      if (report === null || books === null || diff === null) break;
+      base.headline = { value: diff, unit: "EUR", signed: true, caption: `libros menos ${values.provider ?? "el informe"}` };
+      base.compare = [
+        { label: String(values.provider ?? "Informe"), value: report },
+        { label: "Libros", value: books },
+      ];
+      base.evidenceLine = `Ejercicio ${values.fiscal_year ?? "—"} · ${values.provider ?? "Informe"} ${compact(report)} · libros ${compact(books)}`;
+      break;
+    }
+    case "solvency_payment_incidents":
+    case "solvency_judicial": {
+      const amount = num(values.amount);
+      if (amount !== null && amount > 0) base.headline = { value: amount, unit: "EUR", signed: false, caption: check.check_key === "solvency_judicial" ? "en incidencias judiciales o administrativas" : "en incidencias de pago activas" };
+      base.evidenceLine = [values.provider, typeof values.report_date === "string" ? formatDate(values.report_date) : null].filter(Boolean).join(" · ");
+      break;
+    }
     case "aeat_cert_valid":
     case "tgss_cert_valid": {
       base.evidenceLine = [values.issued_on ? `Emitido ${formatDate(String(values.issued_on))}` : null, values.age_days !== undefined && values.age_days !== null ? `${values.age_days} días` : null]

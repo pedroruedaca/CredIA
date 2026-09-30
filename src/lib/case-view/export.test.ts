@@ -51,6 +51,24 @@ describe("exports", () => {
     expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).toContain("El BORME aún no se ha importado.");
   }, 30_000);
 
+  it("the informe de solvencia is in the PDF (provider figures attributed) and the JSON; only there may a rating appear", async () => {
+    const { solvencyWireSample } = await import("../__fixtures__/solvency-report.ts");
+    const { assessExtraction } = await import("../extract/assess.ts");
+    const { pdfText } = await import("../borme/fetch.ts");
+    const report = (assessExtraction("solvency_report", solvencyWireSample, { fileName: "x.pdf", caseCif: "B12345674", companyName: "X", lenderName: "L", expectedFiscalYear: null }).canonical as { data: import("../schema/canonical.ts").SolvencyReport }).data;
+    const withReport = { ...sample, solvency: { docId: "s1", fileName: "experian.pdf", uploadedBy: "lender" as const, status: "parsed", attention: null, report } };
+    const p = buildPackage(withReport);
+    const text = await pdfText(new Uint8Array(await packagePdf(withReport, p, at)));
+    expect(text).toContain("Informe de solvencia · Experian · Informe de empresa");
+    expect(text).toContain("Rating Experian");
+    expect(text).toContain("Banco Ejemplo SA");
+    expect(text).toContain("credIA no los calcula");
+    const j = packageJson(withReport, p, at);
+    expect(j.solvency_report).toMatchObject({ provider: "experian", rating: { value: "7" }, uploaded_by: "lender", source_ref: "doc:s1" });
+    const { solvency_report: _provider, ...rest } = j;
+    expect(JSON.stringify(rest)).not.toMatch(/\b(score|scoring|rating|aprobad[oa]|recomendamos)\b/i);
+  }, 30_000);
+
   it("PDF renders", async () => {
     const buf = await packagePdf(sample, pkg, at);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");

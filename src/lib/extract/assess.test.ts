@@ -1,6 +1,7 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { describe, expect, it } from "vitest";
 import { assessExtraction, cleanNif, type AssessContext } from "./assess.ts";
+import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
 import { WIRE_FOR, type AccountsWire, type CertificateWire, type CirbeWire } from "./schemas.ts";
 
 const CTX: AssessContext = { fileName: "doc.pdf", caseCif: "B12345674", companyName: "Distribuciones Ejemplo SL", lenderName: "Fondo Ejemplo Capital", expectedFiscalYear: 2025 };
@@ -78,3 +79,39 @@ describe("assessExtraction", () => {
     expect(assessExtraction("modelo200", empty, CTX).status).toBe("failed");
   });
 });
+
+describe("assessExtraction · informe de solvencia", () => {
+  it("keeps the provider's figures, incidents and yearly figures with their pages; the report date is the issue date", () => {
+    const a = assessExtraction("solvency_report", solvencyWireSample, CTX);
+    expect(a.status).toBe("parsed");
+    expect(a.issuedOn).toBe("2026-09-15");
+    expect(a.canonical).toMatchObject({
+      kind: "solvency",
+      data: {
+        nif: "B12345674",
+        provider: "experian",
+        rating: { value: "7", scale: "1-10", page: 1 },
+        defaultProbability: { percent: 1.85, horizonMonths: 12 },
+        creditLimit: { amount: 60_000 },
+        incidents: [{ registry: "rai", amount: 4_200.5, status: "active", page: 4 }, { registry: "asnef_empresas", status: "resolved" }],
+        judicial: [{ type: "public_claim", amount: 12_000, page: 5 }],
+        financials: [{ fiscalYear: 2025, revenue: 1_000_000, page: 6 }, { fiscalYear: 2024 }],
+      },
+    });
+  });
+  it("leaves out provider figures the report does not have, and clamps bad pages", () => {
+    const a = assessExtraction("solvency_report", {
+      ...solvencyWireSample,
+      rating: { value: null, scale: null, description: null, page: null },
+      default_probability: { percent: 140, horizon_months: 0, page: null },
+      credit_limit: { amount: null, page: null },
+      payment_incidents: [{ ...solvencyWireSample.payment_incidents[0], page: 0 }],
+    }, CTX);
+    expect(a.canonical).toMatchObject({ kind: "solvency", data: { rating: null, defaultProbability: null, creditLimit: null, incidents: [{ page: 1 }] } });
+  });
+  it("needs review without a report date; fails another company's report", () => {
+    expect(assessExtraction("solvency_report", { ...solvencyWireSample, report_date: null }, CTX)).toMatchObject({ status: "needs_review", issuedOn: null });
+    expect(assessExtraction("solvency_report", { ...solvencyWireSample, company_nif: "A58818501" }, CTX).status).toBe("failed");
+  });
+});
+

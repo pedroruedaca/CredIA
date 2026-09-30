@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
-import type { CirbeExtraction } from "../schema/canonical.ts";
+import type { CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
 import type { CheckRow, SourceDoc } from "./present.ts";
 
 const KPI_UNIT: Record<string, Kpi["unit"]> = {
@@ -41,6 +41,18 @@ export interface CaseViewData {
   activity: { action: string; actor: string; at: string; detail: Record<string, unknown> }[];
   /** Registry (BORME): candidates, the lender's confirmed match and its profile. */
   registry: CaseRegistry;
+  /**
+   * Latest informe de solvencia: the parsed report when there is one, else the latest upload's state so the
+   * section can say it is being read or could not be read.
+   */
+  solvency: {
+    docId: string;
+    fileName: string;
+    uploadedBy: "borrower" | "delegate" | "lender";
+    status: string;
+    attention: string | null;
+    report: SolvencyReport | null;
+  } | null;
   /** Company name as entered for the case (null when only the CIF is known). */
   registeredName: string | null;
 }
@@ -55,7 +67,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -69,7 +81,23 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     db.from("holded_connections").select("status, mode, last_sync_at, created_at, holded_syncs(entries_fetched, created_at)").eq("case_id", caseId).order("created_at", { ascending: false }),
     db.from("audit_log").select("action, actor, at, detail").eq("case_id", caseId).order("at", { ascending: false }).limit(40),
     loadCaseRegistry(db, caseId, c.borrower_name),
+    db
+      .from("documents")
+      .select("id, status, original_filename, uploaded_by, uploaded_at, attention_message, extractions(output, created_at)")
+      .eq("case_id", caseId)
+      .eq("kind", "solvency_report")
+      .order("uploaded_at", { ascending: false })
+      .limit(10),
   ]);
+
+  type SolvencyRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: SolvencyReport } }; created_at: string }[] | null };
+  const solvencyRows = (solvencyDocs.data ?? []) as unknown as SolvencyRow[];
+  const reportOf = (r: SolvencyRow) => {
+    const latest = [...(r.extractions ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    return latest?.output?.canonical?.kind === "solvency" ? latest.output.canonical.data : null;
+  };
+  // The newest parsed report wins; a newer upload still being read (or unreadable) is shown instead only if none parsed.
+  const shown = solvencyRows.find((r) => r.status === "parsed" && reportOf(r)) ?? solvencyRows[0] ?? null;
 
   type StmtRow = { period_kind: "closed_fy" | "ytd"; statement: CanonicalStatement; source: string | null; kpis: { key: Kpi["key"]; value: number | null; formula: string; inputs: Record<string, number>; note: string | null }[] };
   const rows = (stmts.data ?? []) as StmtRow[];
@@ -133,6 +161,9 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     holded: h ? { status: h.status, mode: h.mode, lastSyncAt: h.last_sync_at, entries: syncs.reduce((s, x) => s + (x.entries_fetched ?? 0), 0) } : null,
     activity: (activity.data ?? []) as CaseViewData["activity"],
     registry,
+    solvency: shown
+      ? { docId: shown.id, fileName: shown.original_filename ?? "informe.pdf", uploadedBy: shown.uploaded_by, status: shown.status, attention: shown.attention_message, report: shown.status === "parsed" ? reportOf(shown) : null }
+      : null,
     registeredName: c.borrower_name,
   };
 }

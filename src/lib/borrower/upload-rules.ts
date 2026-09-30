@@ -35,6 +35,7 @@ export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
   cirbe: PDF_ONLY,
   aeat_cert: PDF_ONLY,
   tgss_cert: PDF_ONLY,
+  solvency_report: PDF_ONLY,
 };
 
 export function extensionOf(filename: string): string {

@@ -42,6 +42,14 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
       fiscal_year_end: d.kase.fiscalYearEnd,
       status: d.kase.status,
     },
+    solvency_report: d.solvency?.report
+      ? {
+          note: "Rating, probabilidad de impago y límite son datos del proveedor tal como figuran en su informe; credIA no los calcula ni los usa en sus verificaciones.",
+          uploaded_by: d.solvency.uploadedBy,
+          source_ref: `doc:${d.solvency.docId}`,
+          ...d.solvency.report,
+        }
+      : null,
     registry: d.registry.profile
       ? {
           source: "BORME, sección A",

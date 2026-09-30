@@ -36,6 +36,8 @@ export async function loadPortal(db: AdminClient, access: BorrowerAccess, now = 
       .from("documents")
       .select("id, kind, status, original_filename, issued_on, attention_message, uploaded_at, extractions(summary, created_at)")
       .eq("case_id", access.caseId)
+      // Reports the lender uploads itself (e.g. its own Experian report) are not the company's to see.
+      .neq("uploaded_by", "lender")
       .order("uploaded_at", { ascending: false }),
     db
       .from("holded_connections")

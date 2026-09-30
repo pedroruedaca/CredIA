@@ -4,7 +4,8 @@
  * to look at; they never score, approve or decline.
  */
 import type { CanonicalStatement } from "../pgc/mapping.ts";
-import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction } from "../schema/canonical.ts";
+import { JUDICIAL_TYPE_LABEL, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
+import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import { minRunningBalance, type N43Account } from "../parsers/norma43.ts";
 import { monthsBetween } from "../types.ts";
 
@@ -246,4 +247,78 @@ export function checkDebtPaymentsVsDeclaredDebt(accounts: N43Account[], s: Canon
     return { key, status: "fail", severity: "high", message: `Hay pagos recurrentes de préstamos en los extractos (${eur(total)} en ${months.size} meses) pero no consta deuda financiera ni en contabilidad ni en CIRBE.`, evidence: { values, sources } };
   }
   return { key, status: "pass", severity: "info", message: `Los pagos de deuda en los extractos (${eur(total)} en ${months.size} meses) corresponden a deuda declarada.`, evidence: { values, sources } };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Informe de solvencia (third-party commercial report)
+
+/**
+ * Facts from a commercial credit report: payment incidents, judicial incidents, and its revenue vs the books for
+ * the closed year. The provider's rating, probability of default and credit limit are shown in the case view as the
+ * provider's figures; they never feed a check.
+ */
+export function checkSolvencyReport(r: SolvencyReport, docId: string, closed: CanonicalStatement | null): CheckResult[] {
+  const who = SOLVENCY_PROVIDER_LABEL[r.provider] ?? SOLVENCY_PROVIDER_LABEL.other;
+  const ref = (page: number | null) => (page ? `doc:${docId}:page:${page}` : `doc:${docId}`);
+  const out: CheckResult[] = [];
+  const base = { provider: who, report_date: r.reportDate };
+
+  // Payment incidents: the detail when listed, else the report's summary count.
+  const active = r.incidents.filter((i) => i.status !== "resolved");
+  const summaryCount = r.incidentsTotal?.count ?? null;
+  const count = active.length || (r.incidents.length === 0 ? summaryCount ?? 0 : 0);
+  const amount = active.length ? r2(active.reduce((sum, i) => sum + (i.amount ?? 0), 0)) : r.incidents.length === 0 ? (r.incidentsTotal?.amount ?? null) : 0;
+  const incidentSources = active.length ? active.map((i) => ref(i.page)) : [ref(r.incidentsTotal?.page ?? null)];
+  out.push(
+    count > 0
+      ? {
+          key: "solvency_payment_incidents",
+          status: "fail",
+          severity: "high",
+          message: `El informe de ${who} recoge ${count} ${count === 1 ? "incidencia de pago activa" : "incidencias de pago activas"}${amount ? ` por ${eur(amount)}` : ""}.`,
+          evidence: { values: { ...base, incidents: count, amount }, sources: incidentSources, rule: "Incidencias no resueltas en RAI, ASNEF-Empresas u otros ficheros de impagos" },
+        }
+      : { key: "solvency_payment_incidents", status: "pass", severity: "info", message: `El informe de ${who} no recoge incidencias de pago activas.`, evidence: { values: { ...base, incidents: 0 }, sources: incidentSources } },
+  );
+
+  const openJudicial = r.judicial.filter((j) => j.status !== "resolved");
+  const serious = openJudicial.filter((j) => j.type === "concurso" || j.type === "embargo");
+  if (openJudicial.length) {
+    const types = [...new Set(openJudicial.map((j) => JUDICIAL_TYPE_LABEL[j.type] ?? j.type))].join(", ").toLowerCase();
+    const total = r2(openJudicial.reduce((sum, j) => sum + (j.amount ?? 0), 0));
+    out.push({
+      key: "solvency_judicial",
+      status: "fail",
+      severity: serious.length ? "high" : "warn",
+      message: `El informe de ${who} recoge ${openJudicial.length} ${openJudicial.length === 1 ? "incidencia judicial o administrativa" : "incidencias judiciales o administrativas"} sin resolver: ${types}.`,
+      evidence: { values: { ...base, incidents: openJudicial.length, amount: total || null }, sources: openJudicial.map((j) => ref(j.page)), rule: "Concursos y embargos: alta; demandas y reclamaciones de organismos públicos: media" },
+    });
+  } else {
+    out.push({ key: "solvency_judicial", status: "pass", severity: "info", message: `El informe de ${who} no recoge incidencias judiciales sin resolver.`, evidence: { values: base, sources: [`doc:${docId}`] } });
+  }
+
+  // Revenue the report shows for the closed year vs the books (same tolerance as the Modelo 200 comparison).
+  if (closed?.pnlAvailable && closed.months === 12) {
+    const year = Number(closed.period.start.slice(0, 4));
+    const f = r.financials.find((x) => x.fiscalYear === year && x.revenue !== null);
+    if (f) {
+      const books = r2(closed.incomeStatement.revenue);
+      const diff = r2(books - f.revenue!);
+      const ok = Math.abs(diff) <= 5000 || Math.abs(diff) / Math.max(Math.abs(books), Math.abs(f.revenue!), 1) <= 0.1;
+      out.push({
+        key: "solvency_vs_books_revenue",
+        status: ok ? "pass" : "fail",
+        severity: ok ? "info" : "warn",
+        message: ok
+          ? `Las ventas ${year} del informe de ${who} cuadran con la contabilidad.`
+          : `Las ventas ${year} según ${who} (${eur(f.revenue!)}) difieren de la contabilidad (${eur(books)}).`,
+        evidence: {
+          values: { ...base, fiscal_year: year, report: f.revenue, books, difference: diff },
+          sources: [ref(f.page), ...lineageRefs(closed, "revenue")],
+          rule: "Cifra de negocios del informe vs libros del ejercicio cerrado; tolerancia 10 % o 5.000 €",
+        },
+      });
+    }
+  }
+  return out;
 }

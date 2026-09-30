@@ -67,6 +67,15 @@ export const ITEM_COPY: Record<RequirementKind, ItemCopy> = {
       "Descarga el PDF y súbelo aquí.",
     ],
   },
+  solvency_report: {
+    title: "Informe de solvencia",
+    description: "Un informe comercial de la empresa de un proveedor de información (Experian, Informa, Axesor, Iberinform…).",
+    steps: [
+      "Pide el informe de empresa a tu proveedor de información comercial → [RUTA PARA OBTENER EL INFORME DE EMPRESA].",
+      "Descarga el informe completo en PDF, tal como lo entrega el proveedor.",
+      "Súbelo aquí.",
+    ],
+  },
 };
 
 /** Support contact shown on error pages. `null` until a real address exists: never invent one. */
@@ -126,6 +135,12 @@ export const STEP_COPY: Record<RequirementKind, StepCopy> = {
     heading: "Tu certificado de la Seguridad Social",
     why: () => "El certificado de estar al corriente de pago con la Seguridad Social, expedido por la TGSS.",
     estimate: "≈ 3 min",
+  },
+  solvency_report: {
+    short: "Informe de solvencia",
+    heading: "Tu informe de solvencia",
+    why: (l) => `Un informe comercial de la empresa (Experian, Informa, Axesor…). ${l} lo usa para conocer incidencias de pago y datos registrales sin pedírtelos uno a uno.`,
+    estimate: "≈ 10 min",
   },
 };
 

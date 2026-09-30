@@ -3,8 +3,12 @@ import { n43Sample } from "../__fixtures__/n43-sample.ts";
 import { tbSmallSl } from "../__fixtures__/tb-small-sl.ts";
 import { parseNorma43 } from "../parsers/norma43.ts";
 import { buildStatement } from "../pgc/mapping.ts";
+import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
+import { assessExtraction } from "../extract/assess.ts";
+import type { SolvencyReport } from "../schema/canonical.ts";
 import type { CirbeExtraction, Modelo200Extraction } from "../schema/canonical.ts";
 import {
+  checkSolvencyReport,
   checkCertificate,
   checkCirbeVsBooks,
   checkDebtPaymentsVsDeclaredDebt,
@@ -106,3 +110,32 @@ describe("certificates", () => {
     expect(checkCertificate("aeat_cert", null, null, 90, "2026-09-29").status).toBe("not_applicable");
   });
 });
+
+describe("checkSolvencyReport", () => {
+  const report = (assessExtraction("solvency_report", solvencyWireSample, { fileName: "x.pdf", caseCif: "B12345674", companyName: "X", lenderName: "L", expectedFiscalYear: null }).canonical as { data: SolvencyReport }).data;
+  const byKey = (checks: ReturnType<typeof checkSolvencyReport>) => Object.fromEntries(checks.map((c) => [c.key, c]));
+
+  it("flags active payment incidents (not the paid one) and an open AEAT claim, and matches revenue with the books", () => {
+    const c = byKey(checkSolvencyReport(report, "d1", closed));
+    expect(c.solvency_payment_incidents).toMatchObject({ status: "fail", severity: "high", evidence: { values: { incidents: 1, amount: 4200.5 }, sources: ["doc:d1:page:4"] } });
+    expect(c.solvency_payment_incidents.message).toBe("El informe de Experian recoge 1 incidencia de pago activa por 4.201 €.");
+    expect(c.solvency_judicial).toMatchObject({ status: "fail", severity: "warn", evidence: { sources: ["doc:d1:page:5"] } });
+    expect(c.solvency_vs_books_revenue).toMatchObject({ status: "pass", evidence: { values: { fiscal_year: 2025, report: 1_000_000 } } });
+  });
+
+  it("an embargo or concurso is high; a clean report passes; revenue far from the books warns", () => {
+    const clean: SolvencyReport = { ...report, incidents: [], incidentsTotal: { count: 0, amount: null, page: 4 }, judicial: [] };
+    expect(checkSolvencyReport(clean, "d1", null).map((x) => `${x.key}:${x.status}`)).toEqual(["solvency_payment_incidents:pass", "solvency_judicial:pass"]);
+    const seized: SolvencyReport = { ...clean, judicial: [{ type: "embargo", description: "Embargo TGSS", amount: 8_000, date: null, status: "active", page: 5 }] };
+    expect(byKey(checkSolvencyReport(seized, "d1", null)).solvency_judicial).toMatchObject({ status: "fail", severity: "high" });
+    const off: SolvencyReport = { ...clean, financials: [{ ...report.financials[0], revenue: 700_000 }] };
+    expect(byKey(checkSolvencyReport(off, "d1", closed)).solvency_vs_books_revenue).toMatchObject({ status: "fail", severity: "warn", evidence: { values: { difference: 300_000 } } });
+  });
+
+  it("uses the summary count when the report lists no detail; never turns the provider's rating into a check", () => {
+    const summaryOnly: SolvencyReport = { ...report, incidents: [], incidentsTotal: { count: 3, amount: 9_000, page: 2 } };
+    expect(byKey(checkSolvencyReport(summaryOnly, "d1", null)).solvency_payment_incidents).toMatchObject({ status: "fail", evidence: { values: { incidents: 3, amount: 9_000 }, sources: ["doc:d1:page:2"] } });
+    expect(JSON.stringify(checkSolvencyReport(report, "d1", closed))).not.toMatch(/rating|probabilidad|límite|1\.85|60000/i);
+  });
+});
+

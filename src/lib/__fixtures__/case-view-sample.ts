@@ -34,6 +34,7 @@ export const caseViewSample: CaseViewData = {
   holded: null,
   activity: [],
   registry: { coverage: null, match: null, candidates: [], profile: null },
+  solvency: null,
   registeredName: "Talleres Demo Levante, S.L.",
 };
 

@@ -5,6 +5,7 @@
 import path from "node:path";
 import { Document, Font, Page, Path, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { CHECK_PASS_LABEL, DISCLAIMER, REVIEW_LABEL } from "../../content/case-view.es.ts";
+import { INCIDENT_REGISTRY_LABEL, INCIDENT_STATUS_LABEL, JUDICIAL_TYPE_LABEL, PROVIDER_FIGURES_NOTE, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
 import { productLabel } from "../../content/products.es.ts";
 import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } from "../format.ts";
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
@@ -198,6 +199,82 @@ function Registry({ d }: { d: CaseViewData }) {
   );
 }
 
+/** Informe de solvencia: provider figures (attributed), incidents and yearly figures, each with its PDF page. */
+function Solvency({ d }: { d: CaseViewData }) {
+  const r = d.solvency?.report ?? null;
+  if (!d.solvency) return null;
+  if (!r) {
+    return (
+      <View wrap={false}>
+        <Text style={s.h2}>Informe de solvencia</Text>
+        <Text style={{ color: C.ink2 }}>{d.solvency.status === "parsing" || d.solvency.status === "uploaded" ? "El informe se está leyendo." : "El informe no se ha podido leer con seguridad; consúltese el PDF original."}</Text>
+      </View>
+    );
+  }
+  const who = SOLVENCY_PROVIDER_LABEL[r.provider] ?? SOLVENCY_PROVIDER_LABEL.other;
+  const figures = [
+    r.rating && [`Rating ${who}`, `${r.rating.value}${r.rating.scale ? ` / ${r.rating.scale}` : ""}${r.rating.description ? ` · ${r.rating.description}` : ""}`],
+    r.defaultProbability && [`Probabilidad de impago · ${who}`, `${formatFigure(r.defaultProbability.percent, "%", 2).number} %${r.defaultProbability.horizonMonths ? ` a ${r.defaultProbability.horizonMonths} meses` : ""}`],
+    r.creditLimit && [`Límite recomendado · ${who}`, `${eur(r.creditLimit.amount)} €`],
+  ].filter(Boolean) as [string, string][];
+  const pg = (p: number | null) => (p ? `pág. ${p}` : "");
+  return (
+    <View>
+      <View wrap={false}>
+        <Text style={s.h2}>Informe de solvencia · {r.providerName ?? who} · {formatDate(r.reportDate)}</Text>
+        {figures.length > 0 && (
+          <>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {figures.map(([label, value]) => (
+                <View key={label} style={{ flex: 1, gap: 2 }}>
+                  <Text style={[s.muted, { fontSize: 8 }]}>{label}</Text>
+                  <Text style={s.mono}>{value}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={[s.muted, { fontSize: 7.5, marginTop: 4 }]}>{PROVIDER_FIGURES_NOTE}</Text>
+          </>
+        )}
+      </View>
+      <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>Incidencias de pago</Text>
+      {r.incidents.length === 0 && (
+        <Text style={{ color: C.ink2 }}>{r.incidentsTotal?.count ? `El informe resume ${r.incidentsTotal.count} incidencias${r.incidentsTotal.amount ? ` por ${eur(r.incidentsTotal.amount)} €` : ""}, sin detalle.` : "El informe no recoge incidencias de pago."}</Text>
+      )}
+      {r.incidents.map((i, n) => (
+        <View key={n} style={s.tableRow} wrap={false}>
+          <Text style={{ flex: 1 }}>{i.creditor ?? INCIDENT_REGISTRY_LABEL[i.registry]}<Text style={s.muted}>{`  ${[INCIDENT_REGISTRY_LABEL[i.registry], i.date ? formatDate(i.date) : null, INCIDENT_STATUS_LABEL[i.status]].filter(Boolean).join(" · ")}`}</Text></Text>
+          <Text style={[s.mono, { width: 80, textAlign: "right" }]}>{i.amount === null ? "—" : `${eur(i.amount)} €`}</Text>
+          <Text style={[s.mono, s.muted, { width: 45, textAlign: "right", fontSize: 8 }]}>{pg(i.page)}</Text>
+        </View>
+      ))}
+      <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>Incidencias judiciales y administrativas</Text>
+      {r.judicial.length === 0 && <Text style={{ color: C.ink2 }}>El informe no recoge incidencias judiciales ni administrativas.</Text>}
+      {r.judicial.map((j, n) => (
+        <View key={n} style={s.tableRow} wrap={false}>
+          <Text style={{ flex: 1 }}>{JUDICIAL_TYPE_LABEL[j.type]}<Text style={s.muted}>{`  ${[j.description, j.date ? formatDate(j.date) : null, INCIDENT_STATUS_LABEL[j.status]].filter(Boolean).join(" · ")}`}</Text></Text>
+          <Text style={[s.mono, { width: 80, textAlign: "right" }]}>{j.amount === null ? "—" : `${eur(j.amount)} €`}</Text>
+          <Text style={[s.mono, s.muted, { width: 45, textAlign: "right", fontSize: 8 }]}>{pg(j.page)}</Text>
+        </View>
+      ))}
+      {r.financials.length > 0 && (
+        <View wrap={false}>
+          <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>Cifras según el informe</Text>
+          {[...r.financials].sort((a, b) => b.fiscalYear - a.fiscalYear).map((f) => (
+            <View key={f.fiscalYear} style={s.tableRow}>
+              <Text style={[s.mono, { width: 50 }]}>{f.fiscalYear}</Text>
+              <Text style={[s.mono, { flex: 1, textAlign: "right" }]}>{f.revenue === null ? "—" : `${eur(f.revenue)} €`}</Text>
+              <Text style={[s.mono, { flex: 1, textAlign: "right" }]}>{f.netIncome === null ? "—" : `${eur(f.netIncome)} €`}</Text>
+              <Text style={[s.mono, { flex: 1, textAlign: "right" }]}>{f.equity === null ? "—" : `${eur(f.equity)} €`}</Text>
+              <Text style={[s.mono, s.muted, { width: 45, textAlign: "right", fontSize: 8 }]}>{pg(f.page)}</Text>
+            </View>
+          ))}
+          <Text style={[s.muted, { fontSize: 7.5, marginTop: 3 }]}>Columnas: ventas, resultado del ejercicio, patrimonio neto.</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; generatedAt: string }) {
   const { kase } = d;
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
@@ -284,6 +361,8 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
             <Text style={[s.muted, { fontSize: 8 }]}>Agrupado por código PGC de 3 dígitos. YTD sin anualizar. El detalle por cuenta y su origen está en la exportación Excel (hoja Trazabilidad).</Text>
           </View>
         )}
+
+        <Solvency d={d} />
 
         <Registry d={d} />
 

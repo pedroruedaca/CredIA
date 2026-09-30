@@ -89,6 +89,10 @@ export const VALUE_LABEL: Record<string, string> = {
   changes: "Cambios",
   from: "Desde",
   first_seen: "Primer acto importado",
+  provider: "Proveedor",
+  report_date: "Fecha del informe",
+  incidents: "Incidencias",
+  report: "Informe",
 };
 
 /** Short labels for passing checks, shown as green pills. */
@@ -104,6 +108,9 @@ export const CHECK_PASS_LABEL: Record<string, string> = {
   aeat_cert_valid: "Certificado AEAT vigente",
   tgss_cert_valid: "Certificado TGSS vigente",
   borme_no_adverse_acts: "BORME sin actos adversos",
+  solvency_payment_incidents: "Sin incidencias de pago",
+  solvency_judicial: "Sin incidencias judiciales",
+  solvency_vs_books_revenue: "Informe de solvencia: ventas cuadran",
 };
 
 /** Name of each check, for the evidence panel header. */
@@ -137,6 +144,9 @@ export const CHECK_NAME: Record<string, string> = {
   borme_address_change: "BORME · cambio de domicilio",
   borme_recent_incorporation: "BORME · sociedad reciente",
   borme_no_adverse_acts: "BORME · sin actos adversos",
+  solvency_payment_incidents: "Informe de solvencia · incidencias de pago",
+  solvency_judicial: "Informe de solvencia · incidencias judiciales",
+  solvency_vs_books_revenue: "Informe de solvencia vs libros · ventas",
 };
 
 export const SEVERITY_LABEL = { high: "Alta", warn: "Media", info: "Info" } as const;
@@ -151,6 +161,7 @@ export const DOC_KIND_LABEL: Record<string, string> = {
   cirbe: "CIRBE",
   aeat_cert: "Certificado AEAT",
   tgss_cert: "Certificado TGSS",
+  solvency_report: "Informe de solvencia",
   borme: "BORME",
   other: "Documento",
 };

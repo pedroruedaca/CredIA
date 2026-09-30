@@ -91,6 +91,25 @@ emisión que aparece en el documento.
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla concreta de este caso figura en la lista de
 documentos. Si el portal marca el certificado como antiguo, hay que pedir uno nuevo y subirlo.
 
+## Informe de solvencia (solvency_report)
+
+**Qué es.** Un informe comercial de la empresa elaborado por un proveedor de información (Experian, Informa,
+Axesor, Iberinform u otro): datos registrales, incidencias de pago, incidencias judiciales y cifras de las
+cuentas depositadas.
+
+**Para qué se pide.** Para que la entidad conozca las incidencias de pago y judiciales de la empresa sin
+pedírselas una a una.
+
+**Cómo conseguirlo.** Se pide al proveedor de información comercial → [RUTA PARA OBTENER EL INFORME DE
+EMPRESA]. Hay que subir el informe completo en PDF, tal como lo entrega el proveedor, no un resumen ni una
+captura. Cualquier proveedor vale salvo que la entidad indique otra cosa. En el portal se indica la fecha del
+informe.
+
+**Coste.** Los proveedores suelen cobrar por el informe. Si la empresa no quiere pedirlo, puede decirlo con
+"Hablar con una persona": a veces la propia entidad lo obtiene.
+
+**Antigüedad.** La entidad puede exigir que sea reciente; la regla de este caso figura en la lista.
+
 ## Uso del portal
 
 - Cada documento es un paso de la lista. Se sube arrastrando el fichero al recuadro o pulsando "selecciónalo".
