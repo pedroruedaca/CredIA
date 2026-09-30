@@ -11,6 +11,7 @@ import "server-only";
 import { WARNING_SEVERITY } from "../connectors/holded-sync.ts";
 import { assessExtraction, type Canonical } from "../extract/assess.ts";
 import { extractPdf, mapTrialBalanceColumns } from "../extract/claude.ts";
+import { modelFor } from "../llm/model.ts";
 import type { ExtractKind } from "../extract/schemas.ts";
 import { computeKpis } from "../kpis/engine.ts";
 import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
@@ -176,7 +177,10 @@ const extOf = (path: string) => (/\.([a-z0-9]{1,5})$/i.exec(path)?.[1] ?? "").to
 
 async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<Outcome> {
   const { data: blob, error } = await db.storage.from("case-files").download(doc.storage_path);
-  if (error || !blob) return { status: "uploaded" };
+  if (error || !blob) {
+    console.error("[pipeline] storage download failed:", doc.kind, error?.message?.slice(0, 200));
+    return { status: "uploaded" };
+  }
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const ext = extOf(doc.storage_path);
   const name = doc.original_filename ?? "el documento";
@@ -248,7 +252,15 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
   if (!["modelo200", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report"].includes(kind)) return { status: "uploaded" };
   const call = await extractPdf(kind, bytes);
   if (!call.ok) {
-    if (call.reason === "api_error" || call.reason === "not_configured") return { status: "uploaded" };
+    if (call.reason === "api_error" || call.reason === "not_configured") {
+      // Left as "uploaded" to be retried; say why in the logs (never the key or the document).
+      console.error(
+        "[pipeline] PDF not read:",
+        doc.kind,
+        call.reason === "not_configured" ? "ANTHROPIC_API_KEY is not set" : `Claude API error (${call.detail ?? "no detail"}, model ${modelFor("extraction")})`,
+      );
+      return { status: "uploaded" };
+    }
     return {
       status: "needs_review",
       attention: null,

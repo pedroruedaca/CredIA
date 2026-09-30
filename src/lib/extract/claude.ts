@@ -40,7 +40,7 @@ async function callParse<T>(model: string, build: () => Promise<{ parsed_output:
     } catch (e) {
       if (e instanceof Anthropic.APIError) {
         // Transient errors were already retried by the SDK; anything left is not the document's fault.
-        return { ok: false, reason: "api_error", detail: `status ${e.status}` };
+        return { ok: false, reason: "api_error", detail: `status ${e.status}: ${String(e.message).slice(0, 160)}` };
       }
       lastDetail = (e as Error)?.name ?? "error"; // schema/JSON validation failure: retry once
     }
