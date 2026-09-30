@@ -1,10 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
+import { findCandidates } from "@/lib/borme/case";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
+import { processCase } from "@/lib/pipeline/process-case";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; message: string };
@@ -108,4 +112,61 @@ export async function requestDocument(input: z.input<typeof RequestInput>): Prom
         ? `${spec.label} ya aparece en la página de la empresa, pero no se ha podido enviar el correo: avísala tú.`
         : `${spec.label} ya aparece en la página de la empresa. No hay correo configurado: avísala tú.`,
   };
+}
+
+const MatchInput = z.discriminatedUnion("status", [
+  z.object({ caseId: CaseId, status: z.literal("confirmed"), sheet: z.string().regex(/^[A-Z]{1,3}-\d{1,7}$/) }),
+  z.object({ caseId: CaseId, status: z.enum(["none", "clear"]) }),
+]);
+
+/**
+ * "Es esta empresa" / "Ninguna es" / "Cambiar" in the Registro Mercantil section. Only a candidate found under the
+ * case's company name can be confirmed. BORME checks are recomputed after the response.
+ */
+export async function setBormeMatch(input: z.input<typeof MatchInput>): Promise<ActionResult> {
+  const lender = await requireLender();
+  if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar casos." };
+  const parsed = MatchInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Datos no válidos." };
+  const { caseId } = parsed.data;
+
+  const supabase = await createClient();
+  const { data: kase } = await supabase.from("cases").select("id, lender_id, borrower_name").eq("id", caseId).maybeSingle();
+  if (!kase) return { ok: false, message: "Caso no encontrado." };
+
+  let error: { message: string } | null = null;
+  let companyName: string | null = null;
+  if (parsed.data.status === "clear") {
+    ({ error } = await supabase.from("case_borme_matches").delete().eq("case_id", caseId));
+  } else {
+    if (parsed.data.status === "confirmed") {
+      const sheet = parsed.data.sheet;
+      const candidate = kase.borrower_name ? (await findCandidates(supabase, kase.borrower_name)).find((c) => c.sheet === sheet) : undefined;
+      if (!candidate) return { ok: false, message: "Esa hoja registral no corresponde a la razón social del caso." };
+      companyName = candidate.name;
+    }
+    ({ error } = await supabase.from("case_borme_matches").upsert(
+      {
+        case_id: caseId,
+        lender_id: kase.lender_id,
+        status: parsed.data.status,
+        registry_sheet: parsed.data.status === "confirmed" ? parsed.data.sheet : null,
+        company_name: companyName,
+        decided_by: lender.userId,
+        decided_at: new Date().toISOString(),
+      },
+      { onConflict: "case_id" },
+    ));
+  }
+  if (error) return { ok: false, message: "No hemos podido guardar la empresa. Inténtalo de nuevo." };
+  await supabase.from("audit_log").insert({
+    lender_id: kase.lender_id,
+    case_id: caseId,
+    actor: lender.userId,
+    action: `borme.match_${parsed.data.status}`,
+    detail: parsed.data.status === "confirmed" ? { registry_sheet: parsed.data.sheet } : {},
+  });
+  after(() => processCase(createAdminClient(), caseId));
+  revalidatePath(`/casos/${caseId}`);
+  return { ok: true };
 }

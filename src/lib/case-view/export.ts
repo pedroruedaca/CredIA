@@ -42,6 +42,19 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
       fiscal_year_end: d.kase.fiscalYearEnd,
       status: d.kase.status,
     },
+    registry: d.registry.profile
+      ? {
+          source: "BORME, sección A",
+          covered_from: d.registry.coverage?.from ?? null,
+          registry_sheet: d.registry.profile.sheet,
+          name: d.registry.profile.name,
+          former_names: d.registry.profile.formerNames,
+          constituted_on: d.registry.profile.constitutedOn,
+          capital: d.registry.profile.capital,
+          officers: d.registry.profile.officers,
+          acts: d.registry.profile.timeline.map((t) => ({ date: t.date, type: t.type, label: t.label, text: t.text, source_ref: t.source })),
+        }
+      : null,
     periods: statements.map((s) => ({ kind: s.period.kind, start: s.period.start, end: s.period.end, months: s.months, pnl_available: s.pnlAvailable, source: s.period.kind === "closed_fy" ? d.statements.closedSource : d.statements.ytdSource })),
     balance_sheet: { assets: lines(tables.assets), equity_and_liabilities: lines(tables.liabilities) },
     income_statement: lines(tables.pnl),

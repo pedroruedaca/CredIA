@@ -81,6 +81,14 @@ export const VALUE_LABEL: Record<string, string> = {
   amount: "Importe",
   net: "Saldo",
   end: "Hasta",
+  sheet: "Hoja registral",
+  act_date: "Fecha del acto",
+  act: "Acto",
+  acts: "Actos publicados",
+  resulting_capital: "Capital resultante",
+  changes: "Cambios",
+  from: "Desde",
+  first_seen: "Primer acto importado",
 };
 
 /** Short labels for passing checks, shown as green pills. */
@@ -95,6 +103,7 @@ export const CHECK_PASS_LABEL: Record<string, string> = {
   m200_vs_books_equity: "Modelo 200: patrimonio cuadra",
   aeat_cert_valid: "Certificado AEAT vigente",
   tgss_cert_valid: "Certificado TGSS vigente",
+  borme_no_adverse_acts: "BORME sin actos adversos",
 };
 
 /** Name of each check, for the evidence panel header. */
@@ -120,6 +129,14 @@ export const CHECK_NAME: Record<string, string> = {
   holded_opening_reconstructed: "Holded: apertura reconstruida",
   holded_chart_mismatch: "Holded: plan de cuentas vs diario",
   n43_pdf_pending: "Extractos en PDF sin leer",
+  borme_insolvency: "BORME · situación concursal",
+  borme_dissolution: "BORME · disolución o extinción",
+  borme_sheet_closed: "BORME · hoja registral cerrada",
+  borme_capital_reduction: "BORME · reducción de capital",
+  borme_officer_turnover: "BORME · cambios de administradores",
+  borme_address_change: "BORME · cambio de domicilio",
+  borme_recent_incorporation: "BORME · sociedad reciente",
+  borme_no_adverse_acts: "BORME · sin actos adversos",
 };
 
 export const SEVERITY_LABEL = { high: "Alta", warn: "Media", info: "Info" } as const;
@@ -166,6 +183,9 @@ export const AUDIT_LABEL: Record<string, string> = {
   "support.closed": "Petición de ayuda atendida",
   "case.viewed": "Caso consultado",
   "case.tables_viewed": "Tablas completas consultadas",
+  "borme.match_confirmed": "Empresa confirmada en el BORME",
+  "borme.match_none": "Empresa no encontrada en el BORME",
+  "borme.match_clear": "Empresa del BORME por confirmar de nuevo",
 };
 
 export const ACTOR_LABEL: Record<string, string> = { borrower: "Empresa", delegate: "Gestoría", system: "Sistema" };

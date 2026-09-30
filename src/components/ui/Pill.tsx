@@ -24,6 +24,7 @@ export function Pill({ tone = "neutral", dot = true, className, children }: { to
 /** Provenance pill: mono, soft. Links to the source when `href` is given. */
 export function SourcePill({ href, className, children }: { href?: string; className?: string; children: React.ReactNode }) {
   const cls = cx("inline-flex min-h-7 items-center rounded-full bg-soft px-2.5 font-mono text-xs text-ink-2", href && "hover:bg-soft-control hover:text-ink hover:no-underline", className);
+  if (href && /^https?:\/\//.test(href)) return <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{children}</a>;
   return href ? <Link href={href} className={cls}>{children}</Link> : <span className={cls}>{children}</span>;
 }
 

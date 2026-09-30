@@ -10,6 +10,7 @@ import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { KpiRow } from "@/components/case/KpiRow";
 import { PnlSankey } from "@/components/case/PnlSankey";
+import { RegistrySection } from "@/components/case/RegistrySection";
 import { StatusChip } from "@/components/StatusChip";
 import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
@@ -191,6 +192,8 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
             <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
           </section>
         )}
+
+        <RegistrySection caseId={kase.id} companyName={data.registeredName} registry={data.registry} canEdit={canEdit} />
 
         <footer aria-label="Fuentes" className="flex flex-wrap items-center gap-2.5 text-[13px] text-muted">
           <span>Fuentes</span>

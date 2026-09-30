@@ -36,7 +36,7 @@ export interface EvidenceView {
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const PLAIN = new Set(["account", "overlap_months", "months_with_payments", "accounts", "age_days", "max_age_days", "fiscal_year", "months"]);
+const PLAIN = new Set(["acts", "changes", "account", "overlap_months", "months_with_payments", "accounts", "age_days", "max_age_days", "fiscal_year", "months"]);
 
 /** Evidence values as the lender reads them: money in €, ratios, dates, counts. */
 export function formatEvidenceValue(key: string, v: number | string | null | undefined): string {
@@ -193,6 +193,12 @@ export function evidenceView(
       break;
     }
     default:
+      if (check.check_key.startsWith("borme_")) {
+        // Registry acts: the text and the announcement links are the evidence; there is nothing to break down.
+        base.evidenceLine = [values.sheet ? `Hoja ${values.sheet}` : null, typeof values.act_date === "string" ? formatDate(values.act_date) : null].filter(Boolean).join(" · ");
+        base.values = base.values.filter((v) => v.label !== VALUE_LABEL.sheet);
+        return { ...base, gaps: base.sources.length ? [] : ["Sin referencia al anuncio del BORME."] };
+      }
       break;
   }
 

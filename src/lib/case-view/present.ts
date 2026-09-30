@@ -1,4 +1,5 @@
 /** Pure presentation helpers for the lender case view and the PDF. */
+import { pdfUrl } from "../borme/sumario.ts";
 import { formatDate } from "../format.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
@@ -16,6 +17,8 @@ export interface SourceLabel {
   label: string;
   docId: string | null;
   page: number | null;
+  /** Public source outside credIA (BORME PDF on boe.es). */
+  url?: string;
 }
 
 const KIND_SHORT: Record<string, string> = {
@@ -35,10 +38,13 @@ export const formatAccount = (acct: string) => (acct.length > 3 ? `${acct.slice(
  * Turns a source_ref into something a lender can read and open:
  *   doc:<id>:page:<n> · doc:<id>:sheet:<s>:row:<n> · doc:<id>:row:<n> · doc:<id>:line:<n> · doc:<id>
  *   holded:ledger:<start>..<end>:acct:<account>#sync:<id>
+ *   borme:<published date>:<PDF id>:entry:<announcement number>
  */
 export function describeSource(ref: string, docs: SourceDoc[]): SourceLabel {
   const holded = /^holded:ledger:([\d-]+)\.\.([\d-]+):acct:([^#]+)/.exec(ref);
   if (holded) return { label: `Holded · cuenta ${formatAccount(holded[3])}`, docId: null, page: null };
+  const borme = /^borme:(\d{4}-\d{2}-\d{2}):(BORME-[A-Z]-\d{4}-\d+-\d+):entry:(\d+)$/.exec(ref);
+  if (borme) return { label: `BORME ${formatDate(borme[1])} · anuncio ${borme[3]}`, docId: null, page: null, url: pdfUrl(borme[1], borme[2]) };
   const m = /^doc:([^:]+)(?::(.*))?$/.exec(ref);
   if (!m) return { label: ref, docId: null, page: null };
   const doc = docs.find((d) => d.id === m[1]) ?? null;
@@ -51,9 +57,9 @@ export function describeSource(ref: string, docs: SourceDoc[]): SourceLabel {
   return { label: `${base}${where}`, docId: doc?.id ?? null, page: page ? Number(page[1]) : null };
 }
 
-/** Link to open a source document (through the lender's RLS check); null for sources without a file. */
-export const sourceHref = (caseId: string, docId: string | null, page: number | null) =>
-  docId ? `/casos/${caseId}/documentos/${docId}${page ? `?pagina=${page}` : ""}` : undefined;
+/** Link to open a source: a case document (through the lender's RLS check) or a public URL; none without a file. */
+export const sourceHref = (caseId: string, docId: string | null, page: number | null, url?: string) =>
+  docId ? `/casos/${caseId}/documentos/${docId}${page ? `?pagina=${page}` : ""}` : url;
 
 /** Distinct, readable sources (same label once), capped for display. */
 export function summariseSources(refs: string[], docs: SourceDoc[], max = 6): { shown: SourceLabel[]; more: number } {

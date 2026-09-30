@@ -63,6 +63,24 @@ UI `src/components/ConnectHolded.tsx`):
 7. Raw ledger lines + exclusion decisions stored at `raw/holded/<case>/<sync_id>.json` (bucket `case-files`).
 8. Sync runs inside the request (`maxDuration = 300`). Move to a background job once real books need it.
 
+## BORME (Registro Mercantil)
+Built — `src/lib/borme/` (pure: `parse.ts`, `names.ts`, `sumario.ts`, `profile.ts`, `rows.ts`; network: `fetch.ts`;
+DB: `ingest.ts`, `case.ts`), cron `src/app/api/cron/borme/route.ts`, UI `src/components/case/RegistrySection.tsx`.
+1. **Own copy of Section A** in `borme_acts` (shared public data, not case-scoped; service-role writes only). Daily
+   Vercel Cron (`vercel.json`, `CRON_SECRET`) imports today + catches up the last 10 days; `borme_days` records each day.
+   Backfill: `npm run borme:backfill -- --from 2023-10-01`. Live check without DB: `npm run borme:probe -- --day …`.
+2. Index from the BOE open-data API (`/datosabiertos/api/borme/sumario/YYYYMMDD`, walked for `BORME-A-*` items);
+   PDFs → text with `unpdf` → deterministic parser (entries by consecutive announcement number, acts by published
+   label, registry sheet from "Datos registrales"). No LLM. Unknown text → warnings, never dropped.
+3. **BORME has no CIF.** Candidates by `companyKey()` of the case name; the company is identified by its registry
+   sheet (`V-123456`, stable across renames). **The lender confirms the match** (`case_borme_matches`); no BORME check
+   runs before that.
+4. Checks (`bormeChecks`): insolvency, dissolution/extinction, closed sheet (high); capital reduction 24m, ≥2
+   administrator changes 12m, address change 12m, incorporated < 24m (warn); `borme_no_adverse_acts` pass, stating
+   the coverage start. source_ref `borme:<date>:<BORME-A id>:entry:<n>` links to the PDF on boe.es.
+5. **Unverified against the live site** (the dev sandbox cannot reach boe.es): run `borme:probe` first and adjust
+   `sumario.ts` / `LABELS` in `parse.ts` if the real output differs.
+
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
 - Groups 46/47/55: classify by sign (debit → asset, credit → liability).
@@ -119,4 +137,4 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
 ## Build order
 W1: scaffold + auth + RLS + case/upload flow · TB parser + PGC mapping · canonical schema + KPI engine
 W2: Holded connector ✅ (starter) — wire into borrower page, verify against a real account · N43 parser · LLM extractors (Modelo 200, CIRBE, certificates) · checks engine
-W3: BORME · case view with drill-down to source · memo PDF · audit log · beta onboarding
+W3: BORME ✅ (verify with `borme:probe`, then backfill) · case view with drill-down to source · memo PDF · audit log · beta onboarding

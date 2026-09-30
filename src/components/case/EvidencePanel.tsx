@@ -157,7 +157,7 @@ export function EvidencePanel({ caseId, views, selected, canEdit }: { caseId: st
 
           {view.sourceLabels.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {view.sourceLabels.map((s) => <SourcePill key={s.label} href={sourceHref(caseId, s.docId, s.page)}>{s.label}</SourcePill>)}
+              {view.sourceLabels.map((s) => <SourcePill key={s.label} href={sourceHref(caseId, s.docId, s.page, s.url)}>{s.label}</SourcePill>)}
               {view.moreSources > 0 && <SourcePill>+{view.moreSources}</SourcePill>}
             </div>
           )}

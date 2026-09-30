@@ -16,6 +16,12 @@ describe("describeSource", () => {
     expect(describeSource("doc:n1:line:7", docs).label).toBe("Norma 43 · línea 7");
     expect(describeSource("holded:ledger:2025-01-01..2025-12-31:acct:5200001#sync:9", docs)).toEqual({ label: "Holded · cuenta 520·0001", docId: null, page: null });
     expect(describeSource("doc:gone:page:1", docs)).toMatchObject({ label: "Documento · pág. 1", docId: null });
+    expect(describeSource("borme:2026-09-29:BORME-A-2026-185-46:entry:412348", docs)).toEqual({
+      label: "BORME 29 sept 2026 · anuncio 412348",
+      docId: null,
+      page: null,
+      url: "https://www.boe.es/borme/dias/2026/09/29/pdfs/BORME-A-2026-185-46.pdf",
+    });
   });
   it("de-duplicates and caps sources", () => {
     const refs = ["doc:t1:row:1", "doc:t1:row:1", ...Array.from({ length: 8 }, (_, i) => `doc:t1:row:${i + 2}`)];

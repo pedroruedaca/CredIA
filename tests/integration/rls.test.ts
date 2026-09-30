@@ -27,11 +27,13 @@ const CASE_ROWS: Record<string, Record<string, unknown>> = {
   assistant_messages: { role: "user", content: "hola" },
   support_requests: { actor: "borrower", message: "ayuda" },
   check_reviews: { check_key: "x", status: "reviewed" },
+  case_borme_matches: { status: "confirmed", registry_sheet: "V-123456", company_name: "EMPRESA A SL" },
 };
 
 /** Per-row values that must be unique or refer to the acting user. */
 const unique = (table: string, userId: string): Record<string, unknown> =>
   table === "check_reviews" ? { user_id: userId }
+  : table === "case_borme_matches" ? { decided_by: userId }
   : table === "delegate_links" ? { token_hash: `h-${crypto.randomUUID()}` }
   : table === "documents" ? { storage_path: `rls/${crypto.randomUUID()}.csv`, sha256: crypto.randomUUID() }
   : {};
@@ -142,5 +144,17 @@ describe("secrets and anonymous access", () => {
     }
     expect((await anon.from("cases").insert({ lender_id: A.lenderId, borrower_cif: "B12345674" })).error).not.toBeNull();
     expect((await anon.storage.from("case-files").download(filePath())).data).toBeNull();
+  });
+});
+
+describe("BORME (shared public data)", () => {
+  it("members read it but cannot write it; anonymous clients cannot read it", async () => {
+    const row = { published_on: "2026-09-29", borme_id: `BORME-A-2026-185-${Math.floor(Math.random() * 1e6)}`, province: "VALENCIA", pdf_url: "x", entry_number: 1, company_name: "EMPRESA A SL", company_norm: "EMPRESA A", registry_sheet: "V-123456", act_index: 0, act_type: "constitution", act_label: "Constitución", act_text: "" };
+    must(await admin.from("borme_acts").insert(row));
+    expect((await A.db.from("borme_acts").select("id").eq("borme_id", row.borme_id)).data).toHaveLength(1);
+    expect((await A.db.from("borme_acts").insert({ ...row, entry_number: 2 })).error).not.toBeNull();
+    expect((await A.db.from("borme_days").insert({ day: "2001-01-01", status: "ingested" })).error).not.toBeNull();
+    expect((await anonClient().from("borme_acts").select("id").eq("borme_id", row.borme_id)).data ?? []).toEqual([]);
+    await admin.from("borme_acts").delete().eq("borme_id", row.borme_id);
   });
 });

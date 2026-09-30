@@ -33,6 +33,7 @@ import {
   type Severity,
 } from "../checks/engine.ts";
 import { assignTbPeriods, chooseSource, dedupeBankAccounts } from "./plan.ts";
+import { caseBormeChecks } from "../borme/case.ts";
 
 const LOCK_MS = 10 * 60 * 1000;
 const STALE_PARSING_MS = 15 * 60 * 1000;
@@ -462,6 +463,9 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     const cert = (doc?.output.canonical as Canonical | undefined)?.kind === "certificate" ? (doc!.output.canonical as { data: CertificateExtraction }).data : null;
     checks.push(checkCertificate(kind, cert, doc?.id ?? null, req.max_age_days, today));
   }
+
+  // Registry (BORME), once the lender has confirmed which registry sheet is the company.
+  checks.push(...(await caseBormeChecks(db, kase.id, today)));
 
   await db.from("checks").delete().eq("case_id", kase.id).eq("source", "engine");
   await insertChunks(
