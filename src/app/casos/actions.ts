@@ -29,7 +29,11 @@ export async function regenerateBorrowerLink(caseId: string): Promise<Regenerate
     .neq("status", "archived")
     .select("id, borrower_name, borrower_email, consent_withdrawn_at")
     .maybeSingle();
-  if (error || !kase) return { ok: false, message: "No hemos podido generar el enlace. Recarga la página e inténtalo de nuevo." };
+  if (error || !kase) {
+    // Log the reason (never the token): a database error, or no row (case not visible to this lender or archived).
+    console.error(`[link] regenerate failed for case ${caseId}: ${error ? `${error.code ?? ""} ${error.message}` : "no row updated"}`);
+    return { ok: false, message: "No hemos podido generar el enlace. Recarga la página e inténtalo de nuevo." };
+  }
 
   const link = borrowerLink(await appBaseUrl(), token);
   await supabase.from("audit_log").insert({

@@ -21,7 +21,8 @@ export function NewLinkButton({ caseId, companyName, compact = false }: { caseId
     try {
       setResult(await regenerateBorrowerLink(caseId));
     } catch {
-      setResult({ ok: false, message: "No hemos podido generar el enlace. Inténtalo de nuevo." });
+      // Usually the page is from before the latest deploy and its actions no longer exist on the server.
+      setResult({ ok: false, message: "No hemos podido generar el enlace. Recarga la página (F5) e inténtalo de nuevo." });
     } finally {
       setBusy(false);
     }
