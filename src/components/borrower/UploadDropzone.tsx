@@ -19,7 +19,7 @@ interface Props {
   kind: RequirementKind;
   /** Norma 43: bank chip selected in the portal. */
   bank?: string;
-  /** Freshness rule: the borrower types the certificate's issue date. */
+  /** Freshness rule: the borrower may type the issue date (optional; processing reads it from the document). */
   needsIssueDate?: boolean;
   today: string;
   label?: string;
@@ -42,7 +42,6 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
   const [issuedOn, setIssuedOn] = useState("");
   const [files, setFiles] = useState<FileState[]>([]);
   const rule = UPLOAD_RULES[kind];
-  const blocked = needsIssueDate && !issuedOn;
   const busy = files.some((f) => f.status === "uploading");
 
   const update = (key: string, patch: Partial<FileState>) => setFiles((fs) => fs.map((f) => (f.key === key ? { ...f, ...patch } : f)));
@@ -67,7 +66,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
       update(key, { status: "error", message: "La subida se ha interrumpido. Inténtalo de nuevo." });
       return false;
     }
-    const step2 = await postJson(`${base}/documents`, { path, filename: file.name, bank, issuedOn: needsIssueDate ? issuedOn : undefined });
+    const step2 = await postJson(`${base}/documents`, { path, filename: file.name, bank, issuedOn: needsIssueDate && issuedOn ? issuedOn : undefined });
     if (!step2.ok) {
       update(key, { status: "error", message: String(step2.json.error ?? "No hemos podido guardar el fichero.") });
       return false;
@@ -77,7 +76,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
   }
 
   async function handle(list: FileList | null) {
-    if (!list?.length || blocked) return;
+    if (!list?.length) return;
     const picked = rule.multiple ? Array.from(list) : [list[0]];
     const entries = picked.map((f, i) => ({ file: f, key: `${Date.now()}-${i}-${f.name}` }));
     setFiles((fs) => [...entries.map(({ file, key }) => ({ key, name: file.name, status: "uploading" as const })), ...fs]);
@@ -95,7 +94,9 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
     <div className="flex flex-col gap-3">
       {needsIssueDate && (
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={dateId} className="text-sm font-medium">Fecha de emisión que aparece en el documento</label>
+          <label htmlFor={dateId} className="text-sm font-medium">
+            Fecha de emisión que aparece en el documento <span className="font-normal text-muted">(opcional: la leemos del documento)</span>
+          </label>
           <Input id={dateId} type="date" max={today} value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} className="max-w-[220px] font-mono" />
         </div>
       )}
@@ -104,7 +105,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
         htmlFor={inputId}
         onDragOver={(e) => {
           e.preventDefault();
-          if (!blocked) setDragOver(true);
+          setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
@@ -112,9 +113,8 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
           setDragOver(false);
           void handle(e.dataTransfer.files);
         }}
-        aria-disabled={blocked || undefined}
         className={`relative flex items-center gap-4 rounded-zone px-5 py-4 transition-colors duration-150 ease-out focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent sm:px-6 sm:py-5 ${
-          blocked ? "cursor-not-allowed bg-soft opacity-70" : dragOver ? "cursor-pointer bg-accent-ring" : "cursor-pointer bg-accent-tint hover:bg-accent-ring"
+          dragOver ? "cursor-pointer bg-accent-ring" : "cursor-pointer bg-accent-tint hover:bg-accent-ring"
         }`}
       >
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface shadow-tile">
@@ -122,7 +122,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
         </span>
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[15px] font-semibold">
-            {blocked ? "Indica primero la fecha de emisión" : (label ?? (rule.multiple ? "Suelta aquí tus ficheros" : "Suelta aquí el fichero"))}
+            {label ?? (rule.multiple ? "Suelta aquí tus ficheros" : "Suelta aquí el fichero")}
           </span>
           <span className="text-sm text-ink-2">
             o <span className="text-accent underline underline-offset-[3px]">{rule.multiple ? "búscalos en tu equipo" : "búscalo en tu equipo"}</span> · {rule.acceptLabel}
@@ -133,7 +133,6 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
           id={inputId}
           type="file"
           multiple={rule.multiple}
-          disabled={blocked}
           accept={rule.extensions.map((e) => `.${e}`).join(",")}
           onChange={(e) => void handle(e.target.files)}
           className="absolute h-px w-px opacity-0"

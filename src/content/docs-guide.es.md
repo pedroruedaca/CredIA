@@ -73,8 +73,7 @@ certificado digital de la empresa. Descargar el PDF.
 tributarias.
 
 **Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria → [RUTA DEL CERTIFICADO DE ESTAR AL
-CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. En el portal se indica la fecha de
-emisión que aparece en el documento.
+CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
 
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla concreta de este caso figura en la lista de
 documentos.
@@ -85,8 +84,7 @@ documentos.
 pago.
 
 **Cómo conseguirlo.** En la sede electrónica de la Seguridad Social → [RUTA DEL CERTIFICADO DE ESTAR AL
-CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. En el portal se indica la fecha de
-emisión que aparece en el documento.
+CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
 
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla concreta de este caso figura en la lista de
 documentos. Si el portal marca el certificado como antiguo, hay que pedir uno nuevo y subirlo.
@@ -102,8 +100,7 @@ pedírselas una a una.
 
 **Cómo conseguirlo.** Se pide al proveedor de información comercial → [RUTA PARA OBTENER EL INFORME DE
 EMPRESA]. Hay que subir el informe completo en PDF, tal como lo entrega el proveedor, no un resumen ni una
-captura. Cualquier proveedor vale salvo que la entidad indique otra cosa. En el portal se indica la fecha del
-informe.
+captura. Cualquier proveedor vale salvo que la entidad indique otra cosa. La fecha del informe se lee del documento.
 
 **Coste.** Los proveedores suelen cobrar por el informe. Si la empresa no quiere pedirlo, puede decirlo con
 "Hablar con una persona": a veces la propia entidad lo obtiene.

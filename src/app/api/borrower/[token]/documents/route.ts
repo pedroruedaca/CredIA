@@ -53,10 +53,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     .maybeSingle();
   if (!requirement) return reject("Este documento no forma parte de tu solicitud.");
 
-  // Certificates with a freshness rule need their issue date (extraction will confirm it later).
+  // Documents with a freshness rule: the typed issue date is optional (extraction reads it from the document and
+  // overwrites it); when given, it must be plausible.
   const today = todayMadrid();
-  if (requirement.max_age_days) {
-    if (!issuedOn || Number.isNaN(Date.parse(issuedOn))) return reject("Indica la fecha de emisión del documento.");
+  if (requirement.max_age_days && issuedOn) {
+    if (Number.isNaN(Date.parse(issuedOn))) return reject("Revisa la fecha de emisión.");
     if (issuedOn > today) return reject("La fecha de emisión no puede ser posterior a hoy.");
     if (daysBetween(issuedOn, today) > 3650) return reject("Revisa la fecha de emisión.");
   }
@@ -83,7 +84,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
       size_bytes: bytes.length,
       content_type: CONTENT_TYPES[target.ext],
       bank: bankName,
-      issued_on: requirement.max_age_days ? issuedOn : null,
+      issued_on: requirement.max_age_days ? (issuedOn ?? null) : null,
       uploaded_by: access.actor,
     })
     .select("id")
