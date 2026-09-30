@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { findCandidates } from "@/lib/borme/case";
+import { fetchSheetActs, STALE_FETCH_MS } from "@/lib/borme/ondemand";
 import { checkDeclaredFile, cleanFilename, CONTENT_TYPES, contentMatchesExtension, MAX_UPLOAD_BYTES, parseUploadPath, uploadPath } from "@/lib/borrower/upload-rules";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
@@ -123,7 +124,8 @@ const MatchInput = z.discriminatedUnion("status", [
 
 /**
  * "Es esta empresa" / "Ninguna es" / "Cambiar" in the Registro Mercantil section. Only a candidate found under the
- * case's company name can be confirmed. BORME checks are recomputed after the response.
+ * case's company name can be confirmed. Confirming reads the company's acts from the BORME now (on demand, after
+ * the response) unless they were already read; then the case is recomputed so the BORME checks appear.
  */
 export async function setBormeMatch(input: z.input<typeof MatchInput>): Promise<ActionResult> {
   const lender = await requireLender();
@@ -145,7 +147,7 @@ export async function setBormeMatch(input: z.input<typeof MatchInput>): Promise<
       const sheet = parsed.data.sheet;
       const candidate = kase.borrower_name ? (await findCandidates(supabase, kase.borrower_name)).find((c) => c.sheet === sheet) : undefined;
       if (!candidate) return { ok: false, message: "Esa hoja registral no corresponde a la razón social del caso." };
-      companyName = candidate.name;
+      companyName = kase.borrower_name;
     }
     ({ error } = await supabase.from("case_borme_matches").upsert(
       {
@@ -168,7 +170,38 @@ export async function setBormeMatch(input: z.input<typeof MatchInput>): Promise<
     action: `borme.match_${parsed.data.status}`,
     detail: parsed.data.status === "confirmed" ? { registry_sheet: parsed.data.sheet } : {},
   });
-  after(() => processCase(createAdminClient(), caseId));
+  const admin = createAdminClient();
+  if (parsed.data.status === "confirmed") await startSheetRead(admin, caseId, parsed.data.sheet);
+  else after(() => processCase(admin, caseId));
+  revalidatePath(`/casos/${caseId}`);
+  return { ok: true };
+}
+
+/** Reads the company's acts unless already read (or being read); marks it "fetching" now so the view shows it. */
+async function startSheetRead(admin: ReturnType<typeof createAdminClient>, caseId: string, sheet: string, force = false) {
+  const { data: st } = await admin.from("borme_sheets").select("status, updated_at").eq("sheet", sheet).maybeSingle();
+  const running = st?.status === "fetching" && Date.now() - new Date(st.updated_at).getTime() < STALE_FETCH_MS;
+  if (running) return;
+  if (st?.status === "ready" && !force) {
+    after(() => processCase(admin, caseId));
+    return;
+  }
+  await admin.from("borme_sheets").upsert({ sheet, status: "fetching", error: null, updated_at: new Date().toISOString() });
+  after(async () => {
+    await fetchSheetActs(admin, sheet);
+    await processCase(admin, caseId);
+  });
+}
+
+/** "Reintentar" / "Volver a consultar" on the confirmed company's BORME read. */
+export async function refreshBormeSheet(caseId: string): Promise<ActionResult> {
+  const lender = await requireLender();
+  if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar casos." };
+  if (!CaseId.safeParse(caseId).success) return { ok: false, message: "Datos no válidos." };
+  const supabase = await createClient();
+  const { data: match } = await supabase.from("case_borme_matches").select("status, registry_sheet").eq("case_id", caseId).maybeSingle();
+  if (match?.status !== "confirmed" || !match.registry_sheet) return { ok: false, message: "Confirma primero la empresa." };
+  await startSheetRead(createAdminClient(), caseId, match.registry_sheet, true);
   revalidatePath(`/casos/${caseId}`);
   return { ok: true };
 }

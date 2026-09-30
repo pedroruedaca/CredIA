@@ -4,7 +4,7 @@ import { newActsByCase } from "./notify.ts";
 import { parseSectionA } from "./parse.ts";
 import { toActRows } from "./rows.ts";
 
-const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT).data, { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA", pdfUrl: "x" });
+const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT).data, { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA" });
 
 describe("newActsByCase", () => {
   it("groups the day's acts per case with a confirmed company, in published order, with severity and source", () => {

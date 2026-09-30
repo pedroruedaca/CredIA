@@ -70,27 +70,32 @@ UI `src/components/ConnectHolded.tsx`):
 8. Sync runs inside the request (`maxDuration = 300`). Move to a background job once real books need it.
 
 ## BORME (Registro Mercantil)
-Built — `src/lib/borme/` (pure: `parse.ts`, `names.ts`, `sumario.ts`, `profile.ts`, `rows.ts`; network: `fetch.ts`;
-DB: `ingest.ts`, `case.ts`), cron `src/app/api/cron/borme/route.ts`, UI `src/components/case/RegistrySection.tsx`.
-1. **Own copy of Section A** in `borme_acts` (shared public data, not case-scoped; service-role writes only). Daily
-   Vercel Cron (`vercel.json`, `CRON_SECRET`) imports today + catches up the last 10 days; `borme_days` records each day.
-   Backfill: `npm run borme:backfill -- --from 2023-10-01`. Live check without DB: `npm run borme:probe -- --day …`.
-2. Index from the BOE open-data API (`/datosabiertos/api/borme/sumario/YYYYMMDD`, walked for `BORME-A-*` items);
+Built — `src/lib/borme/` (pure: `parse.ts`, `names.ts`, `sumario.ts`, `profile.ts`, `rows.ts`, `ondemand-plan.ts`;
+network: `fetch.ts`; DB: `ingest.ts`, `ondemand.ts`, `case.ts`, `watch.ts`), cron `src/app/api/cron/borme/route.ts`,
+UI `src/components/case/RegistrySection.tsx`. **On demand, sized for the Supabase free plan (0013).**
+1. **Light index only**: `borme_index` (one row per announcement: day, provincial PDF seq, entry number, company key,
+   registry sheet; ~0.45 MB a day) + `borme_pdfs` (issue/seq/province per PDF). Kept for `BORME_RETENTION_MONTHS`
+   (default 24; ~215 MB); the daily job prunes older days (`borme_days.status = 'pruned'`). The full copy
+   (`borme_acts`, ~3 MB a day) was dropped: it filled the free plan.
+2. Daily Vercel Cron (`vercel.json`, `CRON_SECRET`) indexes today + catches up the last 10 days. Backfill:
+   `npm run borme:backfill` (defaults to the retention window). Live check without DB: `npm run borme:probe -- --day …`.
+3. Index from the BOE open-data API (`/datosabiertos/api/borme/sumario/YYYYMMDD`, walked for `BORME-A-*` items);
    PDFs → text with `unpdf` → deterministic parser (entries by consecutive announcement number, acts by published
    label, registry sheet from "Datos registrales"). No LLM. Unknown text → warnings, never dropped.
-3. **BORME has no CIF.** Candidates by `companyKey()` of the case name; the company is identified by its registry
-   sheet (`V-123456`, stable across renames). **The lender confirms the match** (`case_borme_matches`); no BORME check
-   runs before that.
-4. Checks (`bormeChecks`): insolvency, dissolution/extinction, closed sheet (high); capital reduction 24m, ≥2
+4. **BORME has no CIF.** Candidates by `companyKey()` of the case name from the index; the company is its registry
+   sheet (`V-123456`, stable across renames). **The lender confirms the match** (`case_borme_matches`). Confirming
+   reads that sheet's acts **on demand** (`fetchSheetActs`: index → the few PDFs where it appears → parse →
+   `borme_company_acts`; state in `borme_sheets`, "Consultando el BORME…" in the UI, retry on failure). Case page has
+   `maxDuration = 300` for this. No BORME check runs before confirmation.
+5. Checks (`bormeChecks`): insolvency, dissolution/extinction, closed sheet (high); capital reduction 24m, ≥2
    administrator changes 12m, address change 12m, incorporated < 24m (warn); `borme_no_adverse_acts` pass, stating
    the coverage start. source_ref `borme:<date>:<BORME-A id>:entry:<n>` links to the PDF on boe.es.
-5. **Watching:** after each daily import, `notifyNewActs` (`watch.ts`) finds cases whose confirmed company has acts in
-   days of the job's window not yet notified (`borme_days.notified_at`, 0011), writes `borme.new_acts` to the audit log
-   (a Bandeja item, pending until the case is opened) and reprocesses the case. Backfilled days never notify.
+6. **Watching:** the daily import stores full acts for confirmed sheets (`watchedSheets`); `notifyNewActs` flags new
+   ones in the Bandeja (`borme.new_acts`, `borme_days.notified_at`) and reprocesses the case. Backfilled days never notify.
    The committee PDF and the JSON export include the Registro Mercantil section.
-6. Verified against the live BORME (29 Sep 2026: 2,215 entries; 12 Mar 2025: 2,922 entries, ~15 s per day without DB):
-   every published label recognised, ~0.1 % of entries without a usable sheet (sheets without registry letters).
-   Real-world shapes are in `BORME_A_REAL_SHAPES_TEXT`. In the cloud sandbox Node's fetch needs `NODE_USE_ENV_PROXY=1`.
+7. Verified against the live BORME (29 Sep 2026: 2,215 entries; 12 Mar 2025: 2,922 entries, ~15 s per day): every
+   published label recognised, ~0.1 % of entries without a usable sheet. Real-world shapes in
+   `BORME_A_REAL_SHAPES_TEXT`. In the cloud sandbox Node's fetch needs `NODE_USE_ENV_PROXY=1`.
 
 ## Informe de solvencia
 Kind `solvency_report` (0012): optional requirement (default max age 90 days) the lender can ask the company for, and a
@@ -159,4 +164,4 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
 ## Build order
 W1: scaffold + auth + RLS + case/upload flow · TB parser + PGC mapping · canonical schema + KPI engine
 W2: Holded connector ✅ (starter) — wire into borrower page, verify against a real account · N43 parser · LLM extractors (Modelo 200, CIRBE, certificates) · checks engine
-W3: BORME ✅ (apply 0010, set CRON_SECRET, backfill) · case view with drill-down to source · memo PDF · audit log · beta onboarding
+W3: BORME ✅ (on demand, 0013) · case view with drill-down to source · memo PDF · audit log · beta onboarding

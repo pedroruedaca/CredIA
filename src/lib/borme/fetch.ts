@@ -6,8 +6,8 @@
 import { extractText, getDocumentProxy } from "unpdf";
 import type { Warning } from "../types.ts";
 import { parseSectionA } from "./parse.ts";
-import { toActRows, type ActRow } from "./rows.ts";
-import { SUMARIO_URL, sectionAPdfs } from "./sumario.ts";
+import type { BormeEntry } from "./parse.ts";
+import { pdfUrl, SUMARIO_URL, sectionAPdfs, type SectionAPdf } from "./sumario.ts";
 
 export interface DayImport {
   day: string;
@@ -43,10 +43,21 @@ export async function pdfText(bytes: Uint8Array): Promise<string> {
   return text;
 }
 
-/** Fetches and parses one day's Section A. `onPdf` receives each PDF's rows as soon as it is parsed. */
+/** Downloads and parses one provincial PDF. */
+export async function fetchPdfEntries(url: string, province: string, fetchImpl: typeof fetch = fetch): Promise<{ entries: BormeEntry[]; warnings: Warning[] }> {
+  const res = await get(url, "application/pdf", fetchImpl);
+  if (!res.ok) throw new Error(`${url.split("/").pop()}: HTTP ${res.status}`);
+  const parsed = parseSectionA(await pdfText(new Uint8Array(await res.arrayBuffer())), { province });
+  return { entries: parsed.data, warnings: parsed.warnings };
+}
+
+/** Where a known Section A PDF lives, from its publication date and id. */
+export const sectionAUrl = (day: string, bormeId: string) => pdfUrl(day, bormeId);
+
+/** Fetches and parses one day's Section A. `onPdf` receives each PDF's entries as soon as they are parsed. */
 export async function fetchSectionA(
   day: string,
-  opts: { fetchImpl?: typeof fetch; onPdf?: (pdfId: string, rows: ActRow[]) => Promise<void>; limit?: number } = {},
+  opts: { fetchImpl?: typeof fetch; onPdf?: (pdf: SectionAPdf, entries: BormeEntry[]) => Promise<void>; limit?: number } = {},
 ): Promise<DayImport> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const out: DayImport = { day, status: "ingested", pdfs: 0, entries: 0, acts: 0, warnings: [] };
@@ -57,16 +68,12 @@ export async function fetchSectionA(
   if (pdfs.length === 0) return { ...out, status: "no_issue" };
 
   for (const p of pdfs) {
-    const res = await get(p.url, "application/pdf", fetchImpl);
-    if (!res.ok) throw new Error(`${p.id}: HTTP ${res.status}`);
-    const text = await pdfText(new Uint8Array(await res.arrayBuffer()));
-    const parsed = parseSectionA(text, { province: p.province });
-    const rows = toActRows(parsed.data, { publishedOn: day, bormeId: p.id, province: p.province, pdfUrl: p.url });
-    if (opts.onPdf) await opts.onPdf(p.id, rows);
+    const { entries, warnings } = await fetchPdfEntries(p.url, p.province, fetchImpl);
+    if (opts.onPdf) await opts.onPdf(p, entries);
     out.pdfs++;
-    out.entries += parsed.data.length;
-    out.acts += rows.length;
-    out.warnings.push(...parsed.warnings.map((w) => ({ ...w, pdf: p.id })));
+    out.entries += entries.length;
+    out.acts += entries.reduce((n, e) => n + e.acts.length, 0);
+    out.warnings.push(...warnings.map((w) => ({ ...w, pdf: p.id })));
   }
   return out;
 }

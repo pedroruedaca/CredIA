@@ -35,10 +35,10 @@ describe("exports", () => {
     const { toActRows } = await import("../borme/rows.ts");
     const { buildProfile } = await import("../borme/profile.ts");
     const { pdfText } = await import("../borme/fetch.ts");
-    const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT).data, { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA", pdfUrl: "x" });
+    const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT).data, { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA" });
     const withRegistry = {
       ...sample,
-      registry: { coverage: { from: "2023-10-02", to: "2026-09-29" }, match: { status: "confirmed" as const, sheet: "V-123456", decidedAt: at }, candidates: [], profile: buildProfile(rows.filter((r) => r.registry_sheet === "V-123456")) },
+      registry: { coverage: { from: "2023-10-02", to: "2026-09-29" }, match: { status: "confirmed" as const, sheet: "V-123456", decidedAt: at }, candidates: [], profile: buildProfile(rows.filter((r) => r.registry_sheet === "V-123456")), fetch: null },
     };
     const p = buildPackage(withRegistry);
     expect(p.sources.map((x) => x.label)).toContain("BORME · hoja V-123456");

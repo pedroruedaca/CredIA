@@ -3,10 +3,14 @@
 /**
  * "Registro Mercantil" in the case view: the company's BORME history once the lender has confirmed which registry
  * sheet it is (officers, capital, latest acts with links to the published announcement), or the candidates found
- * under the case's company name to confirm. Facts only; adverse acts also appear as checks in "Para revisar".
+ * under the case's company name to confirm. Confirming reads the company's acts from the BORME at that moment
+ * ("Consultando el BORME…", refreshed until done). Facts only; adverse acts also appear as checks in "Para revisar".
  */
-import { useState, useTransition } from "react";
-import { setBormeMatch } from "@/app/casos/[id]/actions";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { refreshBormeSheet, setBormeMatch } from "@/app/casos/[id]/actions";
+import { Pill } from "@/components/ui/Pill";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button } from "@/components/ui/Button";
 import { Figure } from "@/components/ui/Figure";
@@ -30,7 +34,22 @@ export function RegistrySection({ caseId, companyName, registry, canEdit }: { ca
       if (!r.ok) setError(r.message);
     });
 
-  const { coverage, match, candidates, profile } = registry;
+  const router = useRouter();
+  const { coverage, match, candidates, profile, fetch } = registry;
+  // A read older than 10 minutes died with its request: offer to retry instead of waiting forever.
+  const fetching = fetch?.status === "fetching" && Date.now() - new Date(fetch.updatedAt).getTime() < 10 * 60 * 1000;
+  const fetchFailed = fetch?.status === "failed" || (fetch?.status === "fetching" && !fetching);
+  useEffect(() => {
+    if (!fetching) return;
+    const t = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(t);
+  }, [fetching, router]);
+  const retry = () =>
+    start(async () => {
+      setError(null);
+      const r = await refreshBormeSheet(caseId);
+      if (!r.ok) setError(r.message);
+    });
   const since = coverage ? `BORME revisado desde ${formatDate(coverage.from)}` : null;
   const change = canEdit && match && (
     <Button variant="link" size="sm" disabled={pending} onClick={() => act({ caseId, status: "clear" })}>Cambiar</Button>
@@ -39,6 +58,20 @@ export function RegistrySection({ caseId, companyName, registry, canEdit }: { ca
   let body: React.ReactNode;
   if (!coverage) {
     body = <p className="text-[15px] text-ink-2">El BORME aún no se ha importado. La historia registral aparecerá aquí cuando lo esté.</p>;
+  } else if (match?.status === "confirmed" && fetching) {
+    body = (
+      <p role="status" className="flex flex-wrap items-center gap-2 text-[15px] text-ink-2">
+        <Loader2 size={16} className="animate-spin text-accent" aria-hidden />
+        Consultando el BORME: leemos los boletines donde aparece la hoja <span className="font-mono">{match.sheet}</span>. Tarda hasta un minuto.
+      </p>
+    );
+  } else if (match?.status === "confirmed" && fetchFailed && !profile) {
+    body = (
+      <p className="flex flex-wrap items-center gap-2 text-[15px] text-ink-2">
+        <Pill tone="warn">Revisar</Pill> No hemos podido consultar el BORME{fetch?.error ? ` (${fetch.error})` : ""}.
+        {canEdit && <Button variant="link" size="sm" disabled={pending} onClick={retry}>Reintentar</Button>}
+      </p>
+    );
   } else if (profile) {
     const timeline = showAll ? profile.timeline : profile.timeline.slice(0, TIMELINE_ROWS);
     body = (
@@ -57,6 +90,7 @@ export function RegistrySection({ caseId, companyName, registry, canEdit }: { ca
           ))}
         </dl>
         {profile.formerNames.length > 0 && <p className="-mt-3 text-[13px] text-muted">Antes: {profile.formerNames.join(" · ")}</p>}
+        {fetch?.error && <p className="-mt-3 text-[13px] text-muted">Consulta parcial: {fetch.error}.</p>}
 
         <div className="flex flex-col gap-1">
           <h3 className="text-[13px] font-medium text-muted">Cargos vigentes</h3>
@@ -117,16 +151,18 @@ export function RegistrySection({ caseId, companyName, registry, canEdit }: { ca
     body = (
       <div className="flex flex-col gap-2">
         <p className="text-[15px] text-ink-2">
-          {candidates.length === 1 ? "Hemos encontrado esta empresa" : `Hemos encontrado ${candidates.length} empresas`} con la razón social del caso. Confirma cuál es: el BORME no publica el CIF.
+          {candidates.length === 1 ? "Hay una empresa" : `Hay ${candidates.length} empresas`} en el BORME con la razón social «{companyName}». Confirma cuál es (el BORME no publica el CIF) y consultaremos sus actos.
         </p>
         <ul className="flex flex-col">
           {candidates.map((c) => (
             <li key={c.sheet}>
               <ListRow className="py-3">
                 <span className="flex min-w-0 grow flex-col gap-0.5">
-                  <span className="truncate text-[15px] font-medium">{c.name}</span>
+                  <span className="text-[15px] font-medium">
+                    {c.province || "Registro"} · hoja <span className="font-mono">{c.sheet}</span>
+                  </span>
                   <span className="text-[13px] text-muted">
-                    {c.province} · hoja <span className="font-mono">{c.sheet}</span> · {c.acts} {c.acts === 1 ? "acto" : "actos"} · último {formatDate(c.lastSeen)}
+                    {c.announcements} {c.announcements === 1 ? "anuncio" : "anuncios"} · primero {formatDate(c.firstSeen)} · último {formatDate(c.lastSeen)}
                   </span>
                 </span>
                 {canEdit && (

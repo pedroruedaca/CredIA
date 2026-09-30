@@ -6,7 +6,7 @@
 import type { CheckResult, Severity } from "../checks/engine.ts";
 import type { ActDetails, ActType } from "./parse.ts";
 
-/** One row of `borme_acts`. */
+/** One row of `borme_company_acts`: a confirmed company's act. */
 export interface StoredAct {
   published_on: string;
   borme_id: string;

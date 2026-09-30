@@ -6,7 +6,7 @@ import { bormeChecks, buildProfile } from "./profile.ts";
 import { toActRows, type ActRow } from "./rows.ts";
 import { sectionAPdfs } from "./sumario.ts";
 
-const meta = { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA", pdfUrl: "https://www.boe.es/x.pdf" };
+const meta = { publishedOn: "2026-09-29", bormeId: "BORME-A-2026-185-46", province: "VALENCIA" };
 const rows = toActRows(parseSectionA(BORME_A_VALENCIA_TEXT, { province: "VALENCIA" }).data, meta);
 const sheet = (s: string) => rows.filter((r) => r.registry_sheet === s);
 const TODAY = "2026-09-30";
@@ -14,7 +14,7 @@ const TODAY = "2026-09-30";
 /** Hand-written earlier history for Talleres Demo Levante (V-123456). */
 function act(published_on: string, entry_number: number, act_type: ActRow["act_type"], details: ActRow["details"] = {}, act_label: string = act_type): ActRow {
   return {
-    published_on, borme_id: `BORME-A-${published_on.slice(0, 4)}-1-46`, province: "VALENCIA", pdf_url: "", entry_number, company_name: "TALLERES DEMO LEVANTE SL",
+    published_on, borme_id: `BORME-A-${published_on.slice(0, 4)}-1-46`, province: "VALENCIA", entry_number, company_name: "TALLERES DEMO LEVANTE SL",
     company_norm: "TALLERES DEMO LEVANTE", registry_sheet: "V-123456", registered_on: null, act_index: 0, act_type, act_label, act_text: "", details,
   };
 }

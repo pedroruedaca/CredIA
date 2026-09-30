@@ -28,10 +28,10 @@ describe("fetchSectionA", () => {
       return new Response(new Blob([pdf.slice()]), { status: 200 });
     }) as unknown as typeof fetch;
     const stored: string[] = [];
-    const r = await fetchSectionA("2026-09-29", { fetchImpl: fake, onPdf: async (id, rows) => void stored.push(`${id}:${rows.length}`) });
+    const r = await fetchSectionA("2026-09-29", { fetchImpl: fake, onPdf: async (p, entries) => void stored.push(`${p.id}:${entries.length}`) });
     expect(calls).toEqual(["https://www.boe.es/datosabiertos/api/borme/sumario/20260929", "https://www.boe.es/borme/dias/2026/09/29/pdfs/BORME-A-2026-185-46.pdf"]);
     expect(r).toMatchObject({ status: "ingested", pdfs: 1, entries: 6, acts: 11, warnings: [] });
-    expect(stored).toEqual(["BORME-A-2026-185-46:11"]);
+    expect(stored).toEqual(["BORME-A-2026-185-46:6"]);
   }, 30_000);
 
   it("treats a missing index as a day without BORME and retries server errors", async () => {

@@ -28,7 +28,7 @@ export async function notifyNewActs(db: AdminClient, fromDay: string): Promise<{
     const sheets = [...new Set(open.map((m) => m.registry_sheet as string))];
     const acts: StoredAct[] = [];
     for (let i = 0; i < sheets.length; i += 200) {
-      const { data } = await db.from("borme_acts").select(COLUMNS).in("published_on", dayList).in("registry_sheet", sheets.slice(i, i + 200));
+      const { data } = await db.from("borme_company_acts").select(COLUMNS).in("published_on", dayList).in("registry_sheet", sheets.slice(i, i + 200));
       acts.push(...((data ?? []) as StoredAct[]));
     }
     const byCase = newActsByCase(open.map((m) => ({ caseId: m.case_id, lenderId: m.lender_id, sheet: m.registry_sheet as string })), acts);

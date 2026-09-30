@@ -8,6 +8,8 @@ import { logCaseRead } from "@/lib/lender-audit";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+// Server actions on this page process the case after the response (lender uploads, BORME reads on demand).
+export const maxDuration = 300;
 export const metadata: Metadata = { title: "Caso · credIA", robots: { index: false, follow: false } };
 
 export default async function CasePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ check?: string }> }) {

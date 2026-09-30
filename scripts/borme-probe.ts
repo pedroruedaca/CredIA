@@ -5,7 +5,7 @@
  *   npm run borme:probe -- [--day 2026-09-29] [--pdfs 3]
  */
 import { fetchSectionA } from "../src/lib/borme/fetch.ts";
-import type { ActRow } from "../src/lib/borme/rows.ts";
+import { toActRows, type ActRow } from "../src/lib/borme/rows.ts";
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -13,7 +13,7 @@ const arg = (name: string) => {
 };
 const day = arg("day") ?? new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const all: ActRow[] = [];
-const r = await fetchSectionA(day, { limit: Number(arg("pdfs") ?? 3), onPdf: async (_id, rows) => void all.push(...rows) });
+const r = await fetchSectionA(day, { limit: Number(arg("pdfs") ?? 3), onPdf: async (p, entries) => void all.push(...toActRows(entries, { publishedOn: day, bormeId: p.id, province: p.province })) });
 console.log(`${day}: ${r.status} · ${r.pdfs} PDF · ${r.entries} anuncios · ${r.acts} actos · ${r.warnings.length} avisos`);
 const byType = new Map<string, number>();
 for (const a of all) byType.set(a.act_type, (byType.get(a.act_type) ?? 0) + 1);

@@ -148,13 +148,20 @@ describe("secrets and anonymous access", () => {
 });
 
 describe("BORME (shared public data)", () => {
-  it("members read it but cannot write it; anonymous clients cannot read it", async () => {
-    const row = { published_on: "2026-09-29", borme_id: `BORME-A-2026-185-${Math.floor(Math.random() * 1e6)}`, province: "VALENCIA", pdf_url: "x", entry_number: 1, company_name: "EMPRESA A SL", company_norm: "EMPRESA A", registry_sheet: "V-123456", act_index: 0, act_type: "constitution", act_label: "Constitución", act_text: "" };
-    must(await admin.from("borme_acts").insert(row));
-    expect((await A.db.from("borme_acts").select("id").eq("borme_id", row.borme_id)).data).toHaveLength(1);
-    expect((await A.db.from("borme_acts").insert({ ...row, entry_number: 2 })).error).not.toBeNull();
+  it("members read the index and company acts but cannot write them; anonymous clients cannot read them", async () => {
+    const day = "2001-01-02";
+    const entry = Math.floor(Math.random() * 1e6);
+    must(await admin.from("borme_index").insert({ published_on: day, seq: 46, entry_number: entry, company_norm: "EMPRESA A", registry_sheet: "V-123456" }));
+    const act = { published_on: day, borme_id: "BORME-A-2001-1-46", province: "VALENCIA", entry_number: entry, company_name: "EMPRESA A SL", registry_sheet: "V-123456", act_index: 0, act_type: "constitution", act_label: "Constitución", act_text: "" };
+    must(await admin.from("borme_company_acts").insert(act));
+    expect((await A.db.from("borme_index").select("entry_number").eq("published_on", day).eq("entry_number", entry)).data).toHaveLength(1);
+    expect((await A.db.from("borme_company_acts").select("entry_number").eq("borme_id", act.borme_id).eq("entry_number", entry)).data).toHaveLength(1);
+    expect((await A.db.from("borme_index").insert({ published_on: day, seq: 46, entry_number: entry + 1, company_norm: "X" })).error).not.toBeNull();
+    expect((await A.db.from("borme_company_acts").insert({ ...act, act_index: 1 })).error).not.toBeNull();
+    expect((await A.db.from("borme_sheets").insert({ sheet: "V-1", status: "ready" })).error).not.toBeNull();
     expect((await A.db.from("borme_days").insert({ day: "2001-01-01", status: "ingested" })).error).not.toBeNull();
-    expect((await anonClient().from("borme_acts").select("id").eq("borme_id", row.borme_id)).data ?? []).toEqual([]);
-    await admin.from("borme_acts").delete().eq("borme_id", row.borme_id);
+    expect((await anonClient().from("borme_index").select("entry_number").eq("published_on", day)).data ?? []).toEqual([]);
+    await admin.from("borme_company_acts").delete().eq("borme_id", act.borme_id);
+    await admin.from("borme_index").delete().eq("published_on", day);
   });
 });
