@@ -2,12 +2,13 @@
  * GET /api/cron/borme — daily BORME import (Vercel Cron, see vercel.json). Imports today's Section A and catches up
  * on any weekday of the last 10 days not yet imported (or that failed). Then cases whose confirmed company has new
  * acts in those days are flagged in the Bandeja and reprocessed (notifyNewActs), and index days older than the
- * retention window are pruned. Vercel sends `Authorization: Bearer $CRON_SECRET`.
+ * retention window are pruned. Last, with the time left, cases stuck in processing are run again. Vercel sends `Authorization: Bearer $CRON_SECRET`.
  */
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ingestDay, pruneIndex, watchedSheets, weekdays } from "@/lib/borme/ingest";
 import { notifyNewActs } from "@/lib/borme/watch";
+import { runStuck, stuckCases } from "@/lib/pipeline/kick";
 import { todayMadrid } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,6 +26,7 @@ function authorised(req: Request): boolean {
 
 export async function GET(req: Request) {
   if (!authorised(req)) return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  const started = Date.now();
   const db = createAdminClient();
   const today = todayMadrid();
   const from = new Date(`${today}T00:00:00Z`);
@@ -39,5 +41,7 @@ export async function GET(req: Request) {
   }
   const notified = await notifyNewActs(db, windowStart);
   const prunedBefore = await pruneIndex(db, today);
-  return NextResponse.json({ ok: true, results, notified, prunedBefore });
+  const stuck = await stuckCases(db);
+  const rerun = await runStuck(db, stuck, Math.max(0, 240_000 - (Date.now() - started)));
+  return NextResponse.json({ ok: true, results, notified, prunedBefore, stuck: stuck.length, rerun: rerun.length });
 }

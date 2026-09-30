@@ -139,6 +139,9 @@ closing-entries suspicion.
   row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+- Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
+  deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
+  the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.
 - Lender reads of case data are audit-logged (`logCaseRead`, deduped per 15 min); exports and document opens too.
 - Imports inside `src/lib` use explicit `.ts` extensions (`allowImportingTsExtensions`); app code may use `@/`.
 

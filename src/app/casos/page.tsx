@@ -1,11 +1,18 @@
 import { Plus } from "lucide-react";
+import { after } from "next/server";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { ButtonLink } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { requireLender } from "@/lib/lender";
+import { runStuck, stuckCases } from "@/lib/pipeline/kick";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CaseList, type CaseRow } from "./CaseList";
 
 export const metadata = { title: "Casos · credIA" };
+export const dynamic = "force-dynamic";
+// Cases found stuck in processing are run again after the response (a few per visit).
+export const maxDuration = 300;
 
 export default async function CasosPage() {
   const lender = await requireLender();
@@ -20,9 +27,15 @@ export default async function CasosPage() {
     .order("updated_at", { ascending: false })
     .limit(200);
   const cases = (data ?? []) as CaseRow[];
+  // Only cases this lender can see (loaded above through RLS) are checked.
+  const admin = createAdminClient();
+  const stuck = cases.length ? await stuckCases(admin, cases.map((c) => c.id)) : [];
+  if (stuck.length) after(() => runStuck(admin, stuck.slice(0, 3), 240_000));
+  const busy = stuck.length > 0 || cases.some((c) => c.status === "processing");
 
   return (
     <main className="w-full max-w-6xl px-4 py-10 sm:px-14 sm:py-12">
+      <AutoRefresh active={busy} everyMs={10_000} />
       <div className="mb-10 flex flex-wrap items-end gap-4">
         <div className="grow">
           <h1 className="heading-page">Casos</h1>
