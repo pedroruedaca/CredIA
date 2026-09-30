@@ -3,8 +3,14 @@
 -- (borme_company_acts, cached per registry sheet) and kept up to date by the daily job for confirmed companies.
 -- The index keeps BORME_RETENTION_MONTHS (default 24); older days are pruned by the daily job.
 --
--- If the project is read-only for exceeding its plan's database size, run this first, in the same query:
---   set session characteristics as transaction read write;
+-- The full copy is dropped first, without carrying data over: on the free plan it had filled the disk and there was
+-- no room to copy it. The index is rebuilt by `npm run borme:backfill` (imported days are marked 'failed' so it
+-- re-reads them, keeping notified_at), and confirmed companies are re-read on demand ("Reintentar" in the case).
+--
+-- If the project is read-only for exceeding its plan's database size, make this the first statement:
+--   set transaction read write;
+
+drop table borme_acts;
 
 -- Provincial PDFs of each issue: BORME-A-<year>-<issue>-<seq> and its province.
 create table borme_pdfs (
@@ -57,33 +63,14 @@ create table borme_sheets (
 alter table borme_days drop constraint borme_days_status_check;
 alter table borme_days add constraint borme_days_status_check check (status in ('ingested','no_issue','failed','pruned'));
 
--- Carry over what the full copy already has, within the 24-month retention window.
-insert into borme_pdfs (published_on, issue, seq, province)
-select distinct on (published_on, split_part(borme_id, '-', 5)::smallint)
-  published_on, split_part(borme_id, '-', 4)::smallint, split_part(borme_id, '-', 5)::smallint, province
-from borme_acts
-where published_on >= current_date - interval '24 months'
-order by published_on, split_part(borme_id, '-', 5)::smallint;
-
-insert into borme_index (published_on, seq, entry_number, company_norm, registry_sheet)
-select distinct on (published_on, entry_number)
-  published_on, split_part(borme_id, '-', 5)::smallint, entry_number, company_norm, registry_sheet
-from borme_acts
-where published_on >= current_date - interval '24 months'
-order by published_on, entry_number, act_index;
-
-insert into borme_company_acts (published_on, borme_id, province, entry_number, company_name, registry_sheet, registered_on,
-  act_index, act_type, act_label, act_text, details)
-select published_on, borme_id, province, entry_number, company_name, registry_sheet, registered_on,
-  act_index, act_type, act_label, act_text, details
-from borme_acts
-where registry_sheet in (select registry_sheet from case_borme_matches where status = 'confirmed');
-
-insert into borme_sheets (sheet, status)
-select distinct registry_sheet, 'ready' from case_borme_matches where status = 'confirmed';
-
-drop table borme_acts;
+-- Days to index again (the backfill re-reads 'failed' days); older than the window: pruned.
 update borme_days set status = 'pruned' where status = 'ingested' and day < current_date - interval '24 months';
+update borme_days set status = 'failed', error = 'reindex (0013)' where status = 'ingested';
+
+-- Companies already confirmed in a case: their acts must be read again on demand.
+insert into borme_sheets (sheet, status, error)
+select distinct registry_sheet, 'failed', 'vuelve a consultar el BORME tras el cambio a consulta bajo demanda'
+from case_borme_matches where status = 'confirmed';
 
 alter table borme_pdfs enable row level security;
 alter table borme_index enable row level security;
