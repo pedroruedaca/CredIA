@@ -8,3 +8,6 @@ e2e/.auth/
 e2e/.files/
 test-results/
 playwright-report/
+
+# Supabase CLI local state (project link)
+supabase/.temp/
