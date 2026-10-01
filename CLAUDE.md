@@ -155,6 +155,8 @@ closing-entries suspicion.
   non-localhost URL). `tests/integration/rls.test.ts` checks tenant isolation table by table: **every new
   case-scoped table needs RLS by `lender_id`, a lender-match trigger (see `0008_lender_match_everywhere.sql`) and a
   row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
+- Migrations: apply to the live project with `supabase db push` only, never through the Supabase MCP tool (it records
+  them under timestamp versions and the history drifts from `supabase/migrations/`). Check `supabase migration list`.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
