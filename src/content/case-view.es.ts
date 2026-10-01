@@ -266,3 +266,19 @@ export const LINE_LABEL: Record<string, string> = {
   incomeTax: "Impuesto sobre beneficios",
   netIncome: "Resultado del periodo",
 };
+
+/** KPI tiles the «Indicadores» module can show (its settings in the panel designer). */
+export const KPI_TILE_LABEL: Record<string, string> = {
+  dscr: "DSCR",
+  interestCoverage: "Cobertura de intereses",
+  netDebtToEbitda: "DFN / EBITDA",
+  currentRatio: "Liquidez",
+  dsoDpo: "DSO / DPO",
+  revenue: "Cifra de negocios",
+  ebitda: "EBITDA y margen",
+  debtToEquity: "Deuda / patrimonio",
+  workingCapital: "Fondo de maniobra",
+  financialDebt: "Deuda financiera",
+};
+
+export const PERIOD_CHOICE_LABEL = { base: "Periodo base", closed: "Ejercicio cerrado", ytd: "Año en curso" } as const;

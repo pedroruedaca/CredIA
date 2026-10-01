@@ -1,10 +1,11 @@
 "use client";
 
-/** Five header metrics without containers. Each opens a popover with its formula and inputs per period. */
+/** Header metrics (up to five, chosen in the «Indicadores» settings) without containers. Each opens a popover with its formula and inputs per period. */
 import { Figure } from "@/components/ui/Figure";
 import { Popover } from "@/components/ui/Popover";
 import { VALUE_LABEL } from "@/content/case-view.es";
 import { formatEvidenceValue } from "@/lib/case-view/evidence";
+import { formatCompactEur } from "@/lib/format";
 import type { KpiTile } from "@/lib/case-view/present";
 
 export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
@@ -25,7 +26,13 @@ export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
             >
               <span className="text-[13px] text-muted">{t.label}</span>
               <span className="text-[30px] font-medium leading-none">
-                {t.secondary === null && t.unit !== "days" ? (
+                {t.unit === "EUR" ? (
+                  // Amounts compact (110 k€, 1,0 M€) so a tile fits its column.
+                  <span className="font-mono tracking-[-0.03em] tabular-nums">
+                    {t.value === null ? "—" : formatCompactEur(t.value).replace(/\s(k€|M€|€)$/, "")}
+                    {t.value !== null && <span className="ml-[0.2em] text-[0.6em] font-normal tracking-normal text-muted">{formatCompactEur(t.value).match(/(k€|M€|€)$/)?.[0]}</span>}
+                  </span>
+                ) : t.secondary === null && t.unit !== "days" ? (
                   <Figure value={t.value} unit={t.unit} decimals={t.unit === "x" ? 2 : 0} />
                 ) : (
                   <span className="font-mono tracking-[-0.03em] tabular-nums">

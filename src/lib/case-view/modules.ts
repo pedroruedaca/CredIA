@@ -38,7 +38,7 @@ export interface ModuleSpec {
 
 export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
   summary: { id: "summary", title: "Resumen", description: "Frase con ventas, EBITDA y deuda CIRBE frente a libros.", removable: true, widths: ["full"] },
-  kpis: { id: "kpis", title: "Indicadores", description: "DSCR, cobertura de intereses, DFN/EBITDA, liquidez y DSO/DPO.", removable: true, widths: ["full"] },
+  kpis: { id: "kpis", title: "Indicadores", description: "Hasta cinco indicadores a elegir: DSCR, DSO/DPO, cifra de negocios, EBITDA…", removable: true, widths: ["full"] },
   review: { id: "review", title: "Para revisar", description: "Verificaciones abiertas y correctas, con su evidencia.", removable: false, widths: ["full", "half"] },
   pnl: { id: "pnl", title: "Cuenta de resultados", description: "Diagrama de ingresos a resultado del periodo base.", removable: true, widths: ["full"] },
   balance: { id: "balance", title: "Balance", description: "Estructura del activo y del pasivo, con su origen.", removable: true, widths: ["full", "half"] },
@@ -49,9 +49,59 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
   sources: { id: "sources", title: "Fuentes", description: "Documentos y conexiones de los que salen las cifras.", removable: true, widths: ["full"] },
 };
 
+// ---------------------------------------------------------------------------------------------------------------
+// Module settings (optional, per module, saved with the layout)
+
+/** KPI tiles the «Indicadores» module can show; the first five are the default row. */
+export const KPI_TILE_IDS = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo", "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"] as const;
+export type KpiTileId = (typeof KPI_TILE_IDS)[number];
+export const DEFAULT_KPI_TILES: KpiTileId[] = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"];
+export const MAX_KPI_TILES = 5;
+
+/** Which statement a module draws: the base period (closed year if there is one, else year to date), or a fixed one. */
+export type PeriodChoice = "base" | "closed" | "ytd";
+
+export interface ModuleSettings {
+  /** «Indicadores»: tiles in order (1 to 5). */
+  tiles?: KpiTileId[];
+  /** «Cuenta de resultados», «Balance». */
+  period?: PeriodChoice;
+  /** «Para revisar»: show the passed checks. */
+  showPassed?: boolean;
+}
+
+/** Which settings each module takes. */
+export const MODULE_SETTINGS: Partial<Record<ModuleId, (keyof ModuleSettings)[]>> = {
+  kpis: ["tiles"],
+  pnl: ["period"],
+  balance: ["period"],
+  review: ["showPassed"],
+};
+
+export const DEFAULT_SETTINGS: Required<ModuleSettings> = { tiles: DEFAULT_KPI_TILES, period: "base", showPassed: true };
+
+/** Stored settings → only the keys the module takes, with valid values; nothing when none is valid. */
+export function normalizeSettings(id: ModuleId, raw: unknown): ModuleSettings | undefined {
+  const keys = MODULE_SETTINGS[id];
+  if (!keys || !raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: ModuleSettings = {};
+  if (keys.includes("tiles") && Array.isArray(r.tiles)) {
+    const tiles = [...new Set(r.tiles.filter((t): t is KpiTileId => (KPI_TILE_IDS as readonly unknown[]).includes(t)))].slice(0, MAX_KPI_TILES);
+    if (tiles.length) out.tiles = tiles;
+  }
+  if (keys.includes("period") && (r.period === "base" || r.period === "closed" || r.period === "ytd")) out.period = r.period;
+  if (keys.includes("showPassed") && typeof r.showPassed === "boolean") out.showPassed = r.showPassed;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** A module's settings with the defaults filled in. */
+export const moduleSettings = (m: Pick<LayoutModule, "settings"> | undefined): Required<ModuleSettings> => ({ ...DEFAULT_SETTINGS, ...(m?.settings ?? {}) });
+
 export interface LayoutModule {
   id: ModuleId;
   width: ModuleWidth;
+  settings?: ModuleSettings;
 }
 
 export interface Layout {
@@ -78,7 +128,7 @@ export const DEFAULT_LAYOUT: Layout = {
 
 const StoredLayout = z.object({
   version: z.literal(1),
-  modules: z.array(z.object({ id: z.string(), width: z.string().optional() }).passthrough()),
+  modules: z.array(z.object({ id: z.string(), width: z.string().optional(), settings: z.unknown().optional() }).passthrough()),
 });
 
 /**
@@ -98,7 +148,8 @@ export function normalizeLayout(raw: unknown): Layout {
     seen.add(id);
     const spec = MODULE_SPECS[id];
     const width = spec.widths.includes(m.width as ModuleWidth) ? (m.width as ModuleWidth) : spec.widths[0];
-    modules.push({ id, width });
+    const settings = normalizeSettings(id, m.settings);
+    modules.push(settings ? { id, width, settings } : { id, width });
   }
   for (const [i, m] of DEFAULT_LAYOUT.modules.entries()) {
     if (MODULE_SPECS[m.id].removable || seen.has(m.id)) continue;
@@ -146,6 +197,16 @@ export const setModuleWidth = (l: Layout, id: ModuleId, width: ModuleWidth): Lay
   MODULE_SPECS[id].widths.includes(width) ? { version: 1, modules: l.modules.map((m) => (m.id === id ? { ...m, width } : m)) } : l;
 
 export const sameLayout = (a: Layout, b: Layout) => JSON.stringify(a.modules) === JSON.stringify(b.modules);
+
+/** Merges settings into a module (only those it takes; invalid values dropped). */
+export const setModuleSettings = (l: Layout, id: ModuleId, patch: ModuleSettings): Layout => ({
+  version: 1,
+  modules: l.modules.map((m) => {
+    if (m.id !== id) return m;
+    const settings = normalizeSettings(id, { ...(m.settings ?? {}), ...(normalizeSettings(id, patch) ?? {}) });
+    return settings ? { ...m, settings } : { id: m.id, width: m.width };
+  }),
+});
 
 // ---------------------------------------------------------------------------------------------------------------
 // Which layout a case draws: its own (personalised for that case), else its template's, else the team's, else the

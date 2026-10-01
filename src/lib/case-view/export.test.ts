@@ -4,6 +4,7 @@ import { caseViewSample as sample } from "../__fixtures__/case-view-sample.ts";
 import { packageJson, packageXlsx, exportFilename } from "./export.ts";
 import { buildPackage } from "./package.ts";
 import { packagePdf } from "./pdf.tsx";
+import { CHECK_PASS_LABEL } from "../../content/case-view.es.ts";
 
 describe("exports", () => {
   const pkg = buildPackage(sample);
@@ -67,6 +68,36 @@ describe("exports", () => {
     expect(j.solvency_report).toMatchObject({ provider: "experian", rating: { value: "7" }, uploaded_by: "lender", source_ref: "doc:s1" });
     const { solvency_report: _provider, ...rest } = j;
     expect(JSON.stringify(rest)).not.toMatch(/\b(score|scoring|rating|aprobad[oa]|recomendamos)\b/i);
+  }, 30_000);
+
+  it("PDF follows the case's layout: its order, and removed modules left out", async () => {
+    const { pdfText } = await import("../borme/fetch.ts");
+    const layout = { version: 1 as const, modules: [{ id: "sources" as const, width: "full" as const }, { id: "review" as const, width: "full" as const }] };
+    const text = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at, layout)));
+    expect(text.indexOf("Fuentes")).toBeGreaterThan(-1);
+    expect(text.indexOf("Fuentes")).toBeLessThan(text.indexOf("Para revisar"));
+    expect(text).not.toContain("Registro Mercantil");
+    expect(text).toContain("Estados financieros"); // appendix, always
+    const full = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)));
+    expect(full).toContain("Registro Mercantil");
+    expect(full.indexOf("Para revisar")).toBeLessThan(full.indexOf("Fuentes"));
+  }, 30_000);
+
+  it("PDF applies module settings: the KPI tiles chosen, passed checks hidden", async () => {
+    const { pdfText } = await import("../borme/fetch.ts");
+    const layout = {
+      version: 1 as const,
+      modules: [
+        { id: "kpis" as const, width: "full" as const, settings: { tiles: ["revenue" as const, "dsoDpo" as const] } },
+        { id: "review" as const, width: "full" as const, settings: { showPassed: false } },
+      ],
+    };
+    const text = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at, layout)));
+    expect(text).toContain("Cifra de negocios");
+    expect(text).toContain("DSO / DPO");
+    expect(text).not.toContain("DSCR");
+    for (const v of pkg.passed) expect(text).not.toContain(CHECK_PASS_LABEL[v.key] ?? v.name);
+    expect(pkg.passed.length).toBeGreaterThan(0);
   }, 30_000);
 
   it("PDF renders", async () => {

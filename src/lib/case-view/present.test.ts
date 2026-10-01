@@ -62,7 +62,12 @@ describe("kpiTiles", () => {
     const closed = buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data;
     const ytd = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-08-31" }).data;
     const tiles = kpiTiles({ statement: closed, kpis: computeKpis(closed) }, { statement: ytd, kpis: computeKpis(ytd) }, 245_000);
-    expect(tiles.map((t) => t.label)).toEqual(["DSCR", "Cobertura int.", "DFN / EBITDA", "Liquidez", "DSO / DPO"]);
+    // The default row first, then the tiles the «Indicadores» settings can add.
+    expect(tiles.slice(0, 5).map((t) => t.label)).toEqual(["DSCR", "Cobertura int.", "DFN / EBITDA", "Liquidez", "DSO / DPO"]);
+    expect(tiles.slice(5).map((t) => t.id)).toEqual(["revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"]);
+    const { pickTiles } = await import("./present.ts");
+    expect(pickTiles(tiles, ["dsoDpo", "revenue", "nope"]).map((t) => t.id)).toEqual(["dsoDpo", "revenue"]);
+    expect(tiles.find((t) => t.id === "ebitda")!.sub).toMatch(/^margen /);
     expect(tiles[2].value).toBe(0.65);
     expect(tiles[2].sub).toMatch(/^con CIRBE · libros /);
     expect(tiles[0].sub).toMatch(/^YTD /);

@@ -40,10 +40,29 @@ test("personalise the case view for the team, then restore it", async ({ page })
   const order = await tiles.locator("li").evaluateAll((lis) => lis.map((li) => li.querySelector("span span")?.textContent));
   expect(order.slice(0, 4)).toEqual(["Resumen", "Para revisar", "Indicadores", "Balance"]);
 
+  // Module settings: «Indicadores» adds revenue and puts it first; the P&L shows the year to date.
+  await tiles.getByRole("button", { name: "Ajustes de Indicadores" }).click();
+  await expect(page.getByRole("button", { name: "Añadir Cifra de negocios" })).toBeDisabled(); // five already: the limit
+  const chosen = page.getByRole("list", { name: "Indicadores elegidos" });
+  await chosen.getByRole("button", { name: "Quitar DSCR" }).click();
+  await page.getByRole("button", { name: "Añadir Cifra de negocios" }).click();
+  for (let i = 0; i < 4; i++) await chosen.getByRole("button", { name: "Subir Cifra de negocios" }).click();
+  await expect(chosen.locator("li").first()).toContainText("Cifra de negocios");
+  await expect(chosen.getByRole("button", { name: "Subir Cifra de negocios" })).toBeDisabled();
+  await tiles.getByRole("button", { name: "Ajustes de Cuenta de resultados" }).click();
+  await page.getByRole("group", { name: "Periodo de Cuenta de resultados" }).getByRole("button", { name: "Año en curso" }).click();
   await page.getByRole("radio", { name: /Todo el equipo/ }).check();
   await page.getByRole("button", { name: "Guardar diseño" }).click();
   await expect(page).toHaveURL(caseUrl);
   await expect(page.locator('footer[aria-label="Fuentes"]')).toHaveCount(0);
+
+  // The settings were kept.
+  await page.getByRole("link", { name: "Personalizar el panel" }).click();
+  await page.getByRole("list", { name: "Módulos del panel, en orden" }).getByRole("button", { name: "Ajustes de Indicadores" }).click();
+  await expect(page.getByRole("list", { name: "Indicadores elegidos" }).locator("li").first()).toContainText("Cifra de negocios");
+  await page.getByRole("list", { name: "Módulos del panel, en orden" }).getByRole("button", { name: "Ajustes de Cuenta de resultados" }).click();
+  await expect(page.getByRole("group", { name: "Periodo de Cuenta de resultados" }).getByRole("button", { name: "Año en curso" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("link", { name: "Cancelar" }).click();
 
   // Back to the original for the whole team.
   await page.getByRole("link", { name: "Personalizar el panel" }).click();

@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { exportFilename, packageJson, packageXlsx } from "@/lib/case-view/export";
 import { loadCaseView } from "@/lib/case-view/load";
+import { loadCaseLayout } from "@/lib/case-view/layout-store";
 import { buildPackage } from "@/lib/case-view/package";
 import { packagePdf } from "@/lib/case-view/pdf";
 import { todayMadrid } from "@/lib/format";
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     body =
       fmt === "json" ? JSON.stringify(packageJson(data, pkg, generatedAt), null, 2)
       : fmt === "xlsx" ? await packageXlsx(data, pkg, generatedAt)
-      : await packagePdf(data, pkg, generatedAt);
+      : await packagePdf(data, pkg, generatedAt, (await loadCaseLayout(supabase, id, lender.lenderId)).layout);
   } catch (err) {
     console.error("[export] failed", { caseId: id, format: fmt, error: err instanceof Error ? err.message : "unknown" });
     return new NextResponse("No hemos podido generar la exportación. Inténtalo de nuevo.", { status: 500 });

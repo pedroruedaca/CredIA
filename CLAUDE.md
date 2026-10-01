@@ -147,8 +147,15 @@ when empty). The header and the evidence panel are not modules.
 Decided defaults: team template per lender (owners/editors edit), product templates and personal overrides later;
 rows of full or half width (no free grid); «Para revisar» movable, not removable; the committee PDF follows the
 layout; Excel/JSON exports stay complete. Phases: 1 registry + default layout ✅ · 2 team template + edit mode ✅
-· 3 product templates, personal overrides, module settings, PDF follows layout · 4 new modules (303 quarterly sales,
-CIRBE by bank/maturity, N43 monthly flows, closed vs YTD).
+· 3 process templates ✅ (see Plantillas), PDF follows layout ✅, module settings ✅, personal layouts (later, if asked)
+· 4 new modules (303 quarterly sales, CIRBE by bank/maturity, N43 monthly flows, closed vs YTD).
+**PDF follows the layout** (`packagePdf(…, layout)`, export route uses `loadCaseLayout`): modules in layout order, half
+widths printed full width, `analyst_documents` / `annual_accounts` print nothing, financial statements always as an
+appendix. **Module settings** (`LayoutModule.settings`, `MODULE_SETTINGS`, `normalizeSettings`, `moduleSettings`):
+«Indicadores» `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
+debt/equity, working capital, financial debt from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
+(base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
+applied in the case view and the PDF.
 Phase 2: `dashboard_layouts` (0018; one `scope = 'team'` row per lender, read by members, written by owners and
 analysts via `is_lender_editor`, never viewers; `tests/integration/layouts.test.ts`). `loadTeamLayout`
 (`src/lib/case-view/layout-store.ts`) → `normalizeLayout`. Editor: `?personalizar=1` on the case page

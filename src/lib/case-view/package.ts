@@ -11,6 +11,7 @@ import { checkSlugs, evidenceView, type EvidenceView } from "./evidence.ts";
 import type { CaseViewData } from "./load.ts";
 import { pnlSankey, type PnlSankey } from "./sankey.ts";
 import { isFullStatement } from "../pgc/mapping.ts";
+import type { PeriodChoice } from "./modules.ts";
 import { kpiTiles, splitChecks, summariseSources, type KpiTile, type SourceLabel } from "./present.ts";
 
 export interface SourceChip {
@@ -34,6 +35,22 @@ export interface CasePackage {
   gaps: { check: string; gaps: string[] }[];
 }
 
+/**
+ * Balance and P&L of one period, for the «Cuenta de resultados» and «Balance» modules: the base period (closed year
+ * if there is one, else year to date) or a fixed one. Full statements only (not revenue-only Modelo 303 periods).
+ */
+export function periodView(d: CaseViewData, period: PeriodChoice): Pick<CasePackage, "balance" | "balanceDate" | "pnl" | "pnlPeriod"> {
+  const closed = isFullStatement(d.statements.closed) ? d.statements.closed : null;
+  const ytd = isFullStatement(d.statements.ytd) ? d.statements.ytd : null;
+  const s = period === "closed" ? closed : period === "ytd" ? ytd : (closed ?? ytd);
+  return {
+    balance: s ? balanceBars(s) : null,
+    balanceDate: s?.period.end ?? null,
+    pnl: s ? pnlSankey(s) : null,
+    pnlPeriod: s ? { start: s.period.start, end: s.period.end, months: s.months } : null,
+  };
+}
+
 export function buildPackage(d: CaseViewData): CasePackage {
   const { closed: closedAny, ytd: ytdAny } = d.statements;
   // KPI tiles, balance and P&L need a full statement; revenue-only periods (Modelo 303) appear in the summary and tables.
@@ -47,7 +64,6 @@ export function buildPackage(d: CaseViewData): CasePackage {
     const s = summariseSources(v.sources, d.documents, 8);
     return { ...v, review: d.reviews[c.slug] ?? null, sourceLabels: s.shown, moreSources: s.more };
   });
-  const base = closed ?? ytd;
 
   const sources: SourceChip[] = [];
   if (d.holded) sources.push({ label: `Holded · ${d.holded.entries.toLocaleString("es-ES")} apuntes`, docId: null });
@@ -73,10 +89,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
     basePeriod: closed ? "closed_fy" : ytd ? "ytd" : null,
     open: views,
     passed: passed.map((c) => evidenceView(c, ctx)),
-    balance: base ? balanceBars(base) : null,
-    balanceDate: base?.period.end ?? null,
-    pnl: base ? pnlSankey(base) : null,
-    pnlPeriod: base ? { start: base.period.start, end: base.period.end, months: base.months } : null,
+    ...periodView(d, "base"),
     sources,
     gaps: views.filter((v) => v.gaps.length).map((v) => ({ check: v.name, gaps: v.gaps })),
   };

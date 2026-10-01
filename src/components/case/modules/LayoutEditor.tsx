@@ -10,7 +10,7 @@
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowDown, ArrowUp, Columns2, GripVertical, Plus, RectangleHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Columns2, GripVertical, Plus, RectangleHorizontal, SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { resetLayout, saveLayout, type LayoutTarget } from "@/app/casos/layout-actions";
@@ -22,13 +22,22 @@ import {
   availableModules,
   DEFAULT_LAYOUT,
   MODULE_SPECS,
+  KPI_TILE_IDS,
+  MAX_KPI_TILES,
+  MODULE_SETTINGS,
+  moduleSettings,
   moveModule,
   removeModule,
   sameLayout,
+  setModuleSettings,
   setModuleWidth,
+  type KpiTileId,
   type Layout,
   type LayoutModule,
+  type ModuleSettings,
+  type PeriodChoice,
 } from "@/lib/case-view/modules";
+import { KPI_TILE_LABEL, PERIOD_CHOICE_LABEL } from "@/content/case-view.es";
 
 const iconButton =
   "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent sm:size-9";
@@ -128,6 +137,7 @@ export function LayoutEditor({
                 onMove={(to) => setLayout(moveModule(layout, i, to))}
                 onWidth={(w) => setLayout(setModuleWidth(layout, m.id, w))}
                 onRemove={() => setLayout(removeModule(layout, m.id))}
+                onSettings={(patch) => setLayout(setModuleSettings(layout, m.id, patch))}
               />
             ))}
           </ol>
@@ -168,8 +178,26 @@ export function LayoutEditor({
   );
 }
 
-function Tile({ module: m, index, count, onMove, onWidth, onRemove }: { module: LayoutModule; index: number; count: number; onMove: (to: number) => void; onWidth: (w: "full" | "half") => void; onRemove: () => void }) {
+function Tile({
+  module: m,
+  index,
+  count,
+  onMove,
+  onWidth,
+  onRemove,
+  onSettings,
+}: {
+  module: LayoutModule;
+  index: number;
+  count: number;
+  onMove: (to: number) => void;
+  onWidth: (w: "full" | "half") => void;
+  onRemove: () => void;
+  onSettings: (patch: ModuleSettings) => void;
+}) {
   const spec = MODULE_SPECS[m.id];
+  const [open, setOpen] = useState(false);
+  const hasSettings = !!MODULE_SETTINGS[m.id];
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
   const canHalf = spec.widths.includes("half");
   return (
@@ -177,11 +205,12 @@ function Tile({ module: m, index, count, onMove, onWidth, onRemove }: { module: 
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cx(
-        "flex min-h-[88px] items-start gap-2 rounded-row bg-soft px-3 py-3 motion-reduce:transition-none",
+        "flex min-h-[88px] flex-col gap-2 rounded-row bg-soft px-3 py-3 motion-reduce:transition-none",
         m.width === "full" && "md:col-span-2",
         isDragging && "relative z-10 shadow-float",
       )}
     >
+      <div className="flex items-start gap-2">
       <button
         ref={setActivatorNodeRef}
         type="button"
@@ -198,6 +227,18 @@ function Tile({ module: m, index, count, onMove, onWidth, onRemove }: { module: 
         {!spec.removable && <span className="text-[13px] text-muted">Siempre visible.</span>}
       </span>
       <span className="flex shrink-0 flex-wrap items-center justify-end">
+        {hasSettings && (
+          <button
+            type="button"
+            className={cx(iconButton, open && "bg-soft-control text-ink")}
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={`Ajustes de ${spec.title}`}
+            title="Ajustes"
+          >
+            <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden />
+          </button>
+        )}
         <button type="button" className={iconButton} onClick={() => onMove(index - 1)} disabled={index === 0} aria-label={`Subir ${spec.title}`}>
           <ArrowUp size={16} strokeWidth={1.8} aria-hidden />
         </button>
@@ -226,6 +267,93 @@ function Tile({ module: m, index, count, onMove, onWidth, onRemove }: { module: 
           <X size={16} strokeWidth={1.8} aria-hidden />
         </button>
       </span>
+      </div>
+      {hasSettings && open && <ModuleSettingsPanel module={m} title={spec.title} onChange={onSettings} />}
     </li>
+  );
+}
+
+const segment = (on: boolean) =>
+  cx("min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors", on ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink");
+
+/** The settings a module takes, edited inside its tile. */
+function ModuleSettingsPanel({ module: m, title, onChange }: { module: LayoutModule; title: string; onChange: (patch: ModuleSettings) => void }) {
+  const keys = MODULE_SETTINGS[m.id] ?? [];
+  const o = moduleSettings(m);
+  return (
+    <div role="group" aria-label={`Ajustes de ${title}`} className="ml-12 flex flex-col gap-4 border-t border-hairline pt-3 sm:ml-10">
+      {keys.includes("tiles") && <TilesSetting tiles={o.tiles} onChange={(tiles) => onChange({ tiles })} />}
+      {keys.includes("period") && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-ink-2">Periodo</span>
+          <div role="group" aria-label={`Periodo de ${title}`} className="flex w-fit flex-wrap gap-1 rounded-full bg-soft-control p-1">
+            {(Object.keys(PERIOD_CHOICE_LABEL) as PeriodChoice[]).map((p) => (
+              <button key={p} type="button" aria-pressed={o.period === p} onClick={() => onChange({ period: p })} className={segment(o.period === p)}>
+                {PERIOD_CHOICE_LABEL[p]}
+              </button>
+            ))}
+          </div>
+          <span className="text-[13px] text-muted">
+            {o.period === "base" ? "El ejercicio cerrado si lo hay; si no, el año en curso." : "Si el caso no tiene ese periodo, el módulo no se muestra."}
+          </span>
+        </div>
+      )}
+      {keys.includes("showPassed") && (
+        <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-[15px]">
+          <input type="checkbox" className="size-4 accent-[#0E5A61]" checked={o.showPassed} onChange={(e) => onChange({ showPassed: e.target.checked })} />
+          Mostrar las verificaciones correctas
+        </label>
+      )}
+    </div>
+  );
+}
+
+/** «Indicadores»: the tiles shown, in order (1 to 5), and the ones that can be added. */
+function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tiles: KpiTileId[]) => void }) {
+  const move = (i: number, to: number) => {
+    const next = [...tiles];
+    const [t] = next.splice(i, 1);
+    next.splice(to, 0, t);
+    onChange(next);
+  };
+  const rest = KPI_TILE_IDS.filter((t) => !tiles.includes(t));
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[13px] font-medium text-ink-2">Indicadores que se muestran, en orden (máximo {MAX_KPI_TILES})</span>
+      <ol aria-label="Indicadores elegidos" className="flex flex-col">
+        {tiles.map((t, i) => (
+          <li key={t} className="flex min-h-11 items-center gap-1">
+            <span className="w-6 font-mono text-[13px] text-muted">{i + 1}</span>
+            <span className="grow text-[15px]">{KPI_TILE_LABEL[t]}</span>
+            <button type="button" className={iconButton} onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Subir ${KPI_TILE_LABEL[t]}`}>
+              <ArrowUp size={15} strokeWidth={1.8} aria-hidden />
+            </button>
+            <button type="button" className={iconButton} onClick={() => move(i, i + 1)} disabled={i === tiles.length - 1} aria-label={`Bajar ${KPI_TILE_LABEL[t]}`}>
+              <ArrowDown size={15} strokeWidth={1.8} aria-hidden />
+            </button>
+            <button type="button" className={iconButton} onClick={() => onChange(tiles.filter((x) => x !== t))} disabled={tiles.length === 1} aria-label={`Quitar ${KPI_TILE_LABEL[t]}`}>
+              <X size={15} strokeWidth={1.8} aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ol>
+      {rest.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {rest.map((t) => (
+            <button
+              key={t}
+              type="button"
+              disabled={tiles.length >= MAX_KPI_TILES}
+              onClick={() => onChange([...tiles, t])}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-[13px] font-medium text-ink hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45"
+              aria-label={`Añadir ${KPI_TILE_LABEL[t]}`}
+            >
+              <Plus size={14} strokeWidth={2} aria-hidden /> {KPI_TILE_LABEL[t]}
+            </button>
+          ))}
+        </div>
+      )}
+      {tiles.length >= MAX_KPI_TILES && <span className="text-[13px] text-muted">Quita uno para añadir otro.</span>}
+    </div>
   );
 }

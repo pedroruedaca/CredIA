@@ -17,10 +17,13 @@ import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
 import { CHECK_PASS_LABEL, REVIEW_LABEL } from "@/content/case-view.es";
 import type { CaseViewData } from "@/lib/case-view/load";
-import { layoutRows, type Layout, type ModuleId } from "@/lib/case-view/modules";
-import type { CasePackage } from "@/lib/case-view/package";
-import { sourceHref } from "@/lib/case-view/present";
+import { layoutRows, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "@/lib/case-view/modules";
+import { periodView, type CasePackage } from "@/lib/case-view/package";
+import { pickTiles, sourceHref } from "@/lib/case-view/present";
 import { formatCompactEur, formatDate } from "@/lib/format";
+
+/** A module's own settings (defaults filled in), next to the page context. */
+type ModuleProps = ModuleContext & { settings: Required<ModuleSettings> };
 
 /** Everything a module may need, computed once for the page. */
 export interface ModuleContext {
@@ -42,12 +45,13 @@ function SummaryModule({ pkg, hasFinancials }: ModuleContext) {
   );
 }
 
-function KpisModule({ pkg, hasFinancials }: ModuleContext) {
-  if (!hasFinancials || pkg.tiles.length === 0) return null;
-  return <KpiRow tiles={pkg.tiles} />;
+function KpisModule({ pkg, hasFinancials, settings }: ModuleProps) {
+  const tiles = pickTiles(pkg.tiles, settings.tiles);
+  if (!hasFinancials || tiles.length === 0) return null;
+  return <KpiRow tiles={tiles} />;
 }
 
-function ReviewModule({ pkg, check, hasFinancials }: ModuleContext) {
+function ReviewModule({ pkg, check, hasFinancials, settings }: ModuleProps) {
   const reviewedCount = pkg.open.filter((v) => v.review && v.review.status !== "open").length;
   return (
     <section aria-labelledby="para-revisar" className="flex flex-col gap-1">
@@ -88,7 +92,7 @@ function ReviewModule({ pkg, check, hasFinancials }: ModuleContext) {
           );
         })}
       </ul>
-      {pkg.passed.length > 0 && (
+      {settings.showPassed && pkg.passed.length > 0 && (
         <ul aria-label="Verificaciones correctas" className="flex flex-wrap gap-2 pt-2.5">
           {pkg.passed.map((v) => (
             <li key={v.slug}><Pill tone="ok" dot={false} className="font-normal"><Check size={14} strokeWidth={2.2} aria-hidden />{CHECK_PASS_LABEL[v.key] ?? v.name}</Pill></li>
@@ -99,39 +103,41 @@ function ReviewModule({ pkg, check, hasFinancials }: ModuleContext) {
   );
 }
 
-function PnlModule({ data, pkg }: ModuleContext) {
+function PnlModule({ data, settings }: ModuleProps) {
+  const v = periodView(data, settings.period);
   const kase = data.kase;
-  if (!(pkg.pnl && pkg.pnlPeriod)) return null;
+  if (!(v.pnl && v.pnlPeriod)) return null;
   return (
     <section aria-labelledby="pyg" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline gap-x-2.5">
         <h2 id="pyg" className="heading-section">
           Cuenta de resultados{" "}
-          {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01")
-            ? pkg.pnlPeriod.end.slice(0, 4)
-            : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`}
+          {v.pnlPeriod.months === 12 && v.pnlPeriod.start.endsWith("-01-01")
+            ? v.pnlPeriod.end.slice(0, 4)
+            : `${formatDate(v.pnlPeriod.start)} – ${formatDate(v.pnlPeriod.end)}`}
         </h2>
         <span className="text-[13px] text-muted">
-          {formatCompactEur(pkg.pnl.revenue)} de cifra de negocios{pkg.pnlPeriod.months !== 12 ? ` · ${pkg.pnlPeriod.months} meses, sin anualizar` : ""}
+          {formatCompactEur(v.pnl.revenue)} de cifra de negocios{v.pnlPeriod.months !== 12 ? ` · ${v.pnlPeriod.months} meses, sin anualizar` : ""}
         </span>
       </div>
-      <PnlSankey model={pkg.pnl} caseId={kase.id} docs={data.documents} />
+      <PnlSankey model={v.pnl} caseId={kase.id} docs={data.documents} />
     </section>
   );
 }
 
-function BalanceModule({ data, pkg }: ModuleContext) {
+function BalanceModule({ data, settings }: ModuleProps) {
+  const v = periodView(data, settings.period);
   const kase = data.kase;
-  if (!(pkg.balance && pkg.balanceDate)) return null;
+  if (!(v.balance && v.balanceDate)) return null;
   return (
     <section aria-labelledby="balance" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline gap-x-2.5">
-        <h2 id="balance" className="heading-section">Balance a {formatDate(pkg.balanceDate)}</h2>
-        <span className="text-[13px] text-muted">{formatCompactEur(pkg.balance.total)}</span>
+        <h2 id="balance" className="heading-section">Balance a {formatDate(v.balanceDate)}</h2>
+        <span className="text-[13px] text-muted">{formatCompactEur(v.balance.total)}</span>
         <div className="grow" />
         <Link href={`/casos/${kase.id}/tablas`} className="inline-flex min-h-11 items-center text-[13px] font-medium">Ver tablas completas</Link>
       </div>
-      <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
+      <BalanceBars bars={v.balance} caseId={kase.id} docs={data.documents} />
     </section>
   );
 }
@@ -178,7 +184,7 @@ function SourcesModule({ data, pkg }: ModuleContext) {
   );
 }
 
-const MODULES: Record<ModuleId, (ctx: ModuleContext) => React.ReactNode> = {
+const MODULES: Record<ModuleId, (props: ModuleProps) => React.ReactNode> = {
   summary: SummaryModule,
   kpis: KpisModule,
   review: ReviewModule,
@@ -201,13 +207,13 @@ export function CaseModules({ layout, ctx }: { layout: Layout; ctx: ModuleContex
       {layoutRows(layout.modules).map((row) => {
         if (row.length === 1 && row[0].width === "full") {
           const Module = MODULES[row[0].id];
-          return <Module key={row[0].id} {...ctx} />;
+          return <Module key={row[0].id} {...ctx} settings={moduleSettings(row[0])} />;
         }
         return (
           <div key={row.map((m) => m.id).join("+")} className="grid gap-10 md:grid-cols-2">
             {row.map((m) => {
               const Module = MODULES[m.id];
-              return <div key={m.id} className="min-w-0"><Module {...ctx} /></div>;
+              return <div key={m.id} className="min-w-0"><Module {...ctx} settings={moduleSettings(m)} /></div>;
             })}
           </div>
         );

@@ -3,6 +3,7 @@ import { pdfUrl } from "../borme/sumario.ts";
 import { formatDate } from "../format.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
+import type { KpiTileId } from "./modules.ts";
 
 // ------------------------------------------------------------------------------------------------ sources
 
@@ -198,5 +199,18 @@ export function kpiTiles(closed: { kpis: Kpi[]; statement: CanonicalStatement } 
     sub: y && (ydso != null || ydpo != null) ? `YTD ${ydso ?? "—"}/${ydpo ?? "—"}d` : null,
     details: [...det("dso"), ...det("dpo")],
   });
+
+  // Tiles the «Indicadores» module can add (its settings pick which and in what order).
+  const simple = (id: KpiTileId, key: Kpi["key"], label: string, unit: Kpi["unit"]): KpiTile => ({ id, label, value: b[key]?.value ?? null, unit, secondary: null, sub: ytdSub(key), details: det(key) });
+  tiles.push(
+    simple("revenue", "revenue", "Cifra de negocios", "EUR"),
+    { ...simple("ebitda", "ebitda", "EBITDA", "EUR"), sub: b.ebitdaMargin?.value != null ? `margen ${fx(b.ebitdaMargin.value, "%")}` : ytdSub("ebitda"), details: [...det("ebitda"), ...det("ebitdaMargin")] },
+    simple("debtToEquity", "debtToEquity", "Deuda / patrimonio", "x"),
+    simple("workingCapital", "workingCapital", "Fondo de maniobra", "EUR"),
+    simple("financialDebt", "financialDebt", "Deuda financiera", "EUR"),
+  );
   return tiles;
 }
+
+/** The tiles a «Indicadores» module shows, in its order. */
+export const pickTiles = (tiles: KpiTile[], ids: readonly string[]) => ids.map((id) => tiles.find((t) => t.id === id)).filter((t): t is KpiTile => !!t);

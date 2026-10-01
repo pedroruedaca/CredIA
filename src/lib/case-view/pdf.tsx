@@ -3,6 +3,7 @@
  * severity dots, proportional balance bars, and the disclaimer on every page. Server-only (reads fonts from disk).
  */
 import path from "node:path";
+import { Fragment } from "react";
 import { Document, Font, Page, Path, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { CHECK_PASS_LABEL, DISCLAIMER, REVIEW_LABEL } from "../../content/case-view.es.ts";
 import { INCIDENT_REGISTRY_LABEL, INCIDENT_STATUS_LABEL, JUDICIAL_TYPE_LABEL, PROVIDER_FIGURES_NOTE, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
@@ -11,6 +12,9 @@ import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } f
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
+import { DEFAULT_LAYOUT, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
+import { periodView } from "./package.ts";
+import { pickTiles } from "./present.ts";
 import { layoutSankey, type PnlSankey } from "./sankey.ts";
 import { statementTables, type TableRow } from "./tables.ts";
 
@@ -275,7 +279,110 @@ function Solvency({ d }: { d: CaseViewData }) {
   );
 }
 
-function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; generatedAt: string }) {
+/**
+ * The PDF's modules, in the case's layout order (the same layout as its case view: its own, its template's or the
+ * team's). Half-width modules print at full width: A4 is too narrow for two side by side. Modules with no PDF form
+ * (the analyst's documents, the cuentas anuales status) print nothing. The financial statements are an appendix,
+ * always included.
+ */
+function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Required<ModuleSettings>) => React.ReactNode> {
+  return {
+    summary: () => (
+      <>
+      {pkg.summary && (
+        <Text style={s.summary}>
+          {pkg.summary.map((seg, i) => (
+            <Text key={i} style={seg.emphasis === "figure" ? { color: C.ink, fontWeight: 600 } : seg.emphasis === "discrepancy" ? { color: C.high, fontWeight: 600 } : {}}>{seg.text}</Text>
+          ))}
+        </Text>
+      )}
+      </>
+    ),
+    kpis: (o) => (
+      <>
+      {pickTiles(pkg.tiles, o.tiles).length > 0 && (
+        <View style={s.kpis} wrap={false}>
+          {pickTiles(pkg.tiles, o.tiles).map((k) => (
+            <View key={k.id} style={s.kpi}>
+              <Text style={[s.muted, { fontSize: 8.5 }]}>{k.label}</Text>
+              <Text style={s.kpiValue}>{k.id === "dsoDpo" ? `${k.value ?? "—"}/${k.secondary ?? "—"}d` : k.unit === "EUR" ? (k.value === null ? "—" : formatCompactEur(k.value)) : fig(k.value, k.unit === "days" ? "days" : "x")}</Text>
+              {k.sub && <Text style={[s.muted, { fontSize: 7.5 }]}>{k.sub}</Text>}
+            </View>
+          ))}
+        </View>
+      )}
+      </>
+    ),
+    review: (o) => (
+      <>
+        <Text style={s.h2}>Para revisar · {pkg.open.length} {pkg.open.length === 1 ? "abierta" : "abiertas"}</Text>
+        {pkg.open.length === 0 && <Text style={{ color: C.ink2 }}>No hay alertas abiertas.</Text>}
+        {pkg.open.map((v) => (
+          <View key={v.slug} style={s.checkRow} wrap={false}>
+            <View style={[s.dot, { backgroundColor: DOT[v.severity] }]} />
+            <View style={{ flex: 1, gap: 1.5 }}>
+              <Text style={{ fontWeight: 500, fontSize: 10 }}>{v.message}</Text>
+              <Text style={[s.muted, { fontSize: 8.5 }]}>{[v.name, v.evidenceLine].filter(Boolean).join(" · ")}</Text>
+              {v.review && v.review.status !== "open" && (
+                <Text style={[s.muted, { fontSize: 8.5 }]}>{REVIEW_LABEL[v.review.status]} el {formatDate(v.review.at)}{v.review.note ? ` · Nota: ${v.review.note}` : ""}</Text>
+              )}
+            </View>
+          </View>
+        ))}
+        {o.showPassed && pkg.passed.length > 0 && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+            {pkg.passed.map((v) => <Text key={v.slug} style={[s.pill, { backgroundColor: C.okBg, color: C.ok }]}>{CHECK_PASS_LABEL[v.key] ?? v.name}</Text>)}
+          </View>
+        )}
+      </>
+    ),
+    pnl: (o) => {
+      const v = periodView(d, o.period);
+      return (
+      <>
+      {v.pnl && v.pnlPeriod && (
+        <View wrap={false}>
+          <Text style={s.h2}>
+            Cuenta de resultados {v.pnlPeriod.months === 12 && v.pnlPeriod.start.endsWith("-01-01") ? v.pnlPeriod.end.slice(0, 4) : `${formatDate(v.pnlPeriod.start)} – ${formatDate(v.pnlPeriod.end)}`} · {formatCompactEur(v.pnl.revenue)} de cifra de negocios
+          </Text>
+          <Sankey model={v.pnl} />
+        </View>
+      )}
+      </>
+      );
+    },
+    balance: (o) => {
+      const v = periodView(d, o.period);
+      return (
+      <>
+      {v.balance && v.balanceDate && (
+        <View wrap={false}>
+          <Text style={s.h2}>Balance a {formatDate(v.balanceDate)} · {formatCompactEur(v.balance.total)}</Text>
+          <Bars label="Activo" segments={v.balance.top} />
+          <Bars label="Patrimonio neto y pasivo" segments={v.balance.bottom} />
+        </View>
+      )}
+      </>
+      );
+    },
+    analyst_documents: () => null,
+    annual_accounts: () => null,
+    solvency: () => <Solvency d={d} />,
+    registry: () => <Registry d={d} />,
+    sources: () => (
+      <>
+        <Text style={s.h2}>Fuentes</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
+          {pkg.sources.length === 0 && <Text style={s.muted}>Sin documentos.</Text>}
+          {pkg.sources.map((x) => <Text key={x.label} style={[s.pill, { backgroundColor: C.soft }]}>{x.label}</Text>)}
+        </View>
+      </>
+    ),
+  };
+}
+
+function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePackage; generatedAt: string; layout: Layout }) {
+  const mods = pdfModules(d, pkg);
   const { kase } = d;
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const request = [kase.product ? productLabel(kase.product) : null, amount ? `${amount.number} ${amount.unit}` : null, kase.termMonths ? `${kase.termMonths} meses` : null, `CIF ${kase.cif}`].filter(Boolean).join(" · ");
@@ -296,61 +403,10 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
         <Text style={s.h1}>{kase.companyName}</Text>
         <Text style={s.request}>{request}</Text>
 
-        {pkg.summary && (
-          <Text style={s.summary}>
-            {pkg.summary.map((seg, i) => (
-              <Text key={i} style={seg.emphasis === "figure" ? { color: C.ink, fontWeight: 600 } : seg.emphasis === "discrepancy" ? { color: C.high, fontWeight: 600 } : {}}>{seg.text}</Text>
-            ))}
-          </Text>
-        )}
-
-        {pkg.tiles.length > 0 && (
-          <View style={s.kpis} wrap={false}>
-            {pkg.tiles.map((k) => (
-              <View key={k.id} style={s.kpi}>
-                <Text style={[s.muted, { fontSize: 8.5 }]}>{k.label}</Text>
-                <Text style={s.kpiValue}>{k.id === "dsoDpo" ? `${k.value ?? "—"}/${k.secondary ?? "—"}d` : fig(k.value, k.unit === "days" ? "days" : "x")}</Text>
-                {k.sub && <Text style={[s.muted, { fontSize: 7.5 }]}>{k.sub}</Text>}
-              </View>
-            ))}
-          </View>
-        )}
-
-        <Text style={s.h2}>Para revisar · {pkg.open.length} {pkg.open.length === 1 ? "abierta" : "abiertas"}</Text>
-        {pkg.open.length === 0 && <Text style={{ color: C.ink2 }}>No hay alertas abiertas.</Text>}
-        {pkg.open.map((v) => (
-          <View key={v.slug} style={s.checkRow} wrap={false}>
-            <View style={[s.dot, { backgroundColor: DOT[v.severity] }]} />
-            <View style={{ flex: 1, gap: 1.5 }}>
-              <Text style={{ fontWeight: 500, fontSize: 10 }}>{v.message}</Text>
-              <Text style={[s.muted, { fontSize: 8.5 }]}>{[v.name, v.evidenceLine].filter(Boolean).join(" · ")}</Text>
-              {v.review && v.review.status !== "open" && (
-                <Text style={[s.muted, { fontSize: 8.5 }]}>{REVIEW_LABEL[v.review.status]} el {formatDate(v.review.at)}{v.review.note ? ` · Nota: ${v.review.note}` : ""}</Text>
-              )}
-            </View>
-          </View>
-        ))}
-        {pkg.passed.length > 0 && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-            {pkg.passed.map((v) => <Text key={v.slug} style={[s.pill, { backgroundColor: C.okBg, color: C.ok }]}>{CHECK_PASS_LABEL[v.key] ?? v.name}</Text>)}
-          </View>
-        )}
-
-        {pkg.pnl && pkg.pnlPeriod && (
-          <View wrap={false}>
-            <Text style={s.h2}>
-              Cuenta de resultados {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01") ? pkg.pnlPeriod.end.slice(0, 4) : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`} · {formatCompactEur(pkg.pnl.revenue)} de cifra de negocios
-            </Text>
-            <Sankey model={pkg.pnl} />
-          </View>
-        )}
-        {pkg.balance && pkg.balanceDate && (
-          <View wrap={false}>
-            <Text style={s.h2}>Balance a {formatDate(pkg.balanceDate)} · {formatCompactEur(pkg.balance.total)}</Text>
-            <Bars label="Activo" segments={pkg.balance.top} />
-            <Bars label="Patrimonio neto y pasivo" segments={pkg.balance.bottom} />
-          </View>
-        )}
+        {layout.modules.map((m) => {
+          const content = mods[m.id](moduleSettings(m));
+          return content ? <Fragment key={m.id}>{content}</Fragment> : null;
+        })}
 
         {statements.length > 0 && (
           <View break>
@@ -362,16 +418,6 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
           </View>
         )}
 
-        <Solvency d={d} />
-
-        <Registry d={d} />
-
-        <Text style={s.h2}>Fuentes</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-          {pkg.sources.length === 0 && <Text style={s.muted}>Sin documentos.</Text>}
-          {pkg.sources.map((x) => <Text key={x.label} style={[s.pill, { backgroundColor: C.soft }]}>{x.label}</Text>)}
-        </View>
-
         <Text style={s.footer} fixed>{DISCLAIMER}</Text>
         <Text style={s.pageNo} fixed render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
       </Page>
@@ -379,7 +425,7 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
   );
 }
 
-export async function packagePdf(d: CaseViewData, pkg: CasePackage, generatedAt: string): Promise<Buffer> {
+export async function packagePdf(d: CaseViewData, pkg: CasePackage, generatedAt: string, layout: Layout = DEFAULT_LAYOUT): Promise<Buffer> {
   registerFonts();
-  return renderToBuffer(<CasePdf d={d} pkg={pkg} generatedAt={generatedAt} />);
+  return renderToBuffer(<CasePdf d={d} pkg={pkg} generatedAt={generatedAt} layout={layout} />);
 }
