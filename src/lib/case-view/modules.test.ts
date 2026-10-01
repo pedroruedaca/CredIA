@@ -52,3 +52,27 @@ describe("case view modules", () => {
     expect(rows.map((r) => r.map((m) => m.id))).toEqual([["a"], ["b", "c"], ["d"], ["e"]]);
   });
 });
+
+describe("editing a layout", () => {
+  const l = DEFAULT_LAYOUT;
+  it("moves, removes, adds and resizes", async () => {
+    const { addModule, availableModules, moveModule, removeModule, sameLayout, setModuleWidth } = await import("./modules.ts");
+    const moved = moveModule(l, 9, 0);
+    expect(moved.modules[0].id).toBe("sources");
+    expect(moved.modules).toHaveLength(10);
+    expect(moveModule(l, 0, 99)).toBe(l);
+
+    const removed = removeModule(l, "kpis");
+    expect(removed.modules.map((m) => m.id)).not.toContain("kpis");
+    expect(removeModule(l, "review")).toBe(l); // cannot be removed
+    expect(availableModules(removed).map((s) => s.id)).toEqual(["kpis"]);
+
+    const back = addModule(removed, "kpis");
+    expect(back.modules.at(-1)).toEqual({ id: "kpis", width: "full" });
+    expect(addModule(back, "kpis")).toBe(back);
+
+    expect(setModuleWidth(l, "balance", "half").modules.find((m) => m.id === "balance")!.width).toBe("half");
+    expect(setModuleWidth(l, "pnl", "half")).toBe(l); // the Sankey only takes the full width
+    expect(sameLayout(l, normalizeLayout(JSON.parse(JSON.stringify(l))))).toBe(true);
+  });
+});

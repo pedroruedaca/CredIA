@@ -146,9 +146,15 @@ a row). Components: `src/components/case/modules/CaseModules.tsx` (one component
 when empty). The header and the evidence panel are not modules.
 Decided defaults: team template per lender (owners/editors edit), product templates and personal overrides later;
 rows of full or half width (no free grid); «Para revisar» movable, not removable; the committee PDF follows the
-layout; Excel/JSON exports stay complete. Phases: 1 registry + default layout ✅ · 2 team template + edit mode
-(`dashboard_layouts`, dnd-kit) · 3 product templates, personal overrides, module settings, PDF follows layout ·
-4 new modules (303 quarterly sales, CIRBE by bank/maturity, N43 monthly flows, closed vs YTD).
+layout; Excel/JSON exports stay complete. Phases: 1 registry + default layout ✅ · 2 team template + edit mode ✅
+· 3 product templates, personal overrides, module settings, PDF follows layout · 4 new modules (303 quarterly sales,
+CIRBE by bank/maturity, N43 monthly flows, closed vs YTD).
+Phase 2: `dashboard_layouts` (0018; one `scope = 'team'` row per lender, read by members, written by owners and
+analysts via `is_lender_editor`, never viewers; `tests/integration/layouts.test.ts`). `loadTeamLayout`
+(`src/lib/case-view/layout-store.ts`) → `normalizeLayout`. Editor: `?personalizar=1` on the case page
+(`LayoutEditor`, dnd-kit sortable tiles with keyboard drag, plus up/down, width, remove, «Añadir módulo»); actions
+`saveTeamLayout` / `resetTeamLayout` (`src/app/casos/layout-actions.ts`, normalise, audit `layout.saved/reset`).
+Edit operations are pure in `modules.ts` (`moveModule`, `removeModule`, `addModule`, `setModuleWidth`).
 
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
@@ -187,7 +193,7 @@ closing-entries suspicion.
   a minute before the migration finishes, so keep migrations compatible with the code before them where you can.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
-  analyst's upload). `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  analyst's upload); the team personalises the case view and restores it. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.

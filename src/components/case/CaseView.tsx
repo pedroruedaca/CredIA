@@ -4,7 +4,7 @@
  * recommends.
  */
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { Eye, LayoutDashboard } from "lucide-react";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
@@ -16,9 +16,30 @@ import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
 import { DEFAULT_LAYOUT, type Layout } from "@/lib/case-view/modules";
 import { CaseModules } from "@/components/case/modules/CaseModules";
+import { LayoutEditor } from "@/components/case/modules/LayoutEditor";
 import { caseRef, formatDate, formatFigure, relativeTime } from "@/lib/format";
 
-export function CaseView({ data, check, canEdit, userId, now = new Date(), layout = DEFAULT_LAYOUT }: { data: CaseViewData; check: string | null; canEdit: boolean; userId: string; now?: Date; layout?: Layout }) {
+export function CaseView({
+  data,
+  check,
+  canEdit,
+  userId,
+  now = new Date(),
+  layout = DEFAULT_LAYOUT,
+  layoutCustom = false,
+  editing = false,
+}: {
+  data: CaseViewData;
+  check: string | null;
+  canEdit: boolean;
+  userId: string;
+  now?: Date;
+  layout?: Layout;
+  /** The team saved its own layout (offers "Restaurar el diseño original para el equipo"). */
+  layoutCustom?: boolean;
+  /** "Personalizar" mode: the layout editor instead of the modules. */
+  editing?: boolean;
+}) {
   const { kase } = data;
   const pkg = buildPackage(data);
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
@@ -69,6 +90,16 @@ export function CaseView({ data, check, canEdit, userId, now = new Date(), layou
             <Link href={`/casos/${kase.id}/vista-empresa`} className="inline-flex min-h-10 items-center gap-1.5 text-[13px] font-medium">
               <Eye size={15} strokeWidth={1.8} aria-hidden /> Ver como la empresa
             </Link>
+            {canEdit && !editing && (
+              <Link
+                href={`/casos/${kase.id}?personalizar=1`}
+                aria-label="Personalizar el panel"
+                title="Personalizar el panel"
+                className="inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-soft-control hover:text-ink"
+              >
+                <LayoutDashboard size={16} strokeWidth={1.8} aria-hidden />
+              </Link>
+            )}
           </div>
           <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[44px]">{kase.companyName}</h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
@@ -92,7 +123,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date(), layou
           <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="info">Procesando</Pill> Estamos leyendo los documentos; las cifras se actualizarán al terminar.</p>
         )}
 
-        {!hasFinancials && (
+        {!hasFinancials && !editing && (
           <div className="rounded-panel bg-soft px-8 py-12 text-center">
             <h2 className="heading-section">Aún no hay contabilidad procesada</h2>
             <p className="mx-auto mt-1 max-w-md text-[15px] text-ink-2">
@@ -102,7 +133,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date(), layou
           </div>
         )}
 
-        <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />
+        {editing ? <LayoutEditor initial={layout} caseId={kase.id} custom={layoutCustom} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
       </div>
 
       <EvidencePanel caseId={kase.id} views={pkg.open} selected={check} canEdit={canEdit} />

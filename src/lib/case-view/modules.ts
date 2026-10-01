@@ -117,3 +117,32 @@ export function layoutRows<T extends { width: ModuleWidth }>(modules: T[]): T[][
   }
   return rows;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Editing (the "Personalizar" mode): pure operations on a layout; each returns a new, normalised layout.
+
+/** Modules not in the layout, in catalogue order: what "Añadir módulo" offers. */
+export const availableModules = (l: Layout): ModuleSpec[] => MODULE_IDS.filter((id) => !l.modules.some((m) => m.id === id)).map((id) => MODULE_SPECS[id]);
+
+/** Moves the module at `from` to position `to` (indexes in the layout's order). */
+export function moveModule(l: Layout, from: number, to: number): Layout {
+  if (from === to || from < 0 || to < 0 || from >= l.modules.length || to >= l.modules.length) return l;
+  const modules = [...l.modules];
+  const [m] = modules.splice(from, 1);
+  modules.splice(to, 0, m);
+  return { version: 1, modules };
+}
+
+/** Removes a module, unless it cannot be removed («Para revisar»). */
+export const removeModule = (l: Layout, id: ModuleId): Layout =>
+  MODULE_SPECS[id].removable ? { version: 1, modules: l.modules.filter((m) => m.id !== id) } : l;
+
+/** Adds a module at the end, at its first allowed width; no-op if it is already there. */
+export const addModule = (l: Layout, id: ModuleId): Layout =>
+  l.modules.some((m) => m.id === id) ? l : { version: 1, modules: [...l.modules, { id, width: MODULE_SPECS[id].widths[0] }] };
+
+/** Sets a module's width if the module allows it. */
+export const setModuleWidth = (l: Layout, id: ModuleId, width: ModuleWidth): Layout =>
+  MODULE_SPECS[id].widths.includes(width) ? { version: 1, modules: l.modules.map((m) => (m.id === id ? { ...m, width } : m)) } : l;
+
+export const sameLayout = (a: Layout, b: Layout) => JSON.stringify(a.modules) === JSON.stringify(b.modules);
