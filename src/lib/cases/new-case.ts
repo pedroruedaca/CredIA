@@ -72,11 +72,11 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
   for (const kind of REQUIREMENT_KINDS) {
     const choice = values[`req_${kind}`] ?? "none";
     if (choice === "none") continue;
-    const spec = REQUIREMENT_SPECS.find((s) => s.kind === kind)!;
-    if (choice === "cif" && !spec.byCif) {
-      errors.requirements ??= `«${spec.label}» no se puede obtener por CIF; pídeselo a la empresa.`;
+    if (!["required", "optional", "lender"].includes(choice)) {
+      errors.requirements ??= "Elige para cada documento si es obligatorio, opcional o lo subes tú.";
       continue;
     }
+    const spec = REQUIREMENT_SPECS.find((s) => s.kind === kind)!;
     const ageRaw = (values[`age_${kind}`] ?? "").trim();
     let maxAgeDays: number | null = null;
     if (spec.supportsMaxAge && ageRaw !== "") {
@@ -85,7 +85,8 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
         errors.requirements ??= `La antigüedad máxima de «${spec.label}» debe ser un número de días entre 1 y 3650.`;
       } else maxAgeDays = n;
     }
-    requirements.push({ kind, required: choice !== "optional", maxAgeDays, source: choice === "cif" ? "cif" : "borrower" });
+    // "lender": the analyst uploads it ("Lo subo yo"); the company's portal does not ask for it.
+    requirements.push({ kind, required: choice !== "optional", maxAgeDays, source: choice === "lender" ? "lender" : "borrower" });
   }
   if (requirements.length === 0) errors.requirements ??= "Solicita al menos un documento.";
 

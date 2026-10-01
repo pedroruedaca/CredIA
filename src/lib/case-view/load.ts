@@ -1,5 +1,6 @@
 /** Loads everything the lender case view, exports and PDF show. Server-only; uses the lender's RLS client. */
 import "server-only";
+import { isLenderProvided } from "../cases/requirements.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
 import type { Kpi } from "../kpis/engine.ts";
@@ -34,7 +35,7 @@ export interface CaseViewData {
   checks: CheckRow[];
   reviews: Record<string, { status: "open" | "reviewed" | "clarification_requested"; note: string | null; at: string }>;
   documents: (SourceDoc & { status: string; uploaded_at: string; attention_message: string | null; summary: Record<string, unknown> | null })[];
-  requirements: { doc_kind: string; required: boolean; max_age_days: number | null; source: "borrower" | "cif" }[];
+  requirements: { doc_kind: string; required: boolean; max_age_days: number | null; source: "borrower" | "lender" }[];
   cirbe: CirbeExtraction | null;
   cirbeDocId: string | null;
   holded: { status: string; mode: string; lastSyncAt: string | null; entries: number } | null;
@@ -180,7 +181,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       ...d,
       summary: [...((extractions as { summary: Record<string, unknown>; created_at: string }[] | null) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.summary ?? null,
     })),
-    requirements: (reqs.data ?? []).map((r) => ({ ...r, source: r.source === "cif" ? "cif" : "borrower" })),
+    requirements: (reqs.data ?? []).map((r) => ({ ...r, source: isLenderProvided(r.source) ? "lender" : "borrower" })),
     cirbe,
     cirbeDocId: debtRows[0]?.document_id ?? null,
     holded: h ? { status: h.status, mode: h.mode, lastSyncAt: h.last_sync_at, entries: syncs.reduce((s, x) => s + (x.entries_fetched ?? 0), 0) } : null,

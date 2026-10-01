@@ -109,7 +109,7 @@ for the closed year (10 % / 5.000 €) warn. Provider rating / PD / limit: case 
 `PROVIDER_FIGURES_NOTE`. UI `src/components/case/SolvencySection.tsx`; copy `src/content/solvency.es.ts`.
 Not yet tested against real provider PDFs: adjust the schema descriptions when the first real reports arrive.
 
-## Cuentas anuales and "Por CIF"
+## Cuentas anuales and "Lo subo yo"
 - **Financials from cuentas anuales alone:** `AnnualAccountsWire` reads every line of the official model (normal,
   abreviado, PYMES; current and prior column; units scaled in `assess.ts`). `statementFromAnnualAccounts`
   (`src/lib/pgc/annual-accounts.ts`, pure, tested with `__fixtures__/annual-accounts.ts`) maps model headings onto the
@@ -124,11 +124,13 @@ Not yet tested against real provider PDFs: adjust the schema descriptions when t
 - **Revenue-only statements** (`scope: "revenue"`, Modelo 303): `pnlAvailable` false, only revenue is known (sales
   declared = accrued bases + 59/60/120/122). KPIs give revenue only (rest null with a note); tables blank every other
   line; KPI tiles, balance bars, Sankey and balance-sheet checks (CIRBE, debt payments) use `isFullStatement` only.
-- **Por CIF** (`case_requirements.source = 'cif'`, 0014): third option in the new-case form, only for kinds with
-  `byCif` (cuentas_anuales, solvency_report). Not shown to or uploadable by the company; not in completeness. The
-  lender uploads the PDF from the case view (`LENDER_UPLOAD_KINDS`, `AnnualAccountsSection`, `SolvencySection`) or
-  hands it to the company ("Pedir a la empresa" → `requestDocument`, source back to 'borrower'). No provider API yet:
-  a contracted provider would fetch the PDF by CIF and register it like a lender upload.
+- **"Lo subo yo"** (`case_requirements.source = 'lender'`, 0017; was "Por CIF"/'cif' in 0014): third option in the
+  new-case form, for every document kind. The analyst uploads it from the case view (`LenderDocumentsSection`, or
+  `AnnualAccountsSection` / `SolvencySection` for those two; any format the portal accepts, several files where the
+  portal allows them). Not shown to the company, not in its completeness; "Pedir a la empresa" (`requestDocument`)
+  hands it back. The invitation email lists only the company's documents; with none, the company is not invited
+  ("Nuevo enlace" invites it later). `isLenderProvided` also reads legacy 'cif'. A contracted provider could later fetch
+  a PDF by CIF and register it like a lender upload.
 
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).

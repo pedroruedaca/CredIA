@@ -32,7 +32,7 @@ export async function loadPortal(db: AdminClient, access: BorrowerAccess, now = 
       .eq("id", access.caseId)
       .single(),
     // Documents the lender obtains by CIF are not asked of the company.
-    db.from("case_requirements").select("doc_kind, required, max_age_days").eq("case_id", access.caseId).neq("source", "cif"),
+    db.from("case_requirements").select("doc_kind, required, max_age_days").eq("case_id", access.caseId).eq("source", "borrower"),
     db
       .from("documents")
       .select("id, kind, status, original_filename, issued_on, attention_message, uploaded_at, extractions(summary, created_at)")

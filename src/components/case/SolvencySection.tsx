@@ -26,7 +26,7 @@ import { formatDate, formatEurWhole, formatFigure } from "@/lib/format";
 const Eur = ({ value }: { value: number | null }) =>
   value === null ? <span className="font-mono text-muted">—</span> : <span className="font-mono tabular-nums">{formatEurWhole(value)}<span className="ml-[0.2em] text-[0.8em] text-muted">€</span></span>;
 
-const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "tu entidad" } as const;
+const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "el analista" } as const;
 
 export function SolvencySection({
   caseId,
@@ -37,8 +37,8 @@ export function SolvencySection({
   caseId: string;
   solvency: CaseViewData["solvency"];
   canEdit: boolean;
-  /** How it was requested: the lender obtains it by CIF, the company uploads it, or not requested. */
-  requested: "cif" | "borrower" | null;
+  /** How it was requested: the analyst uploads it ("Lo subo yo"), the company uploads it, or not requested. */
+  requested: "lender" | "borrower" | null;
 }) {
   const router = useRouter();
   const [asking, startAsk] = useTransition();
@@ -61,8 +61,8 @@ export function SolvencySection({
   if (!solvency) {
     body = (
       <div className="flex flex-col gap-3">
-        <p className="text-[15px] text-ink-2">{requested === "cif"
-            ? "Por CIF: obtén el informe de tu proveedor (Experian, Informa, Axesor, Iberinform…) con el CIF de la empresa y súbelo aquí."
+        <p className="text-[15px] text-ink-2">{requested === "lender"
+            ? "Lo subes tú: obtén el informe de tu proveedor (Experian, Informa, Axesor, Iberinform…) con el CIF de la empresa y súbelo aquí."
             : requested
               ? "Pedido a la empresa; aún no lo ha subido. También puedes subir tú el que tengas."
               : "No hay informe de solvencia."}</p>
@@ -224,9 +224,9 @@ export function SolvencySection({
             {r.providerName ?? who} · {formatDate(r.reportDate)} · subido por {BY_LABEL[solvency.uploadedBy]}
           </span>
         )}
-        {requested === "cif" && !r && <Pill tone="neutral">Por CIF · pendiente</Pill>}
+        {requested === "lender" && !r && <Pill tone="neutral">Lo subes tú · pendiente</Pill>}
         <div className="grow" />
-        {canEdit && requested === "cif" && !r && (
+        {canEdit && requested === "lender" && !r && (
           <Button variant="link" size="sm" onClick={askCompany} disabled={asking}>{asking ? "Pidiendo…" : "Pedir a la empresa"}</Button>
         )}
         {canEdit && solvency && <UploadPill inputId={buttonInputId} pending={pending} onFile={upload} label="Subir otro informe" />}

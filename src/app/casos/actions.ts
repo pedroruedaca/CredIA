@@ -1,5 +1,6 @@
 "use server";
 
+import { borrowerRequirements, REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { appBaseUrl } from "@/lib/app-url";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
@@ -27,7 +28,7 @@ export async function regenerateBorrowerLink(caseId: string): Promise<Regenerate
     .update({ borrower_token_hash: hash, borrower_token_expires_at: expiresAt })
     .eq("id", caseId)
     .neq("status", "archived")
-    .select("id, borrower_name, borrower_email, consent_withdrawn_at")
+    .select("id, borrower_name, borrower_email, consent_withdrawn_at, case_requirements(doc_kind, required, source)")
     .maybeSingle();
   if (error || !kase) {
     // Log the reason (never the token): a database error, or no row (case not visible to this lender or archived).
@@ -51,6 +52,7 @@ export async function regenerateBorrowerLink(caseId: string): Promise<Regenerate
       lenderName: lender.lenderName,
       companyName: kase.borrower_name ?? "",
       link,
+      documents: borrowerRequirements((kase.case_requirements as { doc_kind: string; required: boolean; source: string }[] | null) ?? []).map((r) => REQUIREMENT_SPECS.find((s) => s.kind === r.doc_kind)?.label ?? r.doc_kind),
     }));
     if (emailSent) {
       await supabase.from("audit_log").insert({

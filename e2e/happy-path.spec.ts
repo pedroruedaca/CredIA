@@ -25,6 +25,9 @@ test("lender creates a case, company uploads, lender sees the package", async ({
     const pill = page.getByRole("button", { name: label, exact: true });
     if ((await pill.getAttribute("aria-pressed")) !== "true") await pill.click();
   }
+  // The analyst provides the CIRBE itself: the company must not be asked for it.
+  await page.getByRole("button", { name: "Informe CIRBE", exact: true }).click();
+  await page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" }).click();
   await page.getByRole("button", { name: "Crear caso" }).click();
   await expect(page.getByRole("heading", { name: /Caso creado/ })).toBeVisible();
   const url = await page.getByLabel("Enlace para la empresa").inputValue();
@@ -35,6 +38,7 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   const c = await company.newPage();
   await c.goto(new URL(url).pathname);
   await expect(c.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(c.getByRole("main")).not.toContainText("CIRBE");
 
   await c.goto(`${new URL(url).pathname}?paso=trial_balance`);
   await c.getByRole("button", { name: /Subir sumas y saldos/ }).click();
@@ -71,6 +75,8 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   await expect(page.getByRole("button", { name: /^EBITDA: 110 k€/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Balance a 31 dic 2025/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Para revisar" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documentos que subes tú" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Documentos que subes tú" })).toContainText("Informe CIRBE");
 
   // Evidence panel opens from the list and keeps its deep link.
   await page.locator('a[href^="?check="]').first().click();

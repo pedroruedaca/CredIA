@@ -32,17 +32,18 @@ describe("parseNewCase", () => {
     ]);
   });
 
-  it("lets the lender obtain annual accounts and the solvency report by CIF, nothing else", () => {
-    const r = parseNewCase({ ...base, req_cuentas_anuales: "cif", req_solvency_report: "cif", age_solvency_report: "60" });
+  it("lets the analyst provide any document («Lo subo yo»)", () => {
+    const r = parseNewCase({ ...base, req_cuentas_anuales: "lender", req_solvency_report: "lender", req_cirbe: "lender", age_solvency_report: "60" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.data.requirements.filter((q) => q.source === "cif")).toEqual([
-      { kind: "cuentas_anuales", required: true, maxAgeDays: null, source: "cif" },
-      { kind: "solvency_report", required: true, maxAgeDays: 60, source: "cif" },
+    expect(r.data.requirements.filter((q) => q.source === "lender")).toEqual([
+      { kind: "cuentas_anuales", required: true, maxAgeDays: null, source: "lender" },
+      { kind: "cirbe", required: true, maxAgeDays: null, source: "lender" },
+      { kind: "solvency_report", required: true, maxAgeDays: 60, source: "lender" },
     ]);
     const bad = parseNewCase({ ...base, req_cirbe: "cif" });
     expect(bad.ok).toBe(false);
-    if (!bad.ok) expect(bad.errors.requirements).toMatch(/no se puede obtener por CIF/);
+    if (!bad.ok) expect(bad.errors.requirements).toMatch(/lo subes tú/);
   });
 
   it("returns Spanish field errors", () => {

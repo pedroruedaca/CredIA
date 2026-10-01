@@ -3,6 +3,7 @@
 import { appBaseUrl } from "@/lib/app-url";
 import type { FieldErrors } from "@/lib/cases/new-case";
 import { parseNewCase } from "@/lib/cases/new-case";
+import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
@@ -12,7 +13,7 @@ export type CreateCaseState =
   | { status: "idle" }
   | { status: "invalid"; errors: FieldErrors; values: Record<string, string> }
   | { status: "failed"; message: string; values: Record<string, string> }
-  | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean; emailConfigured: boolean };
+  | { status: "created"; caseId: string; companyName: string; borrowerEmail: string; link: string; expiresInDays: number; emailSent: boolean; emailConfigured: boolean; companyDocuments: number; analystDocuments: number };
 
 
 export async function createCase(_prev: CreateCaseState, formData: FormData): Promise<CreateCaseState> {
@@ -72,21 +73,21 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     case_id: created.id,
     actor: lender.userId,
     action: "case.created",
-    detail: { requirements: c.requirements.map((r) => r.kind), by_cif: c.requirements.filter((r) => r.source === "cif").map((r) => r.kind), link_expires_at: expiresAt },
+    detail: { requirements: c.requirements.map((r) => r.kind), by_lender: c.requirements.filter((r) => r.source === "lender").map((r) => r.kind), link_expires_at: expiresAt },
   });
 
   const link = borrowerLink(await appBaseUrl(), token);
-  const { sent } = await getNotifier().sendBorrowerInvite({
-    to: c.borrowerEmail,
-    lenderName: lender.lenderName,
-    companyName: c.name,
-    link,
-  });
+  // The company is only told about the documents it has to provide; when the analyst provides them all, it is not
+  // invited (a link can be issued later with "Nuevo enlace" if a document is then requested from it).
+  const companyDocs = c.requirements.filter((r) => r.source === "borrower").map((r) => REQUIREMENT_SPECS.find((s) => s.kind === r.kind)!.label);
+  const { sent } = companyDocs.length
+    ? await getNotifier().sendBorrowerInvite({ to: c.borrowerEmail, lenderName: lender.lenderName, companyName: c.name, link, documents: companyDocs })
+    : { sent: false };
   if (sent) {
     await supabase.from("audit_log").insert({
       lender_id: lender.lenderId, case_id: created.id, actor: "system", action: "borrower.invited", detail: { to: c.borrowerEmail },
     });
   }
 
-  return { status: "created", caseId: created.id, companyName: c.name, borrowerEmail: c.borrowerEmail, link, expiresInDays: MAGIC_LINK_TTL_DAYS, emailSent: sent, emailConfigured: isEmailConfigured() };
+  return { status: "created", caseId: created.id, companyName: c.name, borrowerEmail: c.borrowerEmail, link, expiresInDays: MAGIC_LINK_TTL_DAYS, emailSent: sent, emailConfigured: isEmailConfigured(), companyDocuments: companyDocs.length, analystDocuments: c.requirements.length - companyDocs.length };
 }

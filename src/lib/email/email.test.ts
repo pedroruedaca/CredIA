@@ -83,3 +83,12 @@ describe("resendNotifier", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe("borrower invite: documents the company is asked for", () => {
+  it("lists them when given, escaped", () => {
+    const e = borrowerInviteEmail({ lenderName: "F", companyName: "C", link: LINK, documents: ["Contabilidad", "Informe <CIRBE>"] });
+    expect(e.text).toContain("Te pide: Contabilidad, Informe <CIRBE>.");
+    expect(e.html).toContain("Informe &lt;CIRBE&gt;");
+    expect(borrowerInviteEmail({ lenderName: "F", companyName: "C", link: LINK }).text).not.toContain("Te pide");
+  });
+});

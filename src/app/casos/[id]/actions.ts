@@ -7,7 +7,7 @@ import { z } from "zod";
 import { findCandidates } from "@/lib/borme/case";
 import { fetchSheetActs, STALE_FETCH_MS } from "@/lib/borme/ondemand";
 import { checkDeclaredFile, cleanFilename, CONTENT_TYPES, contentMatchesExtension, MAX_UPLOAD_BYTES, parseUploadPath, uploadPath } from "@/lib/borrower/upload-rules";
-import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
+import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { processCase } from "@/lib/pipeline/process-case";
@@ -207,9 +207,9 @@ export async function refreshBormeSheet(caseId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Documents the lender can upload itself (from its own subscriptions). */
-const LENDER_UPLOAD_KINDS = ["solvency_report", "cuentas_anuales"] as const;
-export type LenderUploadKind = (typeof LENDER_UPLOAD_KINDS)[number];
+/** Documents the lender's analyst can upload itself: any kind ("Lo subo yo", or one the company has not sent). */
+const LENDER_UPLOAD_KINDS = REQUIREMENT_KINDS;
+export type LenderUploadKind = RequirementKind;
 
 const PrepareInput = z.object({ caseId: CaseId, kind: z.enum(LENDER_UPLOAD_KINDS), filename: z.string().min(1).max(255), size: z.number().int() });
 
@@ -264,7 +264,7 @@ export async function registerLenderUpload(input: z.input<typeof RegisterInput>)
   if (dlErr || !blob) return { ok: false, message: "No hemos recibido el fichero. Vuelve a intentarlo." };
   if (blob.size > MAX_UPLOAD_BYTES) return reject(`«${filename}» ocupa más de 20 MB.`);
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  if (!contentMatchesExtension(bytes, target.ext)) return reject(`«${filename}» no parece un PDF válido.`);
+  if (!contentMatchesExtension(bytes, target.ext)) return reject(`«${filename}» no parece un fichero .${target.ext} válido.`);
   const sha256 = createHash("sha256").update(bytes).digest("hex");
 
   const { data: doc, error } = await admin
@@ -284,7 +284,7 @@ export async function registerLenderUpload(input: z.input<typeof RegisterInput>)
     .single();
   if (error?.code === "23505") {
     await bucket.remove([path]);
-    return { ok: true, message: "Este informe ya estaba en el caso." };
+    return { ok: true, message: "Este documento ya estaba en el caso." };
   }
   if (error || !doc) return reject("No hemos podido guardar el documento. Inténtalo de nuevo.");
 

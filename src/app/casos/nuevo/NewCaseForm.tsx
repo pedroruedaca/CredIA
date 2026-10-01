@@ -17,6 +17,24 @@ export function NewCaseForm() {
   const [state, action, pending] = useActionState<CreateCaseState, FormData>(createCase, { status: "idle" });
 
   if (state.status === "created") {
+    const actions = (
+      <div className="flex flex-wrap items-center gap-3">
+        <ButtonLink href={`/casos/${state.caseId}`}>Ir al caso</ButtonLink>
+        <ButtonLink href="/casos" variant="link">Volver a casos</ButtonLink>
+      </div>
+    );
+    if (state.companyDocuments === 0) {
+      return (
+        <section className="flex flex-col gap-4">
+          <h2 className="heading-section">Caso creado: {state.companyName}</h2>
+          <p className="flex flex-wrap items-center gap-2 text-[15px] leading-relaxed text-ink-2">
+            <Pill tone="neutral">Sin invitación</Pill>
+            Todos los documentos los subes tú, así que no hemos avisado a la empresa. Súbelos desde el caso. Si más adelante le pides alguno, genera un enlace con «Nuevo enlace».
+          </p>
+          {actions}
+        </section>
+      );
+    }
     return (
       <section className="flex flex-col gap-4">
         <h2 className="heading-section">Caso creado: {state.companyName}</h2>
@@ -28,14 +46,13 @@ export function NewCaseForm() {
         <p className="flex flex-wrap items-center gap-2 text-[15px] text-ink-2">
           <Pill tone={state.emailSent ? "ok" : "warn"}>{state.emailSent ? "Invitación enviada" : "Sin correo"}</Pill>
           {state.emailSent
-            ? `Enviada a ${state.borrowerEmail}.`
+            ? `Enviada a ${state.borrowerEmail}, con ${state.companyDocuments === 1 ? "el documento" : `los ${state.companyDocuments} documentos`} que le toca aportar.`
             : state.emailConfigured
               ? `No se ha podido enviar el correo a ${state.borrowerEmail}: envíale tú el enlace. Si se repite, revisa la cuenta de Resend.`
               : `No hay un servicio de correo configurado: envía tú el enlace a ${state.borrowerEmail}.`}
         </p>
-        <div>
-          <ButtonLink href="/casos" variant="link">Volver a casos</ButtonLink>
-        </div>
+        {state.analystDocuments > 0 && <p className="text-[15px] text-ink-2">Los documentos que marcaste con «Lo subo yo» no se le piden: súbelos desde el caso.</p>}
+        {actions}
       </section>
     );
   }
@@ -102,13 +119,14 @@ export function NewCaseForm() {
   );
 }
 
-type Level = "required" | "optional" | "cif" | "none";
-const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", cif: "Por CIF" } as const;
+type Level = "required" | "optional" | "lender" | "none";
+const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", lender: "Lo subo yo" } as const;
+const LEVELS = ["required", "optional", "lender"] as const;
 
 /**
  * Requested documents as toggle pills, one per module (a document, or several requested together such as «Documentos
- * fiscales»). Selected modules show "Obligatorio / Opcional" (plus "Por CIF" for those the lender can obtain without
- * the company) and, where it applies, a maximum age. Posts `req_<kind>` for every kind of the module and `age_<kind>`,
+ * fiscales»). Selected modules show "Obligatorio / Opcional / Lo subo yo" (the analyst uploads it from the case view and
+ * the company is not asked for it) and, where it applies, a maximum age. Posts `req_<kind>` for every kind of the module and `age_<kind>`,
  * the fields the server action validates.
  */
 function Requirements({ values, error }: { values: Record<string, string>; error?: string }) {
@@ -118,14 +136,13 @@ function Requirements({ values, error }: { values: Record<string, string>; error
   );
   const set = (id: string, level: Level) => setLevels((l) => ({ ...l, [id]: level }));
   const selected = REQUIREMENT_MODULES.filter((m) => levels[m.id] !== "none");
-  const byCif = (m: RequirementModule) => m.specs.every((s) => s.byCif);
   // Maximum age only for single-document modules.
   const ageSpec = (m: RequirementModule) => (m.specs.length === 1 && m.specs[0].supportsMaxAge ? m.specs[0] : null);
 
   return (
     <fieldset className="flex flex-col gap-4" aria-describedby={error ? "requirements-error" : "requirements-hint"}>
       <legend className="heading-section mb-1">Documentación solicitada</legend>
-      <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima. «Por CIF»: los obtienes tú con el CIF de la empresa y no se le piden.</p>
+      <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima. «Lo subo yo»: lo aportas tú desde el caso y no se le pide a la empresa; la empresa recibe el aviso solo con el resto.</p>
       {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
       <div className="flex flex-wrap gap-2">
         {REQUIREMENT_MODULES.map((m) => (
@@ -148,8 +165,8 @@ function Requirements({ values, error }: { values: Record<string, string>; error
                 <div className="text-[13px] text-muted">{m.hint}</div>
               </div>
               <div className="flex shrink-0 items-center gap-3 sm:contents">
-              <div role="group" aria-label={`${m.label}: ${byCif(m) ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
-                {(byCif(m) ? (["required", "optional", "cif"] as const) : (["required", "optional"] as const)).map((lvl) => (
+              <div role="group" aria-label={`${m.label}: obligatorio, opcional o lo subo yo`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
+                {LEVELS.map((lvl) => (
                   <button
                     key={lvl}
                     type="button"

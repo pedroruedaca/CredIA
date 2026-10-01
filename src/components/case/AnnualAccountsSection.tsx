@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * "Cuentas anuales" in the case view: whether they were obtained (by the lender, by CIF, or uploaded by the company),
+ * "Cuentas anuales" in the case view: whether they were obtained (uploaded by the analyst or by the company),
  * which year and model, and whether they are the basis of the closed year (no trial balance or Holded). When the
- * lender is to obtain them by CIF, it uploads the PDF here — the deposit from the Registro Mercantil or its
+ * analyst provides them ("Lo subo yo"), it uploads the PDF here — the deposit from the Registro Mercantil or its
  * provider's copy — or hands the request to the company.
  */
 import { useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ import type { CaseViewData } from "@/lib/case-view/load";
 import { sourceHref } from "@/lib/case-view/present";
 import { formatDate } from "@/lib/format";
 
-const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "tu entidad" } as const;
+const BY_LABEL = { borrower: "la empresa", delegate: "la gestoría", lender: "el analista" } as const;
 const MODEL_LABEL = { normal: "modelo normal", abreviado: "modelo abreviado", pymes: "modelo PYMES", other: "otro formato" } as const;
 
 export function AnnualAccountsSection({
@@ -30,8 +30,8 @@ export function AnnualAccountsSection({
 }: {
   caseId: string;
   data: CaseViewData["annualAccounts"];
-  /** How they were requested: by CIF (the lender obtains them), from the company, or not requested. */
-  source: "cif" | "borrower" | null;
+  /** How they were requested: the analyst uploads them ("Lo subo yo"), from the company, or not requested. */
+  source: "lender" | "borrower" | null;
   isClosedYearBasis: boolean;
   canEdit: boolean;
 }) {
@@ -54,11 +54,11 @@ export function AnnualAccountsSection({
   let status: React.ReactNode;
   let body: React.ReactNode = null;
   if (!data) {
-    status = source === "cif" ? <Pill tone="neutral">Por CIF · pendiente</Pill> : <Pill tone="neutral">Pedidas a la empresa</Pill>;
+    status = source === "lender" ? <Pill tone="neutral">Lo subes tú · pendiente</Pill> : <Pill tone="neutral">Pedidas a la empresa</Pill>;
     body = (
       <div className="flex flex-col gap-3">
         <p className="max-w-[640px] text-[15px] text-ink-2">
-          {source === "cif"
+          {source === "lender"
             ? "Obtén el depósito de cuentas con el CIF de la empresa en el Registro Mercantil o en tu proveedor y súbelo aquí. Sin sumas y saldos, el ejercicio cerrado se construye con ellas."
             : "La empresa aún no las ha subido. También puedes subirlas tú."}
         </p>
@@ -68,7 +68,7 @@ export function AnnualAccountsSection({
   } else if (!a) {
     status =
       data.status === "parsing" || data.status === "uploaded" ? (
-        <Pill tone="info">{source === "cif" ? "Obteniendo por CIF…" : "Leyendo…"}</Pill>
+        <Pill tone="info">Leyendo…</Pill>
       ) : (
         <Pill tone="warn">No leídas</Pill>
       );
@@ -104,7 +104,7 @@ export function AnnualAccountsSection({
         <h2 id="cuentas-anuales" className="heading-section">Cuentas anuales</h2>
         {status}
         <div className="grow" />
-        {canEdit && source === "cif" && !a && (
+        {canEdit && source === "lender" && !a && (
           <Button variant="link" size="sm" onClick={askCompany} disabled={asking}>{asking ? "Pidiendo…" : "Pedir a la empresa"}</Button>
         )}
         {canEdit && data && <UploadPill inputId={buttonInputId} pending={pending} onFile={upload} label="Subir otras" />}

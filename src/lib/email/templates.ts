@@ -46,8 +46,9 @@ const FOOTER_BORROWER = (lender: string) =>
 
 // ------------------------------------------------------------------------------------------------ borrower
 
-export function borrowerInviteEmail(i: { lenderName: string; companyName: string; link: string; expiresInDays?: number }): Email {
+export function borrowerInviteEmail(i: { lenderName: string; companyName: string; link: string; expiresInDays?: number; documents?: string[] }): Email {
   const company = i.companyName || "tu empresa";
+  const docs = i.documents?.length ? i.documents : null;
   const expires = i.expiresInDays ? `El enlace es personal y caduca en ${i.expiresInDays} días.` : "El enlace es personal: no lo reenvíes.";
   return {
     subject: oneLine(`${i.lenderName} te pide la documentación de ${company}`),
@@ -56,6 +57,7 @@ export function borrowerInviteEmail(i: { lenderName: string; companyName: string
       heading: `Documentación para ${company}`,
       paragraphs: [
         `${esc(i.lenderName)} necesita algunos documentos para estudiar la solicitud de financiación de <b style="color:#111315">${esc(company)}</b>.`,
+        ...(docs ? [`Te pide: ${docs.map((d) => `<b style="color:#111315">${esc(d)}</b>`).join(", ")}.`] : []),
         "Desde este enlace puedes subirlos paso a paso, conectar Holded si lo usas o pedírselos a tu gestoría. Un asistente te explica cómo conseguir cada uno.",
       ],
       button: { label: "Aportar la documentación", url: i.link },
@@ -64,6 +66,7 @@ export function borrowerInviteEmail(i: { lenderName: string; companyName: string
     }),
     text: text([
       `${i.lenderName} necesita algunos documentos para estudiar la solicitud de financiación de ${company}.`,
+      docs ? `Te pide: ${docs.join(", ")}.` : null,
       "Súbelos desde este enlace:",
       i.link,
       expires,

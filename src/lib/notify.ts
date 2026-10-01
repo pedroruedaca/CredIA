@@ -15,6 +15,8 @@ export interface BorrowerInvite {
   lenderName: string;
   companyName: string;
   link: string; // contains the raw magic-link token: treat as a secret
+  /** Documents the company is asked for (the analyst's own are left out). Listed in the email when given. */
+  documents?: string[];
 }
 
 /** Same case link, sent by the borrower to their gestoría. */

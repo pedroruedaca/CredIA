@@ -49,7 +49,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     .from("case_requirements")
     .select("max_age_days")
     .eq("case_id", access.caseId)
-    .neq("source", "cif")
+    .eq("source", "borrower")
     .eq("doc_kind", target.kind)
     .maybeSingle();
   if (!requirement) return reject("Este documento no forma parte de tu solicitud.");
