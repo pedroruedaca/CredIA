@@ -112,10 +112,8 @@ const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", cif: "Por C
 function Requirements({ values, error }: { values: Record<string, string>; error?: string }) {
   const [levels, setLevels] = useState<Record<string, Level>>(() =>
     Object.fromEntries(
-      REQUIREMENT_SPECS.map((spec) => {
-        const def: Level = spec.defaultRequired === null ? "none" : spec.defaultRequired ? "required" : "optional";
-        return [spec.kind, (values[`req_${spec.kind}`] as Level) ?? def];
-      }),
+      // A new case starts with nothing selected; after a failed submit the lender's choices are kept.
+      REQUIREMENT_SPECS.map((spec) => [spec.kind, (values[`req_${spec.kind}`] as Level) ?? "none"]),
     ),
   );
   const set = (kind: string, level: Level) => setLevels((l) => ({ ...l, [kind]: level }));
@@ -128,7 +126,7 @@ function Requirements({ values, error }: { values: Record<string, string>; error
       {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
       <div className="flex flex-wrap gap-2">
         {REQUIREMENT_SPECS.map((spec) => (
-          <TogglePill key={spec.kind} pressed={levels[spec.kind] !== "none"} onClick={() => set(spec.kind, levels[spec.kind] === "none" ? "required" : "none")} title={spec.hint}>
+          <TogglePill key={spec.kind} pressed={levels[spec.kind] !== "none"} onClick={() => set(spec.kind, levels[spec.kind] === "none" ? (spec.defaultRequired === false ? "optional" : "required") : "none")} title={spec.hint}>
             {spec.label}
           </TogglePill>
         ))}

@@ -19,7 +19,7 @@ export interface RequirementSpec {
   kind: RequirementKind;
   label: string;
   hint: string;
-  defaultRequired: boolean | null; // null = not requested by default
+  defaultRequired: boolean | null; // level when the lender selects it: false = optional; true/null = required
   defaultMaxAgeDays: number | null;
   supportsMaxAge: boolean;
   /** Can be obtained without the company, from its CIF (Registro Mercantil, credit-report providers). */

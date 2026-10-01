@@ -21,9 +21,9 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   await page.getByLabel("Producto").selectOption("poliza_circulante");
   await page.getByLabel("Importe (€)").fill("250000");
   await page.getByLabel("Plazo (meses)").fill("24");
-  for (const label of ["Modelo 200", "Informe CIRBE", "Certificado AEAT", "Certificado TGSS"]) {
+  for (const label of ["Contabilidad", "Extractos bancarios (Norma 43)"]) {
     const pill = page.getByRole("button", { name: label, exact: true });
-    if ((await pill.getAttribute("aria-pressed")) === "true") await pill.click();
+    if ((await pill.getAttribute("aria-pressed")) !== "true") await pill.click();
   }
   await page.getByRole("button", { name: "Crear caso" }).click();
   await expect(page.getByRole("heading", { name: /Caso creado/ })).toBeVisible();
