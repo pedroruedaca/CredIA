@@ -43,8 +43,10 @@ presentó en la Agencia Tributaria.
 
 **Para qué se pide.** Sirve como referencia oficial del ejercicio cerrado.
 
-**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria → [RUTA PARA DESCARGAR EL MODELO 200
-PRESENTADO], con el certificado digital de la empresa. Descargar el PDF de la declaración presentada.
+**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria (sede.agenciatributaria.gob.es), en la página
+del Modelo 200, opción «Consulta de declaraciones presentadas» (también en «Mis expedientes»). Identificación con
+certificado electrónico o Cl@ve. Se indican el NIF de la empresa, el modelo y el ejercicio; el botón «Ver» abre la
+copia de la declaración y el justificante, que se descargan en PDF.
 
 **Si lo lleva la gestoría.** Normalmente la gestoría presentó la declaración y tiene el PDF.
 
@@ -59,8 +61,9 @@ empresa, SII o REDEME) suben las declaraciones mensuales de esos 12 meses.
 **Qué trimestres.** Los 4 últimos cuyo plazo de presentación ya ha terminado (el 20 del mes siguiente al trimestre;
 el 30 de enero para el cuarto trimestre).
 
-**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria → [RUTA PARA DESCARGAR EL MODELO 303
-PRESENTADO], con el certificado digital de la empresa. Descargar el PDF de cada declaración presentada.
+**Cómo conseguirlo.** Igual que el Modelo 200: sede electrónica de la Agencia Tributaria, página del Modelo 303,
+«Consulta de declaraciones presentadas» (también en «Mis expedientes»). Se indican el NIF, el modelo, el ejercicio y,
+opcionalmente, el periodo; «Ver» abre la copia de cada declaración en PDF.
 
 **Si lo lleva la gestoría.** La gestoría tiene los justificantes de presentación de cada trimestre.
 
@@ -69,7 +72,8 @@ PRESENTADO], con el certificado digital de la empresa. Descargar el PDF de cada 
 **Qué es.** Las cuentas anuales del último ejercicio (balance, cuenta de pérdidas y ganancias y memoria),
 tal como se depositaron en el Registro Mercantil.
 
-**Cómo conseguirlo.** Pedir el PDF a la gestoría, o descargarlo en [RUTA DEL REGISTRO MERCANTIL].
+**Cómo conseguirlo.** Pedir el PDF a la gestoría, o solicitar el depósito de cuentas de la empresa en la sede
+electrónica de los Registradores (sede.registradores.org).
 
 ## Informe CIRBE (cirbe)
 
@@ -78,8 +82,10 @@ créditos y avales de la empresa declarados por las entidades financieras. Es gr
 
 **Para qué se pide.** Para conocer la financiación que la empresa tiene con otras entidades.
 
-**Cómo conseguirlo.** En la sede electrónica del Banco de España → [RUTA DEL TRÁMITE CIRBE], con el
-certificado digital de la empresa. Descargar el PDF.
+**Cómo conseguirlo.** En la sede electrónica del Banco de España (sedeelectronica.bde.es), trámite «Informe de
+riesgos de la Central de Información de Riesgos», con un certificado electrónico. Desde septiembre de 2023 las
+empresas tienen que pedirlo por vía electrónica. El informe suele estar disponible en unos 15 minutos, solo lo puede
+descargar quien lo pidió y se puede descargar durante 20 días.
 
 **Sin certificado digital.** La gestoría puede pedirlo si tiene apoderamiento o el certificado de la empresa.
 
@@ -88,8 +94,9 @@ certificado digital de la empresa. Descargar el PDF.
 **Qué es.** Certificado de la Agencia Tributaria de que la empresa está al corriente de sus obligaciones
 tributarias.
 
-**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria → [RUTA DEL CERTIFICADO DE ESTAR AL
-CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
+**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria: «Todas las gestiones» → «Certificados» →
+«Situación tributaria». Identificación con certificado electrónico, DNI electrónico o Cl@ve Móvil. Si el resultado
+es positivo, el certificado se obtiene en el momento. Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
 
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla concreta de este caso figura en la lista de
 documentos.
@@ -99,8 +106,9 @@ documentos.
 **Qué es.** Certificado de la Tesorería General de la Seguridad Social de que la empresa está al corriente de
 pago.
 
-**Cómo conseguirlo.** En la sede electrónica de la Seguridad Social → [RUTA DEL CERTIFICADO DE ESTAR AL
-CORRIENTE], con el certificado digital de la empresa. Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
+**Cómo conseguirlo.** En la sede electrónica de la Seguridad Social (sede.seg-social.gob.es): «Empresas y
+Profesionales» → «Informes y Certificados» → certificado de estar al corriente, con el certificado electrónico de la
+empresa. Se puede pedir un certificado genérico o para un fin concreto (subvenciones, contratación pública…). Descargar el PDF. La fecha de emisión se lee del documento; en el portal se puede indicar también, pero no es obligatorio.
 
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla concreta de este caso figura en la lista de
 documentos. Si el portal marca el certificado como antiguo, hay que pedir uno nuevo y subirlo.
@@ -114,8 +122,8 @@ cuentas depositadas.
 **Para qué se pide.** Para que la entidad conozca las incidencias de pago y judiciales de la empresa sin
 pedírselas una a una.
 
-**Cómo conseguirlo.** Se pide al proveedor de información comercial → [RUTA PARA OBTENER EL INFORME DE
-EMPRESA]. Hay que subir el informe completo en PDF, tal como lo entrega el proveedor, no un resumen ni una
+**Cómo conseguirlo.** Se pide al proveedor de información comercial; cada proveedor tiene su propio servicio y
+esta guía no detalla sus pasos. Hay que subir el informe completo en PDF, tal como lo entrega el proveedor, no un resumen ni una
 captura. Cualquier proveedor vale salvo que la entidad indique otra cosa. La fecha del informe se lee del documento.
 
 **Coste.** Los proveedores suelen cobrar por el informe. Si la empresa no quiere pedirlo, puede decirlo con
