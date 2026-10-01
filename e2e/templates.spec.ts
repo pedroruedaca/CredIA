@@ -17,19 +17,19 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await page.getByRole("button", { name: "Contabilidad", exact: true }).click();
   await page.getByRole("button", { name: "Informe CIRBE", exact: true }).click();
   await page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" }).click();
-  await page.getByRole("button", { name: "Crear plantilla" }).click();
-  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
-  await expect(page.getByText("Guardada")).toBeVisible();
-
-  // 2. Its own dashboard: without «Fuentes».
-  await page.getByRole("link", { name: "Diseñar el panel" }).click();
+  // 2. A personalised panel: creating the template opens the designer straight away. Without «Fuentes».
+  await expect(page.getByRole("button", { name: "Crear plantilla", exact: true })).toBeVisible();
+  await page.getByText("Panel personalizado").click();
+  await page.getByRole("button", { name: "Crear plantilla y diseñar el panel" }).click();
+  await expect(page.getByRole("heading", { name: "Panel del caso de esta plantilla" })).toBeVisible();
   await page.getByRole("list", { name: "Módulos del panel, en orden" }).getByRole("button", { name: "Quitar Fuentes" }).click();
   await page.getByRole("button", { name: "Guardar diseño" }).click();
   await expect(page.getByText("Diseño propio")).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Panel personalizado/ })).toBeChecked();
 
   // 3. A case from it: product and documents pre-filled; the analyst adds Norma 43.
   await page.getByRole("link", { name: "Crear caso con esta plantilla" }).click();
-  await expect(page.getByLabel("Plantilla")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByLabel("Plantilla", { exact: true })).toHaveValue(/[0-9a-f-]{36}/);
   await expect(page.getByLabel("Producto", { exact: true })).toHaveValue("factoring");
   await expect(page.getByRole("button", { name: "Contabilidad", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" })).toHaveAttribute("aria-pressed", "true");

@@ -160,7 +160,8 @@ Edit operations are pure in `modules.ts` (`moveModule`, `removeModule`, `addModu
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
 maxAgeDays}]`) and optionally its own case-view layout (`case_templates`, 0019; members read, owners/analysts write).
 Pure model `src/lib/cases/templates.ts` (`parseTemplateForm`, `normalizeTemplateRequirements`, `templateFormValues`);
-store `template-store.ts`; pages `/plantillas`, `/plantillas/nueva`, `/plantillas/[id]` (`?panel=1` = its layout
+store `template-store.ts`; pages `/plantillas`, `/plantillas/nueva`, `/plantillas/[id]` (form ends with «Panel estándar» /
+«Panel personalizado»; choosing personalizado opens the designer after saving; `?panel=1` = its layout
 editor); actions `src/app/plantillas/actions.ts`. The new-case form's «Plantilla» select fills product and documents
 (still editable; `RequirementsPicker`, shared with the template form, posts `req_*`/`age_*` → `parseRequirementFields`)
 and stores `cases.template_id` (trigger: same lender; `on delete set null`). Documents are copied into the case at

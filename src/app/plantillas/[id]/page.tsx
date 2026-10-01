@@ -65,7 +65,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
 
       <section aria-labelledby="panel" className="mb-12 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-          <h2 id="panel" className="heading-section">Panel del caso</h2>
+          <h2 id="panel" className="heading-section">Módulos del panel</h2>
           <Pill tone={t.layout ? "accent" : "neutral"}>{t.layout ? "Diseño propio" : "Diseño del equipo"}</Pill>
           <div className="grow" />
           {canEdit && (
@@ -80,6 +80,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
       <TemplateForm
         id={t.id}
         canEdit={canEdit}
+        hasOwnPanel={!!t.layout}
         initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements) }}
       />
 

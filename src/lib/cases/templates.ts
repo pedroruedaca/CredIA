@@ -62,11 +62,14 @@ export function templateFormValues(reqs: TemplateRequirement[]): Record<string, 
 
 export type TemplateFieldErrors = Partial<Record<"name" | "description" | "product" | "requirements", string>>;
 
+/** The template's case-view panel: the team's standard one, or its own (designed in the panel editor). */
+export type TemplatePanel = "team" | "custom";
+
 const productValues: string[] = PRODUCTS.map((p) => p.value);
 
 /** The template form: name, description, optional default product, the document choices. */
 export function parseTemplateForm(values: Record<string, string | undefined>):
-  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[] } }
+  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[]; panel: TemplatePanel } }
   | { ok: false; errors: TemplateFieldErrors } {
   const errors: TemplateFieldErrors = {};
   const name = (values.name ?? "").trim();
@@ -78,7 +81,8 @@ export function parseTemplateForm(values: Record<string, string | undefined>):
   const req = parseRequirementFields(values);
   if (req.error) errors.requirements = req.error;
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements) } };
+  const panel: TemplatePanel = values.panel === "custom" ? "custom" : "team";
+  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements), panel } };
 }
 
 /** One line for lists: "6 documentos · 2 los subes tú". */

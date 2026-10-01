@@ -16,8 +16,16 @@ describe("process templates", () => {
           { kind: "cirbe", level: "lender", maxAgeDays: null },
           { kind: "tgss_cert", level: "optional", maxAgeDays: 60 },
         ],
+        panel: "team",
       },
     });
+  });
+
+  it("reads the panel choice: the team's standard panel unless «custom»", () => {
+    const base = { name: "Préstamo", req_cirbe: "required" };
+    expect(parseTemplateForm({ ...base, panel: "custom" })).toMatchObject({ ok: true, data: { panel: "custom" } });
+    expect(parseTemplateForm({ ...base, panel: "team" })).toMatchObject({ ok: true, data: { panel: "team" } });
+    expect(parseTemplateForm({ ...base, panel: "anything" })).toMatchObject({ ok: true, data: { panel: "team" } });
   });
 
   it("asks for a name and at least one document, and a known product", () => {

@@ -1,7 +1,13 @@
 "use client";
 
-/** Name, description, default product and documents of a template. The dashboard is edited separately. */
-import { useActionState } from "react";
+/**
+ * Name, description, default product, documents and panel of a template. The panel is the team's standard one or the
+ * template's own: choosing «personalizado» opens the panel designer right after saving (the first time).
+ */
+import Link from "next/link";
+import { LayoutDashboard, LayoutTemplate } from "lucide-react";
+import { useActionState, useState } from "react";
+import { cx } from "@/components/ui/cx";
 import { RequirementsPicker } from "@/components/RequirementsPicker";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Input";
@@ -9,10 +15,13 @@ import { Pill } from "@/components/ui/Pill";
 import { PRODUCTS } from "@/content/products.es";
 import { saveTemplate, type TemplateFormState } from "./actions";
 
-export function TemplateForm({ id, initial, canEdit }: { id: string | null; initial: Record<string, string>; canEdit: boolean }) {
+export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false }: { id: string | null; initial: Record<string, string>; canEdit: boolean; hasOwnPanel?: boolean }) {
   const [state, action, pending] = useActionState<TemplateFormState, FormData>(saveTemplate.bind(null, id), { status: "idle" });
   const values = state.status === "idle" ? initial : state.values;
   const errors = state.status === "invalid" ? state.errors : {};
+  const [panel, setPanel] = useState<"team" | "custom">((values.panel as "team" | "custom" | undefined) ?? (hasOwnPanel ? "custom" : "team"));
+  const designNext = panel === "custom" && !hasOwnPanel;
+  const submitLabel = pending ? "Guardando…" : id ? (designNext ? "Guardar y diseñar el panel" : "Guardar cambios") : designNext ? "Crear plantilla y diseñar el panel" : "Crear plantilla";
   return (
     <form action={action} className="flex flex-col gap-10" noValidate>
       {state.status === "failed" && <p role="alert" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="high">Error</Pill>{state.message}</p>}
@@ -33,13 +42,60 @@ export function TemplateForm({ id, initial, canEdit }: { id: string | null; init
           </Field>
         </section>
         <RequirementsPicker values={values} error={errors.requirements} legend="Documentos que pide" />
+
+        <fieldset className="flex flex-col gap-3">
+          <legend className="heading-section mb-1">Panel del caso</legend>
+          <p className="text-[15px] text-ink-2">Lo que ve el analista cuando llegan los documentos: indicadores, cuenta de resultados, balance, alertas…</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PanelOption
+              value="team"
+              checked={panel === "team"}
+              onChange={setPanel}
+              icon={<LayoutTemplate size={20} strokeWidth={1.8} aria-hidden />}
+              title="Panel estándar"
+              text="El del equipo. Si el equipo lo cambia, esta plantilla también."
+            />
+            <PanelOption
+              value="custom"
+              checked={panel === "custom"}
+              onChange={setPanel}
+              icon={<LayoutDashboard size={20} strokeWidth={1.8} aria-hidden />}
+              title="Panel personalizado"
+              text={hasOwnPanel ? "Esta plantilla ya tiene su propio panel." : "Elige, ordena y ensancha los módulos para este tipo de operación."}
+            />
+          </div>
+          {id && hasOwnPanel && panel === "custom" && (
+            <Link href={`/plantillas/${id}?panel=1`} className="inline-flex min-h-11 w-fit items-center gap-1.5 text-[15px] font-medium">
+              <LayoutDashboard size={16} strokeWidth={1.8} aria-hidden /> Editar el panel
+            </Link>
+          )}
+          {id && hasOwnPanel && panel === "team" && <p className="text-[13px] text-muted">Al guardar se descarta el panel propio de esta plantilla.</p>}
+        </fieldset>
       </fieldset>
       {canEdit && (
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={pending}>{pending ? "Guardando…" : id ? "Guardar cambios" : "Crear plantilla"}</Button>
+          <Button type="submit" disabled={pending}>{submitLabel}</Button>
           <ButtonLink href="/plantillas" variant="secondary">Cancelar</ButtonLink>
         </div>
       )}
     </form>
+  );
+}
+
+function PanelOption({ value, checked, onChange, icon, title, text }: { value: "team" | "custom"; checked: boolean; onChange: (v: "team" | "custom") => void; icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <label
+      className={cx(
+        "flex min-h-24 cursor-pointer items-start gap-3 rounded-row px-4 py-4 transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+        checked ? "bg-ink text-white" : "bg-soft text-ink hover:bg-soft-control",
+      )}
+    >
+      <input type="radio" name="panel" value={value} checked={checked} onChange={() => onChange(value)} className="sr-only" />
+      <span className={cx("mt-0.5 shrink-0", checked ? "text-white" : "text-accent")}>{icon}</span>
+      <span className="flex flex-col gap-1">
+        <span className="text-[15px] font-semibold">{title}</span>
+        <span className={cx("text-[13px]", checked ? "text-white/75" : "text-ink-2")}>{text}</span>
+      </span>
+    </label>
   );
 }
