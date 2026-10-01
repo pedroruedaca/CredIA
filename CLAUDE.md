@@ -131,6 +131,11 @@ Not yet tested against real provider PDFs: adjust the schema descriptions when t
   hands it back. The invitation email lists only the company's documents; with none, the company is not invited
   ("Nuevo enlace" invites it later). `isLenderProvided` also reads legacy 'cif'. A contracted provider could later fetch
   a PDF by CIF and register it like a lender upload.
+- **Who a case waits on** (`src/lib/cases/attention.ts`, pure): the case status follows the company and processing;
+  the analyst's missing required uploads show as a second pill «Te toca subir · N» (case list and header). A case with
+  no company documents is marked submitted once the analyst's required ones are in (`analystCompletesCase`, in
+  `recompute`) and moves on to processing → ready. Case list filters (`?filtro=`): todos, atencion (analyst owes
+  documents, ready, needs_review), empresa (waiting on the company), procesando.
 
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
@@ -168,7 +173,8 @@ closing-entries suspicion.
   them under timestamp versions and the history drifts). Code and migration go live together: Vercel may serve new code
   a minute before the migration finishes, so keep migrations compatible with the code before them where you can.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
-  TB + Norma 43 → lender sees the package. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
+  analyst's upload). `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.

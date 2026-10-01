@@ -40,4 +40,10 @@ export default async function globalSetup() {
   a3Rows.forEach((r) => ws.addRow(r));
   writeFileSync("e2e/.files/sumas-y-saldos-2025.xlsx", Buffer.from(await wb.xlsx.writeBuffer()));
   writeFileSync("e2e/.files/movimientos.n43", n43Sample, "latin1");
+  // A minimal, valid one-page PDF: enough for the upload checks (header and end marker). It is not read (no API key).
+  writeFileSync(
+    "e2e/.files/cirbe.pdf",
+    "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n",
+    "latin1",
+  );
 }

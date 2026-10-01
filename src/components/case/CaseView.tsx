@@ -14,7 +14,8 @@ import { RegistrySection } from "@/components/case/RegistrySection";
 import { LenderDocumentsSection } from "@/components/case/LenderDocumentsSection";
 import { AnnualAccountsSection } from "@/components/case/AnnualAccountsSection";
 import { SolvencySection } from "@/components/case/SolvencySection";
-import { StatusChip } from "@/components/StatusChip";
+import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
+import { analystPending } from "@/lib/cases/attention";
 import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
 import { cx } from "@/components/ui/cx";
@@ -67,6 +68,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
               <span className="font-mono" aria-current="page">{caseRef(kase.id)}</span>
             </nav>
             <StatusChip status={kase.status} />
+            <AnalystPendingChip count={analystPending(data.requirements, data.documents).length} />
             <span className="grow" />
             <DetailsSheet
               company={company}

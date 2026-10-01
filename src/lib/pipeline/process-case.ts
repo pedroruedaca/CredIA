@@ -21,6 +21,7 @@ import { annualAccountsPeriod, statementFromAnnualAccounts } from "../pgc/annual
 import { buildStatement, isFullStatement } from "../pgc/mapping.ts";
 import { MODELO200_SOURCE, MODELO303_SOURCE, modelo200Period, statementFromModelo200, statementFromModelo303 } from "../pgc/tax-returns.ts";
 import { coveredYtdEnd, type M303Return } from "../tax/modelo303.ts";
+import { analystCompletesCase } from "../cases/attention.ts";
 import type { AnnualAccountsExtraction, CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import type { AdminClient } from "../borrower/access.ts";
 import { addDays, fiscalYearStart, type LedgerBalance, type Period, type PeriodKind, type Warning } from "../types.ts";
@@ -533,7 +534,7 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     const debtBasis = isFullStatement(ytd) ? ytd : isFullStatement(closed) ? closed : null;
     checks.push(checkOverdrafts(accounts), checkDebtPaymentsVsDeclaredDebt(accounts, debtBasis, cirbe));
   }
-  const { data: reqs } = await db.from("case_requirements").select("doc_kind, max_age_days").eq("case_id", kase.id);
+  const { data: reqs } = await db.from("case_requirements").select("doc_kind, required, max_age_days, source").eq("case_id", kase.id);
   for (const kind of ["aeat_cert", "tgss_cert"] as const) {
     const req = (reqs ?? []).find((r) => r.doc_kind === kind);
     if (!req) continue;
@@ -577,7 +578,18 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   const { data: open } = await db.from("documents").select("status, extractions(id)").eq("case_id", kase.id).in("status", ["parsing", "uploaded", "needs_review"]);
   const waiting = (open ?? []).some((d) => d.status === "parsing" || (d.status === "uploaded" && !(d.extractions as unknown[] | null)?.length));
   const update: Record<string, unknown> = { processed_at: now.toISOString() };
-  if (kase.submitted_at && ["processing", "ready", "needs_review"].includes(kase.status)) {
+  // Nothing for the company to provide ("Lo subo yo" for every document): the case moves on, as if submitted, once the
+  // analyst's required documents are in.
+  let status = kase.status;
+  if (!kase.submitted_at && status === "awaiting_documents") {
+    const { data: docKinds } = await db.from("documents").select("kind, status").eq("case_id", kase.id);
+    if (analystCompletesCase(reqs ?? [], docKinds ?? [])) {
+      update.submitted_at = now.toISOString();
+      status = "processing";
+      await db.from("audit_log").insert({ lender_id: kase.lender_id, case_id: kase.id, actor: "system", action: "case.analyst_documents_complete", detail: {} });
+    }
+  }
+  if ((kase.submitted_at || update.submitted_at) && ["processing", "ready", "needs_review"].includes(status)) {
     update.status = (open ?? []).some((d) => d.status === "needs_review") ? "needs_review" : waiting ? "processing" : "ready";
   }
   await db.from("cases").update(update).eq("id", kase.id);

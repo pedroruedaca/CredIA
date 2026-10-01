@@ -1,8 +1,9 @@
 /** Open list of cases: company, request line, status pill, documents track, relative time, row actions. */
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { StatusChip } from "@/components/StatusChip";
+import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { productLabel } from "@/content/products.es";
+import { analystPending } from "@/lib/cases/attention";
 import { completeness } from "@/lib/cases/requirements";
 import { caseRef, formatFigure, relativeTime } from "@/lib/format";
 import { NewLinkButton } from "./NewLinkButton";
@@ -56,20 +57,27 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
                 <span className="font-mono text-[13px]">{caseRef(c.id)}</span>
               </div>
             </div>
-            <div className="justify-self-end md:justify-self-start"><StatusChip status={c.status} /></div>
-            <div className="col-span-2 flex items-center gap-3 md:col-span-1" title={`${p.done} de ${p.total} documentos obligatorios`}>
-              <div
-                className="h-1 grow overflow-hidden rounded-full bg-track"
-                role="progressbar"
-                aria-valuenow={p.done}
-                aria-valuemin={0}
-                aria-valuemax={p.total}
-                aria-label={`Documentos de ${name}: ${p.done} de ${p.total}`}
-              >
-                <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
-              </div>
-              <span className="shrink-0 font-mono text-[13px] text-ink-2">{p.done}/{p.total}</span>
+            <div className="flex flex-wrap items-center justify-end gap-1.5 justify-self-end md:justify-start md:justify-self-start">
+              <StatusChip status={c.status} />
+              <AnalystPendingChip count={analystPending(c.case_requirements, c.documents).length} />
             </div>
+            {p.total === 0 ? (
+              <div className="col-span-2 text-[13px] text-muted md:col-span-1" title="La empresa no tiene documentos que aportar">Sin documentos de la empresa</div>
+            ) : (
+              <div className="col-span-2 flex items-center gap-3 md:col-span-1" title={`${p.done} de ${p.total} documentos obligatorios`}>
+                <div
+                  className="h-1 grow overflow-hidden rounded-full bg-track"
+                  role="progressbar"
+                  aria-valuenow={p.done}
+                  aria-valuemin={0}
+                  aria-valuemax={p.total}
+                  aria-label={`Documentos de ${name}: ${p.done} de ${p.total}`}
+                >
+                  <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
+                </div>
+                <span className="shrink-0 font-mono text-[13px] text-ink-2">{p.done}/{p.total}</span>
+              </div>
+            )}
             <time dateTime={c.updated_at} className="text-sm text-muted">{relativeTime(c.updated_at, now)}</time>
             <div className="flex justify-end gap-1">
               <Link href={`/casos/${c.id}/vista-empresa`} className={iconAction} title="Ver como la empresa">
