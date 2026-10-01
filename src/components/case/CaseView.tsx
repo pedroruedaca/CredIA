@@ -1,37 +1,28 @@
 /**
- * Lender case view body (design/lender-case-view2.html): header, summary sentence, five metrics, "Para revisar"
- * with the evidence panel (?check=<slug>), balance structure with lineage, sources. Nothing here scores or recommends.
+ * Lender case view (design/lender-case-view2.html): a fixed header and evidence panel (?check=<slug>), and a body of
+ * modules drawn from a layout (CaseModules; DEFAULT_LAYOUT until templates are stored). Nothing here scores or
+ * recommends.
  */
 import Link from "next/link";
-import { Check, ChevronRight, Eye } from "lucide-react";
-import { BalanceBars } from "@/components/case/BalanceBars";
+import { Eye } from "lucide-react";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
-import { KpiRow } from "@/components/case/KpiRow";
-import { PnlSankey } from "@/components/case/PnlSankey";
-import { RegistrySection } from "@/components/case/RegistrySection";
-import { LenderDocumentsSection } from "@/components/case/LenderDocumentsSection";
-import { AnnualAccountsSection } from "@/components/case/AnnualAccountsSection";
-import { SolvencySection } from "@/components/case/SolvencySection";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
-import { Pill, SourcePill } from "@/components/ui/Pill";
-import { SeverityDot } from "@/components/ui/SeverityDot";
-import { cx } from "@/components/ui/cx";
-import { CHECK_PASS_LABEL, REVIEW_LABEL } from "@/content/case-view.es";
+import { Pill } from "@/components/ui/Pill";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
-import { sourceHref } from "@/lib/case-view/present";
-import { caseRef, formatCompactEur, formatDate, formatFigure, relativeTime } from "@/lib/format";
+import { DEFAULT_LAYOUT, type Layout } from "@/lib/case-view/modules";
+import { CaseModules } from "@/components/case/modules/CaseModules";
+import { caseRef, formatDate, formatFigure, relativeTime } from "@/lib/format";
 
-export function CaseView({ data, check, canEdit, userId, now = new Date() }: { data: CaseViewData; check: string | null; canEdit: boolean; userId: string; now?: Date }) {
+export function CaseView({ data, check, canEdit, userId, now = new Date(), layout = DEFAULT_LAYOUT }: { data: CaseViewData; check: string | null; canEdit: boolean; userId: string; now?: Date; layout?: Layout }) {
   const { kase } = data;
   const pkg = buildPackage(data);
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const hasFinancials = pkg.basePeriod !== null;
-  const reviewedCount = pkg.open.filter((v) => v.review && v.review.status !== "open").length;
   
 
   const company = [
@@ -101,7 +92,7 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
           <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="info">Procesando</Pill> Estamos leyendo los documentos; las cifras se actualizarán al terminar.</p>
         )}
 
-        {!hasFinancials ? (
+        {!hasFinancials && (
           <div className="rounded-panel bg-soft px-8 py-12 text-center">
             <h2 className="heading-section">Aún no hay contabilidad procesada</h2>
             <p className="mx-auto mt-1 max-w-md text-[15px] text-ink-2">
@@ -109,119 +100,9 @@ export function CaseView({ data, check, canEdit, userId, now = new Date() }: { d
             </p>
             <Link href={`/casos/${kase.id}/vista-empresa`} className="mt-2 inline-flex min-h-11 items-center text-[15px]">Ver qué ha subido la empresa</Link>
           </div>
-        ) : (
-          <>
-            {pkg.summary && (
-              <p className="max-w-[720px] text-[19px] leading-normal tracking-[-0.01em] text-ink-2 sm:text-[22px]">
-                {pkg.summary.map((s, i) =>
-                  s.emphasis === "figure" ? <b key={i} className="font-semibold text-ink">{s.text}</b> : s.emphasis === "discrepancy" ? <b key={i} className="font-semibold text-high">{s.text}</b> : <span key={i}>{s.text}</span>,
-                )}
-              </p>
-            )}
-            {pkg.tiles.length > 0 && <KpiRow tiles={pkg.tiles} />}
-          </>
         )}
 
-        <section aria-labelledby="para-revisar" className="flex flex-col gap-1">
-          <div className="mb-2 flex flex-wrap items-baseline gap-x-2.5">
-            <h2 id="para-revisar" className="heading-section">Para revisar</h2>
-            <span className={cx("text-[13px] text-muted", pkg.open.length + pkg.passed.length === 0 && "hidden")}>
-              {pkg.open.length} {pkg.open.length === 1 ? "abierta" : "abiertas"}
-              {reviewedCount > 0 && ` (${reviewedCount} revisada${reviewedCount === 1 ? "" : "s"})`} · {pkg.passed.length} {pkg.passed.length === 1 ? "verificación correcta" : "verificaciones correctas"}
-            </span>
-          </div>
-          {pkg.open.length === 0 && (
-            <p className="text-[15px] text-ink-2">{hasFinancials ? "No hay alertas abiertas." : "Las verificaciones aparecerán cuando haya datos."}</p>
-          )}
-          <ul className="flex flex-col gap-1">
-            {pkg.open.map((v) => {
-              const selected = v.slug === check;
-              const reviewed = v.review && v.review.status !== "open";
-              return (
-                <li key={v.slug}>
-                  <Link
-                    href={`?check=${encodeURIComponent(v.slug)}`}
-                    scroll={false}
-                    aria-current={selected ? "true" : undefined}
-                    className={cx(
-                      "-mx-4 flex items-center gap-3.5 rounded-row px-4 py-3.5 text-ink transition-colors duration-150 hover:bg-soft hover:text-ink hover:no-underline",
-                      selected && "bg-soft",
-                    )}
-                  >
-                    <SeverityDot tone={v.severity} className={cx("size-2.5", reviewed && "opacity-40")} />
-                    <span className="flex min-w-0 grow flex-col gap-0.5">
-                      <span className={cx("line-clamp-2 text-[15px] font-medium", reviewed && "text-ink-2")}>{v.message}</span>
-                      <span className="truncate text-[13px] text-muted">{[v.name, v.evidenceLine].filter(Boolean).join(" · ")}</span>
-                    </span>
-                    {reviewed && <Pill tone={v.review!.status === "reviewed" ? "ok" : "info"} className="hidden sm:inline-flex">{REVIEW_LABEL[v.review!.status]}</Pill>}
-                    <ChevronRight size={18} strokeWidth={2} className={selected ? "text-ink" : "text-faint"} aria-hidden />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          {pkg.passed.length > 0 && (
-            <ul aria-label="Verificaciones correctas" className="flex flex-wrap gap-2 pt-2.5">
-              {pkg.passed.map((v) => (
-                <li key={v.slug}><Pill tone="ok" dot={false} className="font-normal"><Check size={14} strokeWidth={2.2} aria-hidden />{CHECK_PASS_LABEL[v.key] ?? v.name}</Pill></li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {pkg.pnl && pkg.pnlPeriod && (
-          <section aria-labelledby="pyg" className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline gap-x-2.5">
-              <h2 id="pyg" className="heading-section">
-                Cuenta de resultados{" "}
-                {pkg.pnlPeriod.months === 12 && pkg.pnlPeriod.start.endsWith("-01-01")
-                  ? pkg.pnlPeriod.end.slice(0, 4)
-                  : `${formatDate(pkg.pnlPeriod.start)} – ${formatDate(pkg.pnlPeriod.end)}`}
-              </h2>
-              <span className="text-[13px] text-muted">
-                {formatCompactEur(pkg.pnl.revenue)} de cifra de negocios{pkg.pnlPeriod.months !== 12 ? ` · ${pkg.pnlPeriod.months} meses, sin anualizar` : ""}
-              </span>
-            </div>
-            <PnlSankey model={pkg.pnl} caseId={kase.id} docs={data.documents} />
-          </section>
-        )}
-
-        {pkg.balance && pkg.balanceDate && (
-          <section aria-labelledby="balance" className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline gap-x-2.5">
-              <h2 id="balance" className="heading-section">Balance a {formatDate(pkg.balanceDate)}</h2>
-              <span className="text-[13px] text-muted">{formatCompactEur(pkg.balance.total)}</span>
-              <div className="grow" />
-              <Link href={`/casos/${kase.id}/tablas`} className="inline-flex min-h-11 items-center text-[13px] font-medium">Ver tablas completas</Link>
-            </div>
-            <BalanceBars bars={pkg.balance} caseId={kase.id} docs={data.documents} />
-          </section>
-        )}
-
-        <LenderDocumentsSection caseId={kase.id} data={data} canEdit={canEdit} />
-
-        <AnnualAccountsSection
-          caseId={kase.id}
-          data={data.annualAccounts}
-          source={data.requirements.find((r) => r.doc_kind === "cuentas_anuales")?.source ?? null}
-          isClosedYearBasis={data.statements.closedSource === "annual_accounts"}
-          canEdit={canEdit}
-        />
-
-        <SolvencySection
-          caseId={kase.id}
-          solvency={data.solvency}
-          canEdit={canEdit}
-          requested={data.requirements.find((r) => r.doc_kind === "solvency_report")?.source ?? null}
-        />
-
-        <RegistrySection caseId={kase.id} companyName={data.registeredName} registry={data.registry} canEdit={canEdit} />
-
-        <footer aria-label="Fuentes" className="flex flex-wrap items-center gap-2.5 text-[13px] text-muted">
-          <span>Fuentes</span>
-          {pkg.sources.length === 0 && <span>Aún no hay documentos.</span>}
-          {pkg.sources.map((s) => <SourcePill key={s.label} href={sourceHref(kase.id, s.docId, null)} className="font-sans text-[13px] text-ink">{s.label}</SourcePill>)}
-        </footer>
+        <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />
       </div>
 
       <EvidencePanel caseId={kase.id} views={pkg.open} selected={check} canEdit={canEdit} />

@@ -137,6 +137,19 @@ Not yet tested against real provider PDFs: adjust the schema descriptions when t
   `recompute`) and moves on to processing → ready. Case list filters (`?filtro=`): todos, atencion (analyst owes
   documents, ready, needs_review), empresa (waiting on the company), procesando.
 
+## Modular case view
+The case view body is a list of **modules** drawn from a **layout** (BI-style dashboard). Registry and layout format:
+`src/lib/case-view/modules.ts` (pure, tested): `MODULE_SPECS` (id, title, description, `removable`, allowed widths
+full/half), `DEFAULT_LAYOUT` (today's order), `normalizeLayout` (any stored JSON → safe layout: unknown/repeated
+modules dropped, widths the module allows, «Para revisar» always present), `layoutRows` (two consecutive halves share
+a row). Components: `src/components/case/modules/CaseModules.tsx` (one component per module, each renders nothing
+when empty). The header and the evidence panel are not modules.
+Decided defaults: team template per lender (owners/editors edit), product templates and personal overrides later;
+rows of full or half width (no free grid); «Para revisar» movable, not removable; the committee PDF follows the
+layout; Excel/JSON exports stay complete. Phases: 1 registry + default layout ✅ · 2 team template + edit mode
+(`dashboard_layouts`, dnd-kit) · 3 product templates, personal overrides, module settings, PDF follows layout ·
+4 new modules (303 quarterly sales, CIRBE by bank/maturity, N43 monthly flows, closed vs YTD).
+
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
 - Groups 46/47/55: classify by sign (debit → asset, credit → liability).
