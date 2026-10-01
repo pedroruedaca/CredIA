@@ -3,7 +3,7 @@
  * (with source_ref) behind every line. Expenses are shown negative. Pure.
  */
 import { LINE_LABEL } from "../../content/case-view.es.ts";
-import type { CanonicalStatement, LineContribution } from "../pgc/mapping.ts";
+import { isFullStatement, type CanonicalStatement, type LineContribution } from "../pgc/mapping.ts";
 
 export interface TableRow {
   key: string;
@@ -89,10 +89,19 @@ function build(specs: Spec[], statements: (CanonicalStatement | null)[], skipEmp
 }
 
 export function statementTables(statements: (CanonicalStatement | null)[], skipEmpty = true) {
-  const withPnl = statements.map((s) => (s?.pnlAvailable ? s : null));
+  // Revenue-only periods (Modelo 303) have no balance sheet and only the revenue line of the P&L: the rest is
+  // unknown, so it shows empty rather than zero.
+  const withBalance = statements.map((s) => (isFullStatement(s) ? s : null));
+  const revenueOnly = statements.map((s) => s?.scope === "revenue");
+  const withPnl = statements.map((s) => (s?.pnlAvailable || s?.scope === "revenue" ? s : null));
+  const pnl = withPnl.some(Boolean)
+    ? build(PNL, withPnl, false)
+        .map((r) => (r.key === "revenue" ? r : { ...r, values: r.values.map((v, i) => (revenueOnly[i] ? null : v)), accounts: r.accounts.map((a, i) => (revenueOnly[i] ? [] : a)) }))
+        .filter((r) => !skipEmpty || (r.kind !== "line" && r.kind !== "memo") || r.values.some((v) => v !== null && v !== 0))
+    : [];
   return {
-    assets: build(ASSETS, statements, skipEmpty),
-    liabilities: build(LIABILITIES, statements, skipEmpty),
-    pnl: withPnl.some(Boolean) ? build(PNL, withPnl, skipEmpty) : [],
+    assets: withBalance.some(Boolean) ? build(ASSETS, withBalance, skipEmpty) : [],
+    liabilities: withBalance.some(Boolean) ? build(LIABILITIES, withBalance, skipEmpty) : [],
+    pnl,
   };
 }

@@ -3,6 +3,7 @@
  * Hand-checked: accrued base 2T 26 = 240.000 + 12.000 = 252.000 €; cuota = 50.400 + 1.200 = 51.600 €.
  */
 import type { Modelo303Wire } from "../extract/schemas.ts";
+import { periodRange, type M303Period, type M303Return } from "../tax/modelo303.ts";
 
 export const modelo303Wire = (fiscal_year: number, period: Modelo303Wire["period"], base21 = 240_000, base10 = 12_000): Modelo303Wire => ({
   document_type: "modelo303",
@@ -20,5 +21,14 @@ export const modelo303Wire = (fiscal_year: number, period: Modelo303Wire["period
   result: base21 * 0.21 + base10 * 0.1 - 38_000,
   intra_eu_supplies: null,
   exports: 0,
+  not_subject_location: null,
+  reverse_charge_supplies: null,
   summary_page: 2,
+});
+
+/** A read Modelo 303 return as the pipeline passes it on: `sales` all at the general rate, nothing else declared. */
+export const m303Return = (fiscalYear: number, period: M303Period, sales = 250_000, uploadedAt = "2026-09-20T10:00:00Z"): M303Return => ({
+  docId: `303-${fiscalYear}-${period}-${uploadedAt.slice(0, 10)}`,
+  uploadedAt,
+  data: { fiscalYear, period, periodStart: periodRange(fiscalYear, period).start, periodEnd: periodRange(fiscalYear, period).end, accruedBase: sales, intraEuSupplies: null, exports: null, page: 2 },
 });

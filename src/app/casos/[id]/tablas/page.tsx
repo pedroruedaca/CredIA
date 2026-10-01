@@ -87,7 +87,7 @@ export default async function TablasPage({ params }: { params: Promise<{ id: str
   await logCaseRead(db, lender, id, "case.tables_viewed");
   const { closed, ytd } = data.statements;
   const statements = [closed, ytd].filter((s) => s !== null);
-  const columns = statements.map((s) => (s.period.kind === "closed_fy" ? `Cierre ${formatDate(s.period.end)}` : `YTD ${formatDate(s.period.end)}`));
+  const columns = statements.map((s) => `${s.period.kind === "closed_fy" ? `Cierre ${formatDate(s.period.end)}` : `YTD ${formatDate(s.period.end)}`}${s.scope === "revenue" ? " · IVA" : ""}`);
   const t = statementTables(statements);
 
   return (
@@ -105,14 +105,17 @@ export default async function TablasPage({ params }: { params: Promise<{ id: str
         <p className="mt-10 text-[15px] text-ink-2">Aún no hay contabilidad procesada.</p>
       ) : (
         <div className="mt-10 flex flex-col gap-12">
-          <Table title="Activo" rows={t.assets} columns={columns} caseId={id} docs={data.documents} />
-          <Table title="Patrimonio neto y pasivo" rows={t.liabilities} columns={columns} caseId={id} docs={data.documents} />
+          {t.assets.length > 0 && <Table title="Activo" rows={t.assets} columns={columns} caseId={id} docs={data.documents} />}
+          {t.liabilities.length > 0 && <Table title="Patrimonio neto y pasivo" rows={t.liabilities} columns={columns} caseId={id} docs={data.documents} />}
           {t.pnl.length > 0 ? (
             <Table title="Cuenta de resultados" rows={t.pnl} columns={columns} caseId={id} docs={data.documents} />
           ) : (
             <p className="text-[15px] text-ink-2">Sin cuenta de resultados en los periodos disponibles.</p>
           )}
           {statements.some((s) => s.months !== 12) && <p className="text-xs text-muted">Los importes de YTD son del periodo, sin anualizar.</p>}
+          {statements.some((s) => s.scope === "revenue") && (
+            <p className="text-xs text-muted">Las columnas «IVA» solo tienen las ventas declaradas en los Modelos 303; el resto de partidas no se conoce para ese periodo.</p>
+          )}
         </div>
       )}
       <Link href={`/casos/${id}`} className="mt-10 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium"><ArrowLeft size={16} aria-hidden /> Volver al caso</Link>

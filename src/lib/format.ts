@@ -70,3 +70,6 @@ export function formatCompactEur(n: number): string {
   if (a >= 1000) return `${sign}${fmt(Math.round(a / 1000), 0)} k€`;
   return `${sign}${fmt(Math.round(a), 0)} €`;
 }
+
+/** "de" + a noun phrase, contracting "de el" to "del": de("el Modelo 200") → "del Modelo 200". */
+export const de = (phrase: string) => (phrase.startsWith("el ") ? `del ${phrase.slice(3)}` : `de ${phrase}`);

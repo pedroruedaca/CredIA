@@ -55,3 +55,17 @@ export function monthsBetween(start: string, end: string): number {
   const months = (y2 - y1) * 12 + (m2 - m1) + (d2 - (d1 - 1)) / daysInEndMonth;
   return Math.max(0.5, Math.round(months * 100) / 100);
 }
+
+/** "2025-12-31" + 1 → "2026-01-01" (UTC calendar days). */
+export function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Start of the 12-month fiscal year ending on `end`: the day after `end`, a year earlier. */
+export const fiscalYearStart = (end: string) => {
+  const d = new Date(`${addDays(end, 1)}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+};

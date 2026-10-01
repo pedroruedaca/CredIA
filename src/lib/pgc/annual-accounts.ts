@@ -9,6 +9,7 @@
  * up is flagged. Signs follow the model: expenses are printed negative and become positive canonical expenses.
  */
 import type { AccountsYear, AnnualAccountsExtraction } from "../schema/canonical.ts";
+import { de } from "../format.ts";
 import type { Period, Warning } from "../types.ts";
 import {
   assembleStatement,
@@ -28,12 +29,22 @@ const eurText = (n: number) => `${Math.round(n).toLocaleString("es-ES", { useGro
 
 export const ANNUAL_ACCOUNTS_SOURCE = "annual_accounts" as const;
 
+/** The Modelo 200 prints the same model: its warnings get their own codes and name the return. */
+export interface ModelSource {
+  codePrefix: "ca" | "m200";
+  /** "las cuentas anuales", "el Modelo 200". */
+  name: string;
+}
+const ANNUAL_ACCOUNTS: ModelSource = { codePrefix: "ca", name: "las cuentas anuales" };
+
 export function statementFromAnnualAccounts(
-  a: AnnualAccountsExtraction,
+  a: Pick<AnnualAccountsExtraction, "pages" | "current">,
   docId: string,
   period: Period,
   year: AccountsYear = a.current,
+  source: ModelSource = ANNUAL_ACCOUNTS,
 ): { data: CanonicalStatement; warnings: Warning[] } {
+  const code = (c: string) => `${source.codePrefix}_${c}`;
   const warnings: Warning[] = [];
   const bsRef = `doc:${docId}${a.pages.balanceSheet ? `:page:${a.pages.balanceSheet}` : ""}`;
   const plRef = `doc:${docId}${a.pages.incomeStatement ? `:page:${a.pages.incomeStatement}` : ""}`;
@@ -126,25 +137,25 @@ export function statementFromAnnualAccounts(
       warnings.push({ code, message: `${message}: el modelo muestra ${eurText(printed)} y las partidas suman ${eurText(computed)}.`, detail: { printed: r2(printed), computed: r2(computed), source_ref: ref } });
     }
   };
-  mismatch("ca_total_assets_mismatch", "Total activo", y.totalAssets, y.nonCurrentAssets + y.currentAssets, bsRef);
-  mismatch("ca_total_liabilities_mismatch", "Total patrimonio neto y pasivo", y.totalEquityAndLiabilities, y.equity + y.nonCurrentLiabilities + y.currentLiabilities, bsRef);
-  mismatch("ca_pre_tax_mismatch", "Resultado antes de impuestos", y.preTaxResult, y.operatingResult + y.financialResult, plRef);
+  mismatch(code("total_assets_mismatch"), "Total activo", y.totalAssets, y.nonCurrentAssets + y.currentAssets, bsRef);
+  mismatch(code("total_liabilities_mismatch"), "Total patrimonio neto y pasivo", y.totalEquityAndLiabilities, y.equity + y.nonCurrentLiabilities + y.currentLiabilities, bsRef);
+  mismatch(code("pre_tax_mismatch"), "Resultado antes de impuestos", y.preTaxResult, y.operatingResult + y.financialResult, plRef);
   if (Math.abs(y.totalAssets - y.totalEquityAndLiabilities) > TOLERANCE) {
-    warnings.push({ code: "balance_sheet_imbalance", message: `El activo y el patrimonio neto más pasivo de las cuentas anuales difieren en ${eurText(y.totalAssets - y.totalEquityAndLiabilities)}.`, detail: { source_ref: bsRef } });
+    warnings.push({ code: "balance_sheet_imbalance", message: `El activo y el patrimonio neto más pasivo ${de(source.name)} difieren en ${eurText(y.totalAssets - y.totalEquityAndLiabilities)}.`, detail: { source_ref: bsRef } });
   }
   const material = (n: number, base: number) => Math.abs(n) > Math.max(TOLERANCE, 0.02 * Math.abs(base));
   if (y.currentAssets - currentNamed < -TOLERANCE || y.currentLiabilities - stNamed < -TOLERANCE || y.nonCurrentLiabilities - ltNamed < -TOLERANCE) {
-    warnings.push({ code: "ca_lines_exceed_total", message: "Algunas partidas leídas de las cuentas anuales suman más que el total de su bloque; revisa el balance en el PDF.", detail: { source_ref: bsRef } });
+    warnings.push({ code: code("lines_exceed_total"), message: `Algunas partidas leídas ${de(source.name)} suman más que el total de su bloque; revisa el balance en el PDF.`, detail: { source_ref: bsRef } });
   }
   if (material(opResidual, y.revenue)) {
     warnings.push({
-      code: "ca_operating_lines_unreconciled",
+      code: code("operating_lines_unreconciled"),
       message: `El resultado de explotación incluye ${eurText(opResidual)} en partidas no identificadas; se dejan fuera del EBITDA.`,
       detail: { amount: r2(opResidual), source_ref: plRef },
     });
   }
   if (Math.abs(taxResidual) > TOLERANCE) {
-    warnings.push({ code: "ca_discontinued_operations", message: `El resultado del ejercicio incluye ${eurText(taxResidual)} de operaciones interrumpidas u otras partidas tras impuestos.`, detail: { amount: r2(taxResidual), source_ref: plRef } });
+    warnings.push({ code: code("discontinued_operations"), message: `El resultado del ejercicio incluye ${eurText(taxResidual)} de operaciones interrumpidas u otras partidas tras impuestos.`, detail: { amount: r2(taxResidual), source_ref: plRef } });
   }
   return { data, warnings };
 }

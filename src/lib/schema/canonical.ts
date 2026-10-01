@@ -21,6 +21,7 @@ export const CanonicalStatementSchema = z.object({
   months: z.number().positive(),
   currency: z.literal("EUR"),
   pnlAvailable: z.boolean(),
+  scope: z.literal("revenue").optional(),
   balanceSheet: z.object({
     assets: z.object({
       nonCurrentAssets: money, inventories: money, tradeReceivables: money, otherReceivables: money,
@@ -59,6 +60,8 @@ export const Modelo200ExtractionSchema = z.object({
     totalAssets: money.nullable(),
   }),
   sourcePages: z.record(z.number().int().positive()),
+  /** Full balance sheet and P&L of the return (missing in extractions made before it was read). */
+  statement: z.lazy(() => Modelo200StatementSchema).nullable().optional(),
 });
 
 const accountsYear = z.object({
@@ -91,6 +94,9 @@ export const AnnualAccountsExtractionSchema = z.object({
 });
 export type AccountsYear = z.infer<typeof accountsYear>;
 export type AnnualAccountsExtraction = z.infer<typeof AnnualAccountsExtractionSchema>;
+
+const Modelo200StatementSchema = AnnualAccountsExtractionSchema.pick({ periodEnd: true, months: true, model: true, pages: true, current: true });
+export type Modelo200Statement = z.infer<typeof Modelo200StatementSchema>;
 
 /** LLM extraction target for a CIRBE report. */
 export const CirbeExtractionSchema = z.object({
@@ -177,6 +183,9 @@ export const Modelo303ExtractionSchema = z.object({
   result: money.nullable(),
   intraEuSupplies: money.nullable(),
   exports: money.nullable(),
+  /** Casillas 120 and 122; absent in extractions made before they were read. */
+  notSubjectLocation: money.nullable().optional(),
+  reverseChargeSupplies: money.nullable().optional(),
   page: pageNum.nullable(),
 });
 export type Modelo303Extraction = z.infer<typeof Modelo303ExtractionSchema>;

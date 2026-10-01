@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 import { assessExtraction, cleanNif, type AssessContext } from "./assess.ts";
 import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
 import { modelo303Wire } from "../__fixtures__/modelo303.ts";
-import { WIRE_FOR, type AccountsWire, type CertificateWire, type CirbeWire } from "./schemas.ts";
+import { WIRE_FOR, type CertificateWire, type CirbeWire, type Modelo200Wire } from "./schemas.ts";
+import { accounts2025, zeroYear } from "../__fixtures__/annual-accounts.ts";
 
 const CTX: AssessContext = { fileName: "doc.pdf", caseCif: "B12345674", companyName: "Distribuciones Ejemplo SL", lenderName: "Fondo Ejemplo Capital", expectedFiscalYear: 2025 };
 const f = (value: number | null, page = 3) => ({ value, page });
 const base = { company_nif: "B12345674", company_name: "DISTRIBUCIONES EJEMPLO SL", legible: true };
 
-const m200: AccountsWire = {
+const m200: Modelo200Wire = {
+  model: "pymes", period_months: 12, balance_sheet_page: 0, income_statement_page: 0, current_year: zeroYear,
   ...base, document_type: "modelo200", fiscal_year: 2025, period_end: "2025-12-31",
   revenue: f(1_000_000), operating_result: f(79_000), pre_tax_result: f(71_000 + 15_000), net_income: f(71_000), equity: f(221_000, 2), total_assets: f(519_000, 2),
 };
@@ -54,6 +56,14 @@ describe("assessExtraction", () => {
     const a = assessExtraction("cirbe", { ...cirbe, company_nif: "B1234" }, CTX);
     expect(a.status).toBe("parsed");
     expect(a.warnings.map((w) => w.code)).toContain("doc_nif_unreadable");
+  });
+  it("keeps the full balance sheet and P&L of a Modelo 200 when its pages were read", () => {
+    const a = assessExtraction("modelo200", { ...m200, current_year: accounts2025, balance_sheet_page: 3, income_statement_page: 6 }, CTX);
+    expect(a.canonical).toMatchObject({
+      kind: "accounts",
+      data: { statement: { periodEnd: "2025-12-31", months: 12, model: "pymes", pages: { balanceSheet: 3, incomeStatement: 6 }, current: { revenue: 1_500_000, totalAssets: 930_000 } } },
+    });
+    expect((assessExtraction("modelo200", m200, CTX).canonical as { data: { statement: unknown } }).data.statement).toBeNull();
   });
   it("fails a Modelo 200 for the wrong fiscal year", () => {
     const a = assessExtraction("modelo200", { ...m200, fiscal_year: 2023 }, CTX);

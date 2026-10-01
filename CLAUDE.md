@@ -30,8 +30,8 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 | Sumas y saldos (xlsx/csv) | Deterministic, per-software template (A3, Sage, Contasol, Holded, Odoo) | LLM only for header/column detection |
 | **Holded API (borrower-supplied key)** | `src/lib/connectors/holded.ts` | Produces the same `LedgerBalance[]` as a trial balance upload |
 | Norma 43 | Deterministic fixed-width parser | LLM for transaction categorisation |
-| Modelo 200 PDF | Claude structured output → Zod | Verification anchor for closed year |
-| Modelo 303 PDFs (IVA) | Claude structured output → Zod (`Modelo303Wire`) | Last 4 quarters due (or 12 monthly returns); requested with the Modelo 200 as «Documentos fiscales» |
+| Modelo 200 PDF | Claude structured output → Zod (`Modelo200Wire`) | Verification anchor for closed year; its balance + P&L pages build the closed year when nothing better exists |
+| Modelo 303 PDFs (IVA) | Claude structured output → Zod (`Modelo303Wire`) | Last 4 quarters due (or 12 monthly returns); requested with the Modelo 200 as «Documentos fiscales»; revenue-only periods |
 | Cuentas anuales PDF (official model) | Claude structured output → Zod (`AnnualAccountsWire`) | Full balance + P&L, current and prior year; closed-year statement when there is no TB/Holded |
 | CIRBE PDF | Claude structured output → Zod | Debt exposure |
 | AEAT / TGSS certificates | Claude structured output | Validity + status |
@@ -118,7 +118,12 @@ Not yet tested against real provider PDFs: adjust the schema descriptions when t
   mismatches become `ca_*` warnings. Lineage labels are model lines (not account codes) with `doc:<id>:page:<n>`.
   Financial expenses are taken as interest (said in the lineage).
 - **Ranking:** in `recompute`, the closed year uses trial balance / Holded (newest wins) and falls back to the
-  annual accounts (`financial_statements.source = 'annual_accounts'`, 0014). The summary says so.
+  annual accounts (`financial_statements.source = 'annual_accounts'`, 0014), then the Modelo 200 (`'modelo200'`, same
+  model, `m200_*` warnings), then the Modelo 303 (`'modelo303'`); the YTD falls back to the Modelo 303 (FY start to the
+  last month covered without gaps, ≥ 1 quarter). The summary says which. `src/lib/pgc/tax-returns.ts`, 0016.
+- **Revenue-only statements** (`scope: "revenue"`, Modelo 303): `pnlAvailable` false, only revenue is known (sales
+  declared = accrued bases + 59/60/120/122). KPIs give revenue only (rest null with a note); tables blank every other
+  line; KPI tiles, balance bars, Sankey and balance-sheet checks (CIRBE, debt payments) use `isFullStatement` only.
 - **Por CIF** (`case_requirements.source = 'cif'`, 0014): third option in the new-case form, only for kinds with
   `byCif` (cuentas_anuales, solvency_report). Not shown to or uploadable by the company; not in completeness. The
   lender uploads the PDF from the case view (`LENDER_UPLOAD_KINDS`, `AnnualAccountsSection`, `SolvencySection`) or
@@ -141,7 +146,7 @@ and `inputs` so the UI can show its derivation. Division by zero/negative denomi
 ## Cross-checks (`checks` table; severity info|warn|high)
 TB revenue vs N43 inflows (±25%) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,
 result, equity) · recurring debt payments in N43 vs declared debt · AEAT/TGSS certificates valid ·
-BORME adverse acts · Modelo 303 last 4 quarters received (`m303_quarters`, warn) · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
+BORME adverse acts · Modelo 303 last 4 quarters received (`m303_quarters`, warn) · Modelo 303 declared sales vs revenue of a period they cover month by month (`m303_vs_books_revenue`, 10 % / 5.000 €, warn) · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
 closing-entries suspicion.
 
 ## Conventions

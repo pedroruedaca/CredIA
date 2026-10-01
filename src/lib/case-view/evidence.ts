@@ -168,6 +168,19 @@ export function evidenceView(
       base.evidenceLine = `Ejercicio ${values.fiscal_year ?? "—"} · Modelo 200 ${compact(declared)} · libros ${compact(books)}`;
       break;
     }
+    case "m303_vs_books_revenue": {
+      const declared = num(values.declared_sales);
+      const books = num(values.books);
+      const diff = num(values.difference);
+      if (declared === null || books === null || diff === null) break;
+      base.headline = { value: diff, unit: "EUR", signed: true, caption: "libros menos ventas declaradas en IVA" };
+      base.compare = [
+        { label: "Modelo 303", value: declared },
+        { label: "Libros", value: books },
+      ];
+      base.evidenceLine = `${values.period_start && values.period_end ? `${formatDate(String(values.period_start))} – ${formatDate(String(values.period_end))}` : ""} · Modelo 303 ${compact(declared)} · libros ${compact(books)}`;
+      break;
+    }
     case "solvency_vs_books_revenue": {
       const report = num(values.report);
       const books = num(values.books);
@@ -204,11 +217,11 @@ export function evidenceView(
       break;
     }
     case "m303_quarters": {
-      // Values are keyed by quarter ("2T 26"): the accrued base, or null when that quarter is missing.
+      // Values are keyed by quarter ("2T 26"): the sales declared, or null when that quarter is missing.
       const quarters = Object.entries(values).filter(([k]) => /^[1-4]T \d\d$/.test(k));
       base.table = {
-        title: "Base imponible devengada por trimestre",
-        columns: ["Trimestre", "Base devengada"],
+        title: "Ventas declaradas en IVA por trimestre",
+        columns: ["Trimestre", "Ventas declaradas"],
         rows: quarters.map(([k, v]) => ({ label: k, mono: true, a: num(v) !== null ? eurText(num(v)!) : "Falta", mismatch: num(v) === null })),
       };
       base.values = [];

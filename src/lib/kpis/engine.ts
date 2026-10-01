@@ -37,6 +37,11 @@ function ratio(num: number, den: number, opts: { allowNegativeDen?: boolean } = 
   return { value: r(num / den) };
 }
 
+const UNIT: Record<KpiKey, Kpi["unit"]> = {
+  revenue: "EUR", ebitda: "EUR", ebitdaMargin: "%", currentRatio: "x", quickRatio: "x", workingCapital: "EUR", financialDebt: "EUR",
+  netDebt: "EUR", netDebtToEbitda: "x", debtToEquity: "x", interestCoverage: "x", dscr: "x", dso: "days", dpo: "days",
+};
+
 export function computeKpis(s: CanonicalStatement, opts: KpiOptions = {}): Kpi[] {
   const vat = opts.vatRate ?? 0.21;
   const af = 12 / s.months; // annualisation factor for flows
@@ -58,6 +63,16 @@ export function computeKpis(s: CanonicalStatement, opts: KpiOptions = {}): Kpi[]
   const add = (k: Omit<Kpi, "value"> & { value: number | null }) => kpis.push(k);
   const annNote = s.months !== 12 ? `Flujos anualizados desde ${s.months} meses` : undefined;
   const joinNotes = (...n: (string | undefined)[]) => n.filter(Boolean).join(". ") || undefined;
+
+  if (s.scope === "revenue") {
+    // Sales declared in the Modelo 303: revenue is known, nothing else is.
+    const note = "Solo hay ventas declaradas en IVA (Modelo 303) para este periodo";
+    const kpis: Kpi[] = [{ key: "revenue", value: r(revenueA), unit: "EUR", formula: "Σ ventas declaradas en Modelo 303 × 12/meses", inputs: { revenue: is.revenue, months: s.months }, note: joinNotes(annNote, "Ventas declaradas en IVA, no la cifra de negocios contable") }];
+    for (const key of ["ebitda", "ebitdaMargin", "currentRatio", "quickRatio", "workingCapital", "financialDebt", "netDebt", "netDebtToEbitda", "debtToEquity", "interestCoverage", "dscr", "dso", "dpo"] as KpiKey[]) {
+      kpis.push({ key, value: null, unit: UNIT[key], formula: "—", inputs: {}, note });
+    }
+    return kpis;
+  }
 
   if (!s.pnlAvailable) {
     for (const key of ["revenue", "ebitda", "ebitdaMargin", "netDebtToEbitda", "interestCoverage", "dscr", "dso", "dpo"] as KpiKey[]) {

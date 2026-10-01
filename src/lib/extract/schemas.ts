@@ -116,6 +116,22 @@ export const AnnualAccountsWire = z.object({
 });
 export type AnnualAccountsWire = z.infer<typeof AnnualAccountsWire>;
 
+/**
+ * Modelo 200: the summary figures (verification anchor against the books) plus the full balance sheet and profit and
+ * loss pages of the return, which follow the official accounts model. With them the closed year can be built from the
+ * return when there is no trial balance, Holded ledger or cuentas anuales.
+ */
+export const Modelo200Wire = AccountsWire.extend({
+  model: z.enum(["normal", "abreviado", "pymes", "other"]).describe("Which balance sheet and profit and loss model the return uses: normal, abreviado or PYMES; other if none."),
+  period_months: z.number().int().describe("Length of the tax period in months (12 unless the return says otherwise); 0 if unknown."),
+  balance_sheet_page: z.number().int().describe("1-based PDF page where the balance sheet (activo) starts; 0 if not identifiable."),
+  income_statement_page: z.number().int().describe("1-based PDF page of the cuenta de pérdidas y ganancias; 0 if not identifiable."),
+  current_year: AccountsYear.describe(
+    "Every line of the balance sheet and the profit and loss account of the return, by the same line names (the clave numbers in these descriptions are those of the Registro Mercantil forms; in the Modelo 200 use the line with the same name). Amounts as printed, in euros; 0 when the line is not in the return.",
+  ),
+});
+export type Modelo200Wire = z.infer<typeof Modelo200Wire>;
+
 export const CirbeWire = z.object({
   ...common,
   as_of: z.string().nullable().describe("Date the report refers to (fecha de los datos / mes de declaración), YYYY-MM-DD; last day of the month if only month is given."),
@@ -252,6 +268,8 @@ export const Modelo303Wire = z.object({
   result: z.number().nullable().describe("Resultado de la liquidación (casilla 71): positive a ingresar, negative a compensar o devolver. null if not printed."),
   intra_eu_supplies: z.number().nullable().describe("Entregas intracomunitarias de bienes y servicios (casilla 59). null if not printed."),
   exports: z.number().nullable().describe("Exportaciones y operaciones asimiladas (casilla 60). null if not printed."),
+  not_subject_location: z.number().nullable().describe("Operaciones no sujetas por reglas de localización (casilla 120). null if not printed."),
+  reverse_charge_supplies: z.number().nullable().describe("Operaciones sujetas con inversión del sujeto pasivo, as supplier (casilla 122). null if not printed."),
   summary_page: z.number().int().describe("1-based PDF page with the liquidación (casillas 27 to 71); 0 if not identifiable."),
 });
 export type Modelo303Wire = z.infer<typeof Modelo303Wire>;
@@ -259,7 +277,7 @@ export type Modelo303Wire = z.infer<typeof Modelo303Wire>;
 export type ExtractKind = "modelo200" | "modelo303" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report";
 
 export const WIRE_FOR = {
-  modelo200: AccountsWire,
+  modelo200: Modelo200Wire,
   modelo303: Modelo303Wire,
   cuentas_anuales: AnnualAccountsWire,
   cirbe: CirbeWire,
@@ -270,7 +288,7 @@ export const WIRE_FOR = {
 
 export const EXTRACT_INSTRUCTIONS: Record<ExtractKind, string> = {
   modelo200:
-    "This should be a Spanish corporate income tax return (Modelo 200, Impuesto sobre Sociedades). Extract the figures from the balance sheet and profit and loss pages of the return.",
+    "This should be a Spanish corporate income tax return (Modelo 200, Impuesto sobre Sociedades). Extract the figures from the balance sheet and profit and loss pages of the return: the summary figures and every requested line, copied as printed with their sign; do not add, compute or reclassify lines.",
   modelo303:
     "This should be a Spanish VAT return (Modelo 303, Impuesto sobre el Valor Añadido, autoliquidación), quarterly or monthly, as filed with the Agencia Tributaria. Extract the ejercicio, the periodo and the figures of the liquidación exactly as printed; do not compute anything the return does not show.",
   cuentas_anuales:

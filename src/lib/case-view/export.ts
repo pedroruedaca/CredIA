@@ -63,7 +63,7 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
           acts: d.registry.profile.timeline.map((t) => ({ date: t.date, type: t.type, label: t.label, text: t.text, source_ref: t.source })),
         }
       : null,
-    periods: statements.map((s) => ({ kind: s.period.kind, start: s.period.start, end: s.period.end, months: s.months, pnl_available: s.pnlAvailable, source: s.period.kind === "closed_fy" ? d.statements.closedSource : d.statements.ytdSource })),
+    periods: statements.map((s) => ({ kind: s.period.kind, start: s.period.start, end: s.period.end, months: s.months, pnl_available: s.pnlAvailable, scope: s.scope ?? "full", source: s.period.kind === "closed_fy" ? d.statements.closedSource : d.statements.ytdSource })),
     balance_sheet: { assets: lines(tables.assets), equity_and_liabilities: lines(tables.liabilities) },
     income_statement: lines(tables.pnl),
     kpis: Object.fromEntries(
@@ -112,7 +112,7 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   wb.created = new Date(generatedAt);
   const statements = periodOf(d);
   const tables = statementTables(statements, false);
-  const cols = statements.map((s) => (s.period.kind === "closed_fy" ? `Cierre ${s.period.end}` : `YTD ${s.period.end}`));
+  const cols = statements.map((s) => `${s.period.kind === "closed_fy" ? `Cierre ${s.period.end}` : `YTD ${s.period.end}`}${s.scope === "revenue" ? " · IVA (solo ventas)" : ""}`);
   const sub = `${d.kase.companyName} · CIF ${d.kase.cif} · generado ${generatedAt.slice(0, 10)} · ${DISCLAIMER}`;
 
   const statementSheet = (name: string, sections: [string, TableRow[]][]) => {

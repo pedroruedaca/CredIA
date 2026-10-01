@@ -280,7 +280,7 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const request = [kase.product ? productLabel(kase.product) : null, amount ? `${amount.number} ${amount.unit}` : null, kase.termMonths ? `${kase.termMonths} meses` : null, `CIF ${kase.cif}`].filter(Boolean).join(" · ");
   const statements = [d.statements.closed, d.statements.ytd].filter((x) => x !== null);
-  const cols = statements.map((x) => (x.period.kind === "closed_fy" ? `Cierre ${formatDate(x.period.end)}` : `YTD ${formatDate(x.period.end)}`));
+  const cols = statements.map((x) => `${x.period.kind === "closed_fy" ? `Cierre ${formatDate(x.period.end)}` : `YTD ${formatDate(x.period.end)}`}${x.scope === "revenue" ? " · IVA" : ""}`);
   const t = statementTables(statements);
 
   return (
@@ -355,10 +355,10 @@ function CasePdf({ d, pkg, generatedAt }: { d: CaseViewData; pkg: CasePackage; g
         {statements.length > 0 && (
           <View break>
             <Text style={[s.h2, { marginTop: 0 }]}>Estados financieros</Text>
-            <Table title="Activo" rows={t.assets} cols={cols} />
-            <Table title="Patrimonio neto y pasivo" rows={t.liabilities} cols={cols} />
+            {t.assets.length > 0 && <Table title="Activo" rows={t.assets} cols={cols} />}
+            {t.liabilities.length > 0 && <Table title="Patrimonio neto y pasivo" rows={t.liabilities} cols={cols} />}
             {t.pnl.length > 0 && <Table title="Cuenta de resultados" rows={t.pnl} cols={cols} />}
-            <Text style={[s.muted, { fontSize: 8 }]}>Agrupado por código PGC de 3 dígitos. YTD sin anualizar. El detalle por cuenta y su origen está en la exportación Excel (hoja Trazabilidad).</Text>
+            <Text style={[s.muted, { fontSize: 8 }]}>Agrupado por código PGC de 3 dígitos. YTD sin anualizar. El detalle por cuenta y su origen está en la exportación Excel (hoja Trazabilidad).{statements.some((x) => x.scope === "revenue") ? " Las columnas «IVA» solo tienen las ventas declaradas en los Modelos 303." : ""}</Text>
           </View>
         )}
 

@@ -18,10 +18,12 @@ import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
 import { parseTrialBalance, type TrialBalanceParse } from "../parsers/trial-balance.ts";
 import { annualAccountsPeriod, statementFromAnnualAccounts } from "../pgc/annual-accounts.ts";
-import { buildStatement } from "../pgc/mapping.ts";
+import { buildStatement, isFullStatement } from "../pgc/mapping.ts";
+import { MODELO200_SOURCE, MODELO303_SOURCE, modelo200Period, statementFromModelo200, statementFromModelo303 } from "../pgc/tax-returns.ts";
+import { coveredYtdEnd, type M303Return } from "../tax/modelo303.ts";
 import type { AnnualAccountsExtraction, CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import type { AdminClient } from "../borrower/access.ts";
-import type { LedgerBalance, Period, PeriodKind, Warning } from "../types.ts";
+import { addDays, fiscalYearStart, type LedgerBalance, type Period, type PeriodKind, type Warning } from "../types.ts";
 import { todayMadrid } from "../format.ts";
 import {
   checkCertificate,
@@ -29,6 +31,7 @@ import {
   checkDebtPaymentsVsDeclaredDebt,
   checkModelo200VsBooks,
   checkModelo303Quarters,
+  checkModelo303VsBooks,
   checkN43InflowsVsRevenue,
   checkOverdrafts,
   checkSolvencyReport,
@@ -59,7 +62,15 @@ export const PIPELINE_WARNING_SEVERITY: Record<string, Severity> = {
   ca_lines_exceed_total: "warn",
   ca_operating_lines_unreconciled: "warn",
   ca_incomplete: "warn",
+  m200_total_assets_mismatch: "warn",
+  m200_total_liabilities_mismatch: "warn",
+  m200_pre_tax_mismatch: "warn",
+  m200_lines_exceed_total: "warn",
+  m200_operating_lines_unreconciled: "warn",
 };
+/** Where a statement comes from, as the 303 comparison names it. */
+const BOOKS_LABEL: Record<string, string> = { upload: "la contabilidad", holded: "la contabilidad", annual_accounts: "las cuentas anuales", modelo200: "el Modelo 200" };
+
 /** Warnings already covered by a dedicated check. */
 const SKIP_AS_CHECK = new Set(["cert_negative"]);
 
@@ -446,34 +457,55 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   }
   const annualPrincipal = cirbe ? cirbeAnnualPrincipal(cirbe) : undefined;
 
-  // --- Statements + KPIs, per period. Ledger data first (newest of trial balance and Holded wins); for the closed
-  // year, the deposited annual accounts when there is no ledger data.
+  // --- Statements + KPIs, per period. Ledger data first (newest of trial balance and Holded wins). Without it, the
+  // closed year falls back to the deposited annual accounts, then the Modelo 200 (same model), then the sales declared
+  // in the Modelo 303 (revenue only); the year to date falls back to the Modelo 303.
   await db.from("financial_statements").delete().eq("case_id", kase.id);
   const statements: Partial<Record<PeriodKind, ReturnType<typeof buildStatement>["data"]>> = {};
+  const sources: Partial<Record<PeriodKind, string>> = {};
   const caDoc = latest("cuentas_anuales");
   const annual = (caDoc?.output.canonical as Canonical | undefined)?.kind === "annual_accounts" ? (caDoc!.output.canonical as { data: AnnualAccountsExtraction }).data : null;
+  const m200Doc = latest("modelo200");
+  const m200 = (m200Doc?.output.canonical as Canonical | undefined)?.kind === "accounts" ? (m200Doc!.output.canonical as { data: Modelo200Extraction }).data : null;
+  const m303: M303Return[] = parsed.flatMap((d) => {
+    const c = d.output.canonical as Canonical | undefined;
+    return d.kind === "modelo303" && c?.kind === "modelo303" ? [{ docId: d.id, uploadedAt: d.uploadedAt, data: c.data }] : [];
+  });
+  const fyStart = kase.fiscal_year_end ? addDays(kase.fiscal_year_end, 1) : null;
   for (const kind of ["closed_fy", "ytd"] as PeriodKind[]) {
     const up = uploadBalances.get(kind) ?? null;
     const hRows = (holdedRows ?? []).filter((r) => r.period_kind === kind);
     const ledger = chooseSource(up?.at ?? null, hRows.length ? holdedAt(kind) ?? "0" : null);
-    const caPeriod = kind === "closed_fy" && !ledger && annual ? annualAccountsPeriod(annual, kase.fiscal_year_end) : null;
-    const source = ledger ?? (caPeriod ? "annual_accounts" : null);
-    if (!source) continue;
-    let built: ReturnType<typeof buildStatement>;
-    let period: Period;
-    if (source === "annual_accounts") {
-      period = caPeriod!;
-      built = statementFromAnnualAccounts(annual!, caDoc!.id, period);
-    } else {
-      period = source === "upload" ? up!.period : { kind, start: hRows[0].period_start, end: hRows[0].period_end };
+    let built: { data: ReturnType<typeof buildStatement>["data"]; warnings: Warning[] } | null = null;
+    let source: string | null = ledger;
+    if (ledger) {
+      const period: Period = ledger === "upload" ? up!.period : { kind, start: hRows[0].period_start, end: hRows[0].period_end };
       const balances: LedgerBalance[] =
-        source === "upload"
+        ledger === "upload"
           ? up!.balances
           : hRows.map((r) => ({ account: r.account, pgc3: r.pgc3, name: r.account_name ?? undefined, debit: Number(r.debit), credit: Number(r.credit), source: "holded", sourceRef: r.source_ref }));
       built = buildStatement(balances, period);
+    } else if (kind === "closed_fy") {
+      const caPeriod = annual ? annualAccountsPeriod(annual, kase.fiscal_year_end) : null;
+      const m200Period = m200 ? modelo200Period(m200, kase.fiscal_year_end) : null;
+      const closedPeriod: Period | null = kase.fiscal_year_end ? { kind, start: fiscalYearStart(kase.fiscal_year_end), end: kase.fiscal_year_end } : null;
+      const fromM303 = closedPeriod ? statementFromModelo303(m303, closedPeriod) : null;
+      if (caPeriod) [built, source] = [statementFromAnnualAccounts(annual!, caDoc!.id, caPeriod), "annual_accounts"];
+      else if (m200Period) [built, source] = [statementFromModelo200(m200!, m200Doc!.id, m200Period), MODELO200_SOURCE];
+      else if (fromM303) [built, source] = [{ data: fromM303, warnings: [] }, MODELO303_SOURCE];
+    } else if (fyStart) {
+      // Never past the end of the current fiscal year (a stale closing date would otherwise stretch it).
+      const fyEnd = `${Number(kase.fiscal_year_end!.slice(0, 4)) + 1}${kase.fiscal_year_end!.slice(4)}`;
+      const covered = coveredYtdEnd(m303, fyStart);
+      const end = covered && covered > fyEnd ? fyEnd : covered;
+      const fromM303 = end ? statementFromModelo303(m303, { kind, start: fyStart, end }) : null;
+      if (fromM303) [built, source] = [{ data: fromM303, warnings: [] }, MODELO303_SOURCE];
     }
+    if (!built || !source) continue;
     const { data: statement, warnings } = built;
+    const period = statement.period;
     statements[kind] = statement;
+    sources[kind] = source;
     addWarnings(warnings, null, `[${kind === "closed_fy" ? "Ejercicio cerrado" : "Año en curso"}] `);
     const kpis = computeKpis(statement, annualPrincipal !== undefined ? { annualPrincipal, annualPrincipalSource: `CIRBE ${cirbe!.asOf}` } : {});
     const { data: stmt, error } = await db
@@ -485,20 +517,21 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     await insertChunks(db, "kpis", kpis.map((k) => ({ statement_id: stmt.id, lender_id: kase.lender_id, key: k.key, value: k.value, formula: k.formula, inputs: k.inputs, note: k.note ?? null })));
   }
 
-  // --- Engine checks
+  // --- Engine checks. Checks that need the balance sheet or the full P&L skip revenue-only (Modelo 303) statements.
   const closed = statements.closed_fy ?? null;
   const ytd = statements.ytd ?? null;
+  const full = [closed, ytd].filter(isFullStatement);
   if (cirbe && cirbeDoc) {
-    const nearest = [closed, ytd].filter(Boolean).sort((a, b) => Math.abs(Date.parse(a!.period.end) - Date.parse(cirbe.asOf)) - Math.abs(Date.parse(b!.period.end) - Date.parse(cirbe.asOf)))[0];
+    const nearest = [...full].sort((a, b) => Math.abs(Date.parse(a.period.end) - Date.parse(cirbe.asOf)) - Math.abs(Date.parse(b.period.end) - Date.parse(cirbe.asOf)))[0];
     if (nearest) checks.push(...checkCirbeVsBooks(nearest, cirbe, cirbeDoc.id));
   }
-  const m200Doc = latest("modelo200");
-  const m200 = (m200Doc?.output.canonical as Canonical | undefined)?.kind === "accounts" ? (m200Doc!.output.canonical as { data: Modelo200Extraction }).data : null;
-  if (closed && m200 && m200Doc) checks.push(...checkModelo200VsBooks(closed, m200, m200Doc.id));
+  // Not when the closed year was built from the Modelo 200 itself.
+  if (isFullStatement(closed) && m200 && m200Doc && sources.closed_fy !== MODELO200_SOURCE) checks.push(...checkModelo200VsBooks(closed, m200, m200Doc.id));
   if (accounts.length) {
     const flows = [ytd, closed].filter(Boolean).map((s) => checkN43InflowsVsRevenue(s!, accounts)).find((c) => c.status !== "not_applicable");
     if (flows) checks.push(flows);
-    checks.push(checkOverdrafts(accounts), checkDebtPaymentsVsDeclaredDebt(accounts, ytd ?? closed, cirbe));
+    const debtBasis = isFullStatement(ytd) ? ytd : isFullStatement(closed) ? closed : null;
+    checks.push(checkOverdrafts(accounts), checkDebtPaymentsVsDeclaredDebt(accounts, debtBasis, cirbe));
   }
   const { data: reqs } = await db.from("case_requirements").select("doc_kind, max_age_days").eq("case_id", kase.id);
   for (const kind of ["aeat_cert", "tgss_cert"] as const) {
@@ -509,12 +542,14 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     checks.push(checkCertificate(kind, cert, doc?.id ?? null, req.max_age_days, today));
   }
 
-  // Modelo 303: last 4 quarters filed.
-  const m303 = parsed.flatMap((d) => {
-    const c = d.output.canonical as Canonical | undefined;
-    return d.kind === "modelo303" && c?.kind === "modelo303" ? [{ docId: d.id, uploadedAt: d.uploadedAt, data: c.data }] : [];
-  });
+  // Modelo 303: last 4 quarters filed, and declared sales vs the revenue of each period they cover (not a period
+  // built from the 303 itself).
   checks.push(checkModelo303Quarters(m303, today));
+  for (const kind of ["closed_fy", "ytd"] as PeriodKind[]) {
+    const s = statements[kind];
+    if (!s || sources[kind] === MODELO303_SOURCE) continue;
+    checks.push(checkModelo303VsBooks(s, m303, BOOKS_LABEL[sources[kind]!] ?? "la contabilidad"));
+  }
 
   // Informe de solvencia (latest report, uploaded by the company or the lender).
   const solvencyDoc = latest("solvency_report");

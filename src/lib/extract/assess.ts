@@ -20,7 +20,7 @@ import {
   type Modelo200Extraction,
 } from "../schema/canonical.ts";
 import type { Warning } from "../types.ts";
-import type { AccountsWire, AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, Modelo303Wire, SolvencyWire } from "./schemas.ts";
+import type { AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, Modelo200Wire, Modelo303Wire, SolvencyWire } from "./schemas.ts";
 import { periodRange } from "../tax/modelo303.ts";
 
 export interface AssessContext {
@@ -62,7 +62,7 @@ export function cleanNif(raw: string | null | undefined): string | null {
 
 const fail = (attentionMessage: string, warnings: Warning[] = []): Assessment => ({ status: "failed", attentionMessage, issuedOn: null, canonical: null, warnings });
 
-type Wire = AccountsWire | Modelo303Wire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
+type Wire = Modelo200Wire | Modelo303Wire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
 
 /** Checks shared by every kind: legible, right document, right company. */
 function identity(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment | Warning[] {
@@ -90,9 +90,9 @@ function identity(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment
   return warnings;
 }
 
-function accounts(kind: "modelo200" | "cuentas_anuales", w: AccountsWire, ctx: AssessContext, warnings: Warning[]): Assessment {
+function modelo200(w: Modelo200Wire, ctx: AssessContext, warnings: Warning[]): Assessment {
   if (ctx.expectedFiscalYear && w.fiscal_year && w.fiscal_year !== ctx.expectedFiscalYear) {
-    const what = kind === "modelo200" ? "el Modelo 200" : "las cuentas anuales";
+    const what = "el Modelo 200";
     return fail(`«${ctx.fileName}» es ${what} del ejercicio ${w.fiscal_year}. ${ctx.lenderName} necesita ${what} del ejercicio ${ctx.expectedFiscalYear}.`, [
       ...warnings,
       { code: "doc_fiscal_year_mismatch", message: `Fiscal year ${w.fiscal_year}, expected ${ctx.expectedFiscalYear}`, detail: { found: w.fiscal_year, expected: ctx.expectedFiscalYear } },
@@ -106,11 +106,23 @@ function accounts(kind: "modelo200" | "cuentas_anuales", w: AccountsWire, ctx: A
   const missingPages = Object.entries(keys).filter(([, f]) => f.value !== null && !(f.page && f.page > 0)).map(([k]) => k);
   if (missingPages.length) warnings.push({ code: "extract_missing_page", message: `Sin página de origen: ${missingPages.join(", ")}.`, detail: { fields: missingPages } });
 
+  // The full balance sheet and P&L, when the return's pages were read (a closed year can be built from them).
+  const cur = w.current_year;
+  const hasStatement = cur.total_assets !== 0 && (cur.revenue !== 0 || cur.operating_result !== 0 || cur.net_income !== 0);
   const parsed = Modelo200ExtractionSchema.safeParse({
     nif: cleanNif(w.company_nif) ?? cleanNif(ctx.caseCif) ?? "",
     fiscalYear: w.fiscal_year ?? ctx.expectedFiscalYear ?? 0,
     fields,
     sourcePages,
+    statement: hasStatement
+      ? {
+          periodEnd: isoOrNull(w.period_end),
+          months: w.period_months > 0 && w.period_months <= 24 ? w.period_months : 12,
+          model: w.model,
+          pages: { balanceSheet: pos(w.balance_sheet_page), incomeStatement: pos(w.income_statement_page) },
+          current: yearInEuros(cur, 1),
+        }
+      : null,
   });
   if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn: null, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };
   if (Object.values(fields).every((v) => v === null)) {
@@ -267,6 +279,8 @@ function modelo303(w: Modelo303Wire, ctx: AssessContext, warnings: Warning[]): A
     result: w.result,
     intraEuSupplies: w.intra_eu_supplies,
     exports: w.exports,
+    notSubjectLocation: w.not_subject_location,
+    reverseChargeSupplies: w.reverse_charge_supplies,
     page: pos(w.summary_page),
   });
   if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn: null, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };
@@ -278,7 +292,7 @@ export function assessExtraction(kind: ExtractKind, wire: Wire, ctx: AssessConte
   if (!Array.isArray(id)) return id;
   switch (kind) {
     case "modelo200":
-      return accounts(kind, wire as AccountsWire, ctx, id);
+      return modelo200(wire as Modelo200Wire, ctx, id);
     case "modelo303":
       return modelo303(wire as Modelo303Wire, ctx, id);
     case "cuentas_anuales":

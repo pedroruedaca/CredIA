@@ -144,6 +144,11 @@ export interface CanonicalStatement {
   months: number;
   currency: "EUR";
   pnlAvailable: boolean;
+  /**
+   * "revenue": only the revenue line is known (sales declared in the Modelo 303); the balance sheet and every other
+   * P&L line are unknown, not zero, and pnlAvailable is false. Absent: a full statement.
+   */
+  scope?: "revenue";
   balanceSheet: {
     assets: Record<AssetLine, number> & { total: number };
     equityAndLiabilities: Record<LiabilityLine, number> & {
@@ -380,3 +385,6 @@ export function aggregateByAccount(
   }
   return [...map.values()].sort((a, b) => a.account.localeCompare(b.account));
 }
+
+/** A full statement (balance sheet and P&L lines), as opposed to revenue only from the Modelo 303. */
+export const isFullStatement = (s: CanonicalStatement | null | undefined): s is CanonicalStatement => !!s && s.scope !== "revenue";

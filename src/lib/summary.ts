@@ -5,7 +5,7 @@
  */
 import { cirbeDrawnDebt, withinDebtTolerance } from "./checks/engine.ts";
 import { formatCompactEur } from "./format.ts";
-import type { CanonicalStatement } from "./pgc/mapping.ts";
+import { isFullStatement, type CanonicalStatement } from "./pgc/mapping.ts";
 import type { CirbeExtraction } from "./schema/canonical.ts";
 
 export type SummarySegment = { text: string; emphasis?: "figure" | "discrepancy" };
@@ -24,8 +24,9 @@ export function caseSummary(input: {
   closed: CanonicalStatement | null;
   ytd: CanonicalStatement | null;
   cirbe: CirbeExtraction | null;
-  /** Where the closed year's statement comes from: upload | holded | annual_accounts. */
+  /** Where each statement comes from: upload | holded | annual_accounts | modelo200 | modelo303. */
   closedSource?: string | null;
+  ytdSource?: string | null;
 }): SummarySegment[] | null {
   const out: SummarySegment[] = [];
   const t = (text: string) => out.push({ text });
@@ -41,6 +42,14 @@ export function caseSummary(input: {
     fig(formatCompactEur(ebitda));
     if (revenue > 0) t(` (${pct(ebitda / revenue)})`);
     t(".");
+  } else {
+    // Only sales declared in the Modelo 303 (no P&L): revenue, said as what it is.
+    const r = input.closed?.scope === "revenue" ? input.closed : input.ytd?.scope === "revenue" ? input.ytd : null;
+    if (r) {
+      t("Declaró ventas por ");
+      fig(formatCompactEur(r.incomeStatement.revenue));
+      t(` ${periodPhrase(r)} en sus Modelos 303 de IVA.`);
+    }
   }
 
   if (input.cirbe) {
@@ -48,7 +57,7 @@ export function caseSummary(input: {
     // Compare with the statement closest to the CIRBE date, as the CIRBE check does.
     const asOf = Date.parse(input.cirbe.asOf);
     const books = [input.closed, input.ytd]
-      .filter((x): x is CanonicalStatement => !!x)
+      .filter(isFullStatement)
       .sort((a, b) => Math.abs(Date.parse(a.period.end) - asOf) - Math.abs(Date.parse(b.period.end) - asOf))[0];
     t(out.length ? " Su deuda bancaria según CIRBE es de " : "Su deuda bancaria según CIRBE es de ");
     fig(formatCompactEur(cirbe));
@@ -65,7 +74,11 @@ export function caseSummary(input: {
     }
   }
   // Without ledger data the closed year is rebuilt from the deposited model: coarser, and the lender should know.
-  if (input.closed && input.closedSource === "annual_accounts") t(`${out.length ? " " : ""}El ejercicio cerrado se ha construido con las cuentas anuales, sin sumas y saldos.`);
+  const basis = (what: string) => t(`${out.length ? " " : ""}${what}`);
+  if (input.closed && input.closedSource === "annual_accounts") basis("El ejercicio cerrado se ha construido con las cuentas anuales, sin sumas y saldos.");
+  if (input.closed && input.closedSource === "modelo200") basis("El ejercicio cerrado se ha construido con el Modelo 200, sin sumas y saldos ni cuentas anuales.");
+  if (input.closed && input.closedSource === "modelo303") basis("Del ejercicio cerrado solo hay las ventas declaradas en IVA (Modelo 303).");
+  if (input.ytd && input.ytdSource === "modelo303") basis("Del año en curso solo hay las ventas declaradas en IVA (Modelo 303).");
   return out.length ? out : null;
 }
 

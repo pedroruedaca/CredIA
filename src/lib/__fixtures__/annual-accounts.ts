@@ -8,7 +8,7 @@
  */
 import type { AccountsYearWire, AnnualAccountsWire } from "../extract/schemas.ts";
 
-const zeroYear: AccountsYearWire = {
+export const zeroYear: AccountsYearWire = {
   non_current_assets: 0, current_assets: 0, inventories: 0, trade_and_other_receivables: 0, customers: 0, short_term_investments: 0,
   short_term_accruals_assets: 0, cash: 0, total_assets: 0, equity: 0, non_current_liabilities: 0, long_term_provisions: 0,
   long_term_bank_debt: 0, long_term_finance_leases: 0, long_term_other_debts: 0, long_term_group_debts: 0, current_liabilities: 0,

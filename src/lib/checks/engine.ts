@@ -5,10 +5,11 @@
  */
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import { JUDICIAL_TYPE_LABEL, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
-import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, Modelo303Extraction, SolvencyReport } from "../schema/canonical.ts";
-import { expectedQuarters, quarterCoverage, quarterLabel } from "../tax/modelo303.ts";
+import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
+import { declaredSales, expectedQuarters, quarterCoverage, quarterLabel, returnLabel, returnsForPeriod, type M303Return } from "../tax/modelo303.ts";
 import { minRunningBalance, type N43Account } from "../parsers/norma43.ts";
 import { monthsBetween } from "../types.ts";
+import { de } from "../format.ts";
 
 export type Severity = "info" | "warn" | "high";
 
@@ -111,7 +112,8 @@ export function cirbeAnnualPrincipal(cirbe: CirbeExtraction): number | undefined
 
 export function checkN43InflowsVsRevenue(s: CanonicalStatement, accounts: N43Account[], vatRate = 0.21): CheckResult {
   const key = "n43_inflows_vs_revenue";
-  if (!s.pnlAvailable) return na(key, "Sin cuenta de resultados para comparar con los cobros bancarios.");
+  // Revenue alone is enough here, so sales declared in the Modelo 303 also count.
+  if (!s.pnlAvailable && s.scope !== "revenue") return na(key, "Sin cuenta de resultados para comparar con los cobros bancarios.");
   const start = [s.period.start, ...accounts.map((a) => a.start)].sort().at(-1)!;
   const end = [s.period.end, ...accounts.map((a) => a.end)].sort()[0];
   if (start > end) return na(key, "Los extractos bancarios no cubren el periodo de la contabilidad.");
@@ -329,10 +331,10 @@ export function checkSolvencyReport(r: SolvencyReport, docId: string, closed: Ca
 
 /**
  * Which of the last 4 quarters already due are covered by the Modelo 303 returns received (quarterly, or three
- * monthly returns). Evidence: the accrued base (régimen general) per quarter, keyed by quarter label ("2T 26").
+ * monthly returns). Evidence: the sales declared per quarter (declaredSales), keyed by quarter label ("2T 26").
  * The newest upload wins when the same period appears twice (a complementaria).
  */
-export function checkModelo303Quarters(returns: { docId: string; uploadedAt: string; data: Modelo303Extraction }[], today: string): CheckResult {
+export function checkModelo303Quarters(returns: M303Return[], today: string): CheckResult {
   const key = "m303_quarters";
   if (returns.length === 0) return na(key, "No hay declaraciones de IVA leídas.");
   const byPeriod = new Map<string, (typeof returns)[number]>();
@@ -346,7 +348,7 @@ export function checkModelo303Quarters(returns: { docId: string; uploadedAt: str
   for (const q of expected) {
     const inQ = latest.filter((r) => r.data.periodStart >= q.start && r.data.periodEnd <= q.end);
     const isMissing = missing.includes(q);
-    values[quarterLabel(q)] = isMissing ? null : r2(inQ.reduce((s, r) => s + r.data.accruedBase, 0));
+    values[quarterLabel(q)] = isMissing ? null : r2(inQ.reduce((s, r) => s + declaredSales(r.data), 0));
     if (!isMissing) sources.push(...inQ.map((r) => `doc:${r.docId}${r.data.page ? `:page:${r.data.page}` : ""}`));
   }
   const rule = "Últimos 4 trimestres con plazo de presentación vencido (día 20 del mes siguiente; 30 de enero el cuarto)";
@@ -359,6 +361,36 @@ export function checkModelo303Quarters(returns: { docId: string; uploadedAt: str
     status: "fail",
     severity: "warn",
     message: `Falta${list.length > 1 ? "n" : ""} el Modelo 303 de ${list.length > 1 ? `${list.slice(0, -1).join(", ")} y ${list.at(-1)}` : list[0]}.`,
+    evidence: { values, sources, rule },
+  };
+}
+
+/**
+ * Sales declared in the Modelo 303 vs the revenue of a statement whose period the returns cover month by month
+ * (closed year, or a year to date ending on a month end). Not for a statement built from the 303 itself.
+ * `booksLabel` names where the statement comes from: "la contabilidad", "las cuentas anuales", "el Modelo 200".
+ */
+export function checkModelo303VsBooks(s: CanonicalStatement, returns: M303Return[], booksLabel = "la contabilidad"): CheckResult {
+  const key = "m303_vs_books_revenue";
+  if (!s.pnlAvailable) return na(key, "Sin cuenta de resultados para comparar con el IVA declarado.");
+  const { used, complete } = returnsForPeriod(returns, s.period.start, s.period.end);
+  if (!complete || used.length === 0) return na(key, "Los Modelos 303 no cubren todos los meses del periodo contable.");
+  const declared = r2(used.reduce((sum, r) => sum + declaredSales(r.data), 0));
+  const books = r2(s.incomeStatement.revenue);
+  const diff = r2(books - declared);
+  const ok = Math.abs(diff) <= 5000 || Math.abs(diff) / Math.max(Math.abs(books), Math.abs(declared), 1) <= 0.1;
+  const period = s.period.kind === "closed_fy" ? `del ejercicio ${s.period.end.slice(0, 4)}` : `de ${returnLabel(used[0].data)} a ${returnLabel(used.at(-1)!.data)}`;
+  const values = { declared_sales: declared, books, difference: diff, period_start: s.period.start, period_end: s.period.end, returns: used.length };
+  const sources = [...used.map((r) => `doc:${r.docId}${r.data.page ? `:page:${r.data.page}` : ""}`), ...lineageRefs(s, "revenue")];
+  const rule = "Bases devengadas + entregas intracomunitarias + exportaciones + no sujetas y con inversión del sujeto pasivo (Modelo 303) vs cifra de negocios; tolerancia 10 % o 5.000 €";
+  if (ok) {
+    return { key, status: "pass", severity: "info", message: `Las ventas declaradas en IVA ${period} (${eur(declared)}) cuadran con ${booksLabel} (${eur(books)}).`, evidence: { values, sources, rule } };
+  }
+  return {
+    key,
+    status: "fail",
+    severity: "warn",
+    message: `Las ventas declaradas en IVA ${period} (${eur(declared)}) difieren ${de(booksLabel)} (${eur(books)}; diferencia ${eur(diff)}). Puede deberse a ventas exentas, de inmovilizado o a ajustes de periodo.`,
     evidence: { values, sources, rule },
   };
 }
