@@ -238,6 +238,7 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
 - Inputs: soft fill, no border, 44px min height, 2px accent focus ring. Targets ≥ 44px.
 - Lists, not cards: `ListRow` with hover/selected soft fill and negative margin so text aligns with headings.
 - States: loading = `Skeleton` soft blocks; errors = one line with a high/warn pill (`ErrorLine`); no alert boxes.
+- Tooltips: `Tooltip` (`src/components/ui/Tooltip.tsx`: title + explanatory line, hover/focus, Esc) — never a native `title`.
 - Icons: lucide-react, stroke 1.8–2. No emoji or ✓ glyphs. Motion 150–200ms ease-out; honour reduced motion.
 - Spanish UI copy lives in `src/content/`; bracketed placeholders like `[RUTA …]` stay until real paths exist.
 - The PDF export (`src/lib/case-view/pdf.tsx`) mirrors these rules with vendored Geist TTFs.

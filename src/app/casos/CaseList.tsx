@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { productLabel } from "@/content/products.es";
 import { analystPending } from "@/lib/cases/attention";
 import { completeness } from "@/lib/cases/requirements";
@@ -62,28 +63,40 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
               <AnalystPendingChip count={analystPending(c.case_requirements, c.documents).length} />
             </div>
             {p.total === 0 ? (
-              <div className="col-span-2 text-[13px] text-muted md:col-span-1" title="La empresa no tiene documentos que aportar">Sin documentos de la empresa</div>
-            ) : (
-              <div className="col-span-2 flex items-center gap-3 md:col-span-1" title={`${p.done} de ${p.total} documentos obligatorios`}>
-                <div
-                  className="h-1 grow overflow-hidden rounded-full bg-track"
-                  role="progressbar"
-                  aria-valuenow={p.done}
-                  aria-valuemin={0}
-                  aria-valuemax={p.total}
-                  aria-label={`Documentos de ${name}: ${p.done} de ${p.total}`}
-                >
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
-                </div>
-                <span className="shrink-0 font-mono text-[13px] text-ink-2">{p.done}/{p.total}</span>
+              <div className="col-span-2 md:col-span-1">
+                <Tooltip label="Sin documentos de la empresa" hint="Todos los documentos los aportas tú («Lo subo yo»); a la empresa no se le pide nada.">
+                  <span className="text-[13px] text-muted">Sin documentos de la empresa</span>
+                </Tooltip>
               </div>
+            ) : (
+              <Tooltip
+                className="col-span-2 flex items-center gap-3 md:col-span-1"
+                label={`${p.done} de ${p.total} documentos obligatorios`}
+                hint={p.done === p.total ? "La empresa ya ha aportado todo lo obligatorio." : "Aportados por la empresa. Los opcionales y los que subes tú no cuentan."}
+              >
+                <div className="flex grow items-center gap-3">
+                  <div
+                    className="h-1 grow overflow-hidden rounded-full bg-track"
+                    role="progressbar"
+                    aria-valuenow={p.done}
+                    aria-valuemin={0}
+                    aria-valuemax={p.total}
+                    aria-label={`Documentos de ${name}: ${p.done} de ${p.total}`}
+                  >
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
+                  </div>
+                  <span className="shrink-0 font-mono text-[13px] text-ink-2">{p.done}/{p.total}</span>
+                </div>
+              </Tooltip>
             )}
             <time dateTime={c.updated_at} className="text-sm text-muted">{relativeTime(c.updated_at, now)}</time>
             <div className="flex justify-end gap-1">
-              <Link href={`/casos/${c.id}/vista-empresa`} className={iconAction} title="Ver como la empresa">
-                <Eye size={18} strokeWidth={1.8} aria-hidden />
-                <span className="sr-only">Ver como la empresa ({name})</span>
-              </Link>
+              <Tooltip label="Ver como la empresa" hint="Su página de documentación, en solo lectura.">
+                <Link href={`/casos/${c.id}/vista-empresa`} className={iconAction}>
+                  <Eye size={18} strokeWidth={1.8} aria-hidden />
+                  <span className="sr-only">Ver como la empresa ({name})</span>
+                </Link>
+              </Tooltip>
               {canEdit && <NewLinkButton caseId={c.id} companyName={name} compact />}
             </div>
           </li>

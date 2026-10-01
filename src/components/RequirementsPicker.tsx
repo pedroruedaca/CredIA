@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Pill, TogglePill } from "@/components/ui/Pill";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { REQUIREMENT_MODULES, type RequirementModule } from "@/lib/cases/requirements";
 
 type Level = "required" | "optional" | "lender" | "none";
@@ -38,9 +39,11 @@ export function RequirementsPicker({ values, error, legend = "Documentación sol
       {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
       <div className="flex flex-wrap gap-2">
         {REQUIREMENT_MODULES.map((m) => (
-          <TogglePill key={m.id} pressed={levels[m.id] !== "none"} onClick={() => set(m.id, levels[m.id] === "none" ? (m.specs[0].defaultRequired === false ? "optional" : "required") : "none")} title={m.hint}>
-            {m.label}
-          </TogglePill>
+          <Tooltip key={m.id} label={m.label} hint={m.hint}>
+            <TogglePill pressed={levels[m.id] !== "none"} onClick={() => set(m.id, levels[m.id] === "none" ? (m.specs[0].defaultRequired === false ? "optional" : "required") : "none")}>
+              {m.label}
+            </TogglePill>
+          </Tooltip>
         ))}
       </div>
       {REQUIREMENT_MODULES.flatMap((m) => m.specs.map((spec) => <input key={spec.kind} type="hidden" name={`req_${spec.kind}`} value={levels[m.id]} />))}

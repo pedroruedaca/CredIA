@@ -11,6 +11,7 @@ import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
 import { Pill } from "@/components/ui/Pill";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
@@ -91,14 +92,15 @@ export function CaseView({
               <Eye size={15} strokeWidth={1.8} aria-hidden /> Ver como la empresa
             </Link>
             {canEdit && !editing && (
-              <Link
-                href={`/casos/${kase.id}?personalizar=1`}
-                aria-label="Personalizar el panel"
-                title="Personalizar el panel"
-                className="inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-soft-control hover:text-ink"
-              >
-                <LayoutDashboard size={16} strokeWidth={1.8} aria-hidden />
-              </Link>
+              <Tooltip label="Personalizar el panel" hint="Ordena, ensancha, ajusta o quita módulos: para este caso, su plantilla o todo el equipo.">
+                <Link
+                  href={`/casos/${kase.id}?personalizar=1`}
+                  aria-label="Personalizar el panel"
+                  className="inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-soft-control hover:text-ink"
+                >
+                  <LayoutDashboard size={16} strokeWidth={1.8} aria-hidden />
+                </Link>
+              </Tooltip>
             )}
           </div>
           <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[44px]">{kase.companyName}</h1>

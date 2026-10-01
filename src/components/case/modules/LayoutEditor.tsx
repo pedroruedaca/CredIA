@@ -17,6 +17,7 @@ import { resetLayout, saveLayout, type LayoutTarget } from "@/app/casos/layout-a
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
+import { Tooltip } from "@/components/ui/Tooltip";
 import {
   addModule,
   availableModules,
@@ -33,11 +34,19 @@ import {
   setModuleWidth,
   type KpiTileId,
   type Layout,
+  type ModuleId,
   type LayoutModule,
   type ModuleSettings,
   type PeriodChoice,
 } from "@/lib/case-view/modules";
 import { KPI_TILE_LABEL, PERIOD_CHOICE_LABEL } from "@/content/case-view.es";
+
+const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
+  kpis: "Elige qué indicadores se muestran (hasta cinco).",
+  pnl: "Elige el periodo: el del caso, el cierre o el año en curso.",
+  balance: "Elige el periodo: el del caso, el cierre o el año en curso.",
+  review: "Elige si se ven también las comprobaciones superadas.",
+};
 
 const iconButton =
   "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent sm:size-9";
@@ -211,16 +220,18 @@ function Tile({
       )}
     >
       <div className="flex items-start gap-2">
-      <button
-        ref={setActivatorNodeRef}
-        type="button"
-        className={cx(iconButton, "cursor-grab active:cursor-grabbing")}
-        aria-label={`Mover ${spec.title} (posición ${index + 1} de ${count})`}
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical size={18} strokeWidth={1.8} aria-hidden />
-      </button>
+      <Tooltip label="Arrastrar para mover" hint="Con el teclado: Espacio, flechas y Espacio para soltar.">
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          className={cx(iconButton, "cursor-grab active:cursor-grabbing")}
+          aria-label={`Mover ${spec.title} (posición ${index + 1} de ${count})`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={18} strokeWidth={1.8} aria-hidden />
+        </button>
+      </Tooltip>
       <span className="flex min-w-0 grow flex-col gap-0.5 pt-2 sm:pt-1.5">
         <span className="text-[15px] font-medium">{spec.title}</span>
         <span className="text-[13px] text-muted">{spec.description}</span>
@@ -228,44 +239,58 @@ function Tile({
       </span>
       <span className="flex shrink-0 flex-wrap items-center justify-end">
         {hasSettings && (
-          <button
-            type="button"
-            className={cx(iconButton, open && "bg-soft-control text-ink")}
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-label={`Ajustes de ${spec.title}`}
-            title="Ajustes"
-          >
-            <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden />
-          </button>
+          <Tooltip label="Ajustes del módulo" hint={SETTINGS_HINT[m.id] ?? "Cambia lo que muestra este módulo."}>
+            <button
+              type="button"
+              className={cx(iconButton, open && "bg-soft-control text-ink")}
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-label={`Ajustes de ${spec.title}`}
+            >
+              <SlidersHorizontal size={16} strokeWidth={1.8} aria-hidden />
+            </button>
+          </Tooltip>
         )}
-        <button type="button" className={iconButton} onClick={() => onMove(index - 1)} disabled={index === 0} aria-label={`Subir ${spec.title}`}>
-          <ArrowUp size={16} strokeWidth={1.8} aria-hidden />
-        </button>
-        <button type="button" className={iconButton} onClick={() => onMove(index + 1)} disabled={index === count - 1} aria-label={`Bajar ${spec.title}`}>
-          <ArrowDown size={16} strokeWidth={1.8} aria-hidden />
-        </button>
+        <Tooltip label="Subir" hint={index === 0 ? "Ya es el primero." : "También puedes arrastrarlo por el asa."}>
+          <button type="button" className={iconButton} onClick={() => onMove(index - 1)} disabled={index === 0} aria-label={`Subir ${spec.title}`}>
+            <ArrowUp size={16} strokeWidth={1.8} aria-hidden />
+          </button>
+        </Tooltip>
+        <Tooltip label="Bajar" hint={index === count - 1 ? "Ya es el último." : "También puedes arrastrarlo por el asa."}>
+          <button type="button" className={iconButton} onClick={() => onMove(index + 1)} disabled={index === count - 1} aria-label={`Bajar ${spec.title}`}>
+            <ArrowDown size={16} strokeWidth={1.8} aria-hidden />
+          </button>
+        </Tooltip>
         {canHalf && (
+          <Tooltip
+            className="hidden md:inline-flex"
+            label={m.width === "full" ? "Media anchura" : "Todo el ancho"}
+            hint={m.width === "full" ? "Comparte fila con el módulo de al lado si también es de media anchura." : "Ocupa la fila entera."}
+          >
+            <button
+              type="button"
+              className={iconButton}
+              onClick={() => onWidth(m.width === "full" ? "half" : "full")}
+              aria-label={m.width === "full" ? `Poner ${spec.title} a media anchura` : `Poner ${spec.title} a todo el ancho`}
+            >
+              {m.width === "full" ? <Columns2 size={16} strokeWidth={1.8} aria-hidden /> : <RectangleHorizontal size={16} strokeWidth={1.8} aria-hidden />}
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip
+          label={spec.removable ? "Quitar del panel" : "No se puede quitar"}
+          hint={spec.removable ? "Puedes volver a ponerlo con «Añadir módulo»." : "Siempre está en el panel; sí puedes moverlo."}
+        >
           <button
             type="button"
-            className={cx(iconButton, "hidden md:inline-flex")}
-            onClick={() => onWidth(m.width === "full" ? "half" : "full")}
-            aria-label={m.width === "full" ? `Poner ${spec.title} a media anchura` : `Poner ${spec.title} a todo el ancho`}
-            title={m.width === "full" ? "Media anchura" : "Todo el ancho"}
+            className={iconButton}
+            onClick={onRemove}
+            disabled={!spec.removable}
+            aria-label={spec.removable ? `Quitar ${spec.title}` : `${spec.title} no se puede quitar`}
           >
-            {m.width === "full" ? <Columns2 size={16} strokeWidth={1.8} aria-hidden /> : <RectangleHorizontal size={16} strokeWidth={1.8} aria-hidden />}
+            <X size={16} strokeWidth={1.8} aria-hidden />
           </button>
-        )}
-        <button
-          type="button"
-          className={iconButton}
-          onClick={onRemove}
-          disabled={!spec.removable}
-          aria-label={spec.removable ? `Quitar ${spec.title}` : `${spec.title} no se puede quitar`}
-          title={spec.removable ? "Quitar" : "No se puede quitar"}
-        >
-          <X size={16} strokeWidth={1.8} aria-hidden />
-        </button>
+        </Tooltip>
       </span>
       </div>
       {hasSettings && open && <ModuleSettingsPanel module={m} title={spec.title} onChange={onSettings} />}

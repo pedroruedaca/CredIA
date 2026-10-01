@@ -9,4 +9,5 @@ export { Popover } from "./Popover";
 export { Modal } from "./Modal";
 export { Skeleton } from "./Skeleton";
 export { Figure } from "./Figure";
+export { Tooltip } from "./Tooltip";
 export { cx } from "./cx";

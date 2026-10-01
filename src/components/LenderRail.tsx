@@ -13,20 +13,22 @@ import { useDismiss } from "./ui/useDismiss";
 import { initials } from "@/lib/initials";
 import { Button } from "./ui/Button";
 import { cx } from "./ui/cx";
+import { Tooltip } from "./ui/Tooltip";
 
 interface Item {
   label: string;
+  hint: string;
   icon: LucideIcon;
   href: string | null; // null = not built yet
   match?: RegExp;
 }
 
 const MAIN: Item[] = [
-  { label: "Casos", icon: Briefcase, href: "/casos", match: /^\/casos(\/|$)/ },
-  { label: "Bandeja", icon: Inbox, href: "/bandeja", match: /^\/bandeja(\/|$)/ },
-  { label: "Plantillas", icon: FileText, href: "/plantillas", match: /^\/plantillas(\/|$)/ },
+  { label: "Casos", hint: "Todos los casos del equipo y en qué punto está cada uno.", icon: Briefcase, href: "/casos", match: /^\/casos(\/|$)/ },
+  { label: "Bandeja", hint: "Lo que necesita tu atención: envíos, peticiones de ayuda y revisiones.", icon: Inbox, href: "/bandeja", match: /^\/bandeja(\/|$)/ },
+  { label: "Plantillas", hint: "Documentos y panel guardados por tipo de operación.", icon: FileText, href: "/plantillas", match: /^\/plantillas(\/|$)/ },
 ];
-const SETTINGS: Item = { label: "Ajustes", icon: Settings, href: "/ajustes", match: /^\/ajustes(\/|$)/ };
+const SETTINGS: Item = { label: "Ajustes", hint: "Entidad, equipo y correo.", icon: Settings, href: "/ajustes", match: /^\/ajustes(\/|$)/ };
 
 const tile = "relative flex size-11 items-center justify-center rounded-[14px] transition-colors duration-150 ease-out";
 
@@ -35,17 +37,19 @@ function RailItem({ item, pathname, badge = 0 }: { item: Item; pathname: string;
   const active = !!item.match?.test(pathname);
   if (!item.href) {
     return (
-      <span aria-disabled="true" title={`${item.label} · próximamente`} className={cx(tile, "cursor-not-allowed text-faint")}>
-        <Icon size={20} strokeWidth={1.8} aria-hidden />
-        <span className="sr-only">{item.label} (próximamente)</span>
-      </span>
+      <Tooltip label={item.label} hint="Próximamente." side="right">
+        <span aria-disabled="true" className={cx(tile, "cursor-not-allowed text-faint")}>
+          <Icon size={20} strokeWidth={1.8} aria-hidden />
+          <span className="sr-only">{item.label} (próximamente)</span>
+        </span>
+      </Tooltip>
     );
   }
   return (
+    <Tooltip label={item.label} hint={item.hint} meta={badge > 0 ? `${badge} pendiente${badge === 1 ? "" : "s"}` : undefined} side="right">
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      title={item.label}
       className={cx(tile, active ? "bg-surface text-ink shadow-tile" : "text-muted hover:bg-surface/70 hover:text-ink")}
     >
       <Icon size={20} strokeWidth={1.8} aria-hidden />
@@ -56,6 +60,7 @@ function RailItem({ item, pathname, badge = 0 }: { item: Item; pathname: string;
         </span>
       )}
     </Link>
+    </Tooltip>
   );
 }
 
@@ -87,6 +92,7 @@ function AccountMenu({ email, lenderName }: { email: string; lenderName: string 
   useEffect(() => setOpen(false), [pathname]);
   return (
     <div ref={ref} className="relative">
+      <Tooltip label="Tu cuenta" hint={`${lenderName} · ${email}`} side="right">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -97,6 +103,7 @@ function AccountMenu({ email, lenderName }: { email: string; lenderName: string 
       >
         <span className="flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">{initials(email)}</span>
       </button>
+      </Tooltip>
       {open && (
         <div id="account-menu" className="absolute right-0 top-full z-30 mt-2 w-64 rounded-[20px] bg-surface p-3 text-sm shadow-float sm:bottom-0 sm:left-full sm:right-auto sm:top-auto sm:ml-3 sm:mt-0">
           <p className="truncate px-1 font-medium text-ink">{lenderName}</p>

@@ -7,6 +7,7 @@ import { CopyLink } from "@/components/CopyLink";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { regenerateBorrowerLink, type RegenerateLinkResult } from "./actions";
 
 export function NewLinkButton({ caseId, companyName, compact = false }: { caseId: string; companyName: string; compact?: boolean }) {
@@ -31,15 +32,16 @@ export function NewLinkButton({ caseId, companyName, compact = false }: { caseId
   return (
     <>
       {compact ? (
-        <button
-          type="button"
-          onClick={() => ref.current?.showModal()}
-          title="Nuevo enlace"
-          className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink"
-        >
-          <Link2 size={18} strokeWidth={1.8} aria-hidden />
-          <span className="sr-only">Nuevo enlace para {companyName}</span>
-        </button>
+        <Tooltip label="Nuevo enlace" hint="Genera otro enlace para la empresa; el anterior deja de funcionar.">
+          <button
+            type="button"
+            onClick={() => ref.current?.showModal()}
+            className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink"
+          >
+            <Link2 size={18} strokeWidth={1.8} aria-hidden />
+            <span className="sr-only">Nuevo enlace para {companyName}</span>
+          </button>
+        </Tooltip>
       ) : (
         <Button variant="secondary" size="sm" onClick={() => ref.current?.showModal()}>
           <Link2 size={15} strokeWidth={1.8} aria-hidden /> Nuevo enlace
