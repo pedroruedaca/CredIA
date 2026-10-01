@@ -31,6 +31,8 @@ export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
   // PDF statements are the fallback when the bank does not export Norma 43.
   norma43: { extensions: ["n43", "q43", "txt", "aeb", "pdf"], multiple: true, acceptLabel: ".n43, .txt o PDF" },
   modelo200: PDF_ONLY,
+  // One return per quarter (or per month for monthly filers).
+  modelo303: { extensions: ["pdf"], multiple: true, acceptLabel: "PDF · uno por trimestre · hasta 20 MB" },
   cuentas_anuales: PDF_ONLY,
   cirbe: PDF_ONLY,
   aeat_cert: PDF_ONLY,

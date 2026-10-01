@@ -2,6 +2,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { describe, expect, it } from "vitest";
 import { assessExtraction, cleanNif, type AssessContext } from "./assess.ts";
 import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
+import { modelo303Wire } from "../__fixtures__/modelo303.ts";
 import { WIRE_FOR, type AccountsWire, type CertificateWire, type CirbeWire } from "./schemas.ts";
 
 const CTX: AssessContext = { fileName: "doc.pdf", caseCif: "B12345674", companyName: "Distribuciones Ejemplo SL", lenderName: "Fondo Ejemplo Capital", expectedFiscalYear: 2025 };
@@ -132,3 +133,30 @@ describe("assessExtraction · informe de solvencia", () => {
   });
 });
 
+describe("Modelo 303", () => {
+  it("reads the period and sums the accrued bases", () => {
+    const a = assessExtraction("modelo303", modelo303Wire(2026, "2T"), CTX);
+    expect(a.status).toBe("parsed");
+    expect(a.canonical).toMatchObject({
+      kind: "modelo303",
+      data: { nif: "B12345674", fiscalYear: 2026, period: "2T", periodStart: "2026-04-01", periodEnd: "2026-06-30", accruedBase: 252_000, accruedQuota: 51_600, page: 2 },
+    });
+  });
+  it("reads a monthly return", () => {
+    const a = assessExtraction("modelo303", modelo303Wire(2026, "02"), CTX);
+    expect(a.canonical).toMatchObject({ data: { periodStart: "2026-02-01", periodEnd: "2026-02-28" } });
+  });
+  it("asks for the full return when the period is not printed", () => {
+    const a = assessExtraction("modelo303", { ...modelo303Wire(2026, "2T"), period: "" }, CTX);
+    expect(a.status).toBe("needs_review");
+    expect(a.warnings.map((w) => w.code)).toContain("m303_no_period");
+  });
+  it("fails a payment receipt without the liquidación", () => {
+    const a = assessExtraction("modelo303", { ...modelo303Wire(2026, "2T"), accrued: [], accrued_quota_total: null, deductible_quota_total: null, result: null }, CTX);
+    expect(a.status).toBe("failed");
+  });
+  it("names the Modelo 303 when it is uploaded as the Modelo 200", () => {
+    const a = assessExtraction("modelo200", { ...m200, document_type: "modelo303" }, CTX);
+    expect(a.attentionMessage).toContain("parece una declaración de IVA (Modelo 303)");
+  });
+});

@@ -28,6 +28,7 @@ import {
   checkCirbeVsBooks,
   checkDebtPaymentsVsDeclaredDebt,
   checkModelo200VsBooks,
+  checkModelo303Quarters,
   checkN43InflowsVsRevenue,
   checkOverdrafts,
   checkSolvencyReport,
@@ -256,7 +257,7 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
   }
 
   const kind = doc.kind as ExtractKind;
-  if (!["modelo200", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report"].includes(kind)) return { status: "uploaded" };
+  if (!["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report"].includes(kind)) return { status: "uploaded" };
   const call = await extractPdf(kind, bytes);
   if (!call.ok) {
     if (call.reason === "api_error" || call.reason === "not_configured") {
@@ -291,7 +292,12 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
       status: a.status,
       output: { model: call.model, wire: call.value, canonical: a.canonical },
       warnings: a.warnings,
-      summary: a.canonical?.kind === "annual_accounts" ? { fiscal_year: a.canonical.data.fiscalYear, model: a.canonical.data.model, prior_year: a.canonical.data.prior !== null } : undefined,
+      summary:
+        a.canonical?.kind === "annual_accounts"
+          ? { fiscal_year: a.canonical.data.fiscalYear, model: a.canonical.data.model, prior_year: a.canonical.data.prior !== null }
+          : a.canonical?.kind === "modelo303"
+            ? { period: { start: a.canonical.data.periodStart, end: a.canonical.data.periodEnd } }
+            : undefined,
     },
   };
 }
@@ -502,6 +508,13 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     const cert = (doc?.output.canonical as Canonical | undefined)?.kind === "certificate" ? (doc!.output.canonical as { data: CertificateExtraction }).data : null;
     checks.push(checkCertificate(kind, cert, doc?.id ?? null, req.max_age_days, today));
   }
+
+  // Modelo 303: last 4 quarters filed.
+  const m303 = parsed.flatMap((d) => {
+    const c = d.output.canonical as Canonical | undefined;
+    return d.kind === "modelo303" && c?.kind === "modelo303" ? [{ docId: d.id, uploadedAt: d.uploadedAt, data: c.data }] : [];
+  });
+  checks.push(checkModelo303Quarters(m303, today));
 
   // Informe de solvencia (latest report, uploaded by the company or the lender).
   const solvencyDoc = latest("solvency_report");

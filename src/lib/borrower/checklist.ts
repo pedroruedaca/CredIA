@@ -4,6 +4,7 @@
  * so what the borrower sees is exactly what the server enforces.
  */
 import { REQUIREMENT_KINDS, type RequirementKind } from "../cases/requirements.ts";
+import { expectedQuarters, quarterCoverage, quarterLabel } from "../tax/modelo303.ts";
 import { formatDate, formatMonthYear } from "../format.ts";
 
 export type ItemState = "pending" | "in_progress" | "done" | "attention";
@@ -224,6 +225,17 @@ function doneSummary(
   today: string,
 ): string {
   if (holded) return holdedPeriodsText(holded.periods, today);
+  if (kind === "modelo303") {
+    const read = ready.flatMap((d) => (d.summary?.period ? [d.summary.period] : []));
+    if (read.length) {
+      // Not blocking: a young company may not have four quarters. The lender sees the gap as a check.
+      const expected = expectedQuarters(today);
+      const { covered, missing } = quarterCoverage(read, expected);
+      return missing.length
+        ? `${covered.length} de 4 trimestres · falta${missing.length > 1 ? "n" : ""} ${missing.map(quarterLabel).join(", ")}`
+        : `Últimos 4 trimestres · ${quarterLabel(expected[0])} a ${quarterLabel(expected[3])}`;
+    }
+  }
   if (ready.length > 1) return `${ready.length} ficheros recibidos`;
   const d = ready[0];
   if (d.issued_on) return `Emitido el ${formatDate(d.issued_on)}${maxAge ? " · vigente" : ""}`;

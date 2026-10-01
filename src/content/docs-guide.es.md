@@ -48,6 +48,22 @@ PRESENTADO], con el certificado digital de la empresa. Descargar el PDF de la de
 
 **Si lo lleva la gestoría.** Normalmente la gestoría presentó la declaración y tiene el PDF.
 
+## IVA trimestral (modelo303)
+
+**Qué es.** Las autoliquidaciones de IVA (Modelo 303) de los últimos 4 trimestres ya presentados, tal como se
+presentaron en la Agencia Tributaria. Un PDF por trimestre. Las empresas que declaran el IVA cada mes (gran
+empresa, SII o REDEME) suben las declaraciones mensuales de esos 12 meses.
+
+**Para qué se pide.** Muestra las ventas declaradas trimestre a trimestre, más recientes que el último ejercicio cerrado.
+
+**Qué trimestres.** Los 4 últimos cuyo plazo de presentación ya ha terminado (el 20 del mes siguiente al trimestre;
+el 30 de enero para el cuarto trimestre).
+
+**Cómo conseguirlo.** En la sede electrónica de la Agencia Tributaria → [RUTA PARA DESCARGAR EL MODELO 303
+PRESENTADO], con el certificado digital de la empresa. Descargar el PDF de cada declaración presentada.
+
+**Si lo lleva la gestoría.** La gestoría tiene los justificantes de presentación de cada trimestre.
+
 ## Cuentas anuales (cuentas_anuales)
 
 **Qué es.** Las cuentas anuales del último ejercicio (balance, cuenta de pérdidas y ganancias y memoria),

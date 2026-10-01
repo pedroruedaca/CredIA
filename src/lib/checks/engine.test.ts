@@ -5,6 +5,8 @@ import { parseNorma43 } from "../parsers/norma43.ts";
 import { buildStatement } from "../pgc/mapping.ts";
 import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
 import { assessExtraction } from "../extract/assess.ts";
+import { modelo303Wire } from "../__fixtures__/modelo303.ts";
+import type { Modelo303Wire } from "../extract/schemas.ts";
 import type { SolvencyReport } from "../schema/canonical.ts";
 import type { CirbeExtraction, Modelo200Extraction } from "../schema/canonical.ts";
 import {
@@ -13,6 +15,7 @@ import {
   checkCirbeVsBooks,
   checkDebtPaymentsVsDeclaredDebt,
   checkModelo200VsBooks,
+  checkModelo303Quarters,
   checkN43InflowsVsRevenue,
   checkOverdrafts,
   cirbeAnnualPrincipal,
@@ -139,3 +142,32 @@ describe("checkSolvencyReport", () => {
   });
 });
 
+describe("checkModelo303Quarters", () => {
+  const ret = (year: number, period: Modelo303Wire["period"], uploadedAt = "2026-09-20T10:00:00Z", base21?: number) => {
+    const a = assessExtraction("modelo303", modelo303Wire(year, period, base21), { fileName: "303.pdf", caseCif: "B12345674", companyName: "X", lenderName: "Y", expectedFiscalYear: 2025 });
+    if (a.canonical?.kind !== "modelo303") throw new Error("fixture not parsed");
+    return { docId: `${year}-${period}-${uploadedAt}`, uploadedAt, data: a.canonical.data };
+  };
+  const TODAY = "2026-10-01"; // last 4 due: 3T 25 .. 2T 26
+
+  it("passes with the last 4 quarters and shows the base per quarter", () => {
+    const c = checkModelo303Quarters([ret(2025, "3T"), ret(2025, "4T"), ret(2026, "1T"), ret(2026, "2T")], TODAY);
+    expect(c).toMatchObject({ status: "pass", severity: "info", evidence: { values: { "3T 25": 252_000, "2T 26": 252_000 } } });
+    expect(c.evidence.sources).toContain("doc:2026-2T-2026-09-20T10:00:00Z:page:2");
+  });
+
+  it("warns about the missing quarters; three monthly returns cover a quarter", () => {
+    const c = checkModelo303Quarters([ret(2025, "3T"), ret(2026, "04"), ret(2026, "05"), ret(2026, "06")], TODAY);
+    expect(c).toMatchObject({ status: "fail", severity: "warn", message: "Faltan el Modelo 303 de 4T 25 y 1T 26." });
+    expect(c.evidence.values).toMatchObject({ "4T 25": null, "1T 26": null, "2T 26": 756_000 });
+  });
+
+  it("the newest upload of a period wins (complementaria)", () => {
+    const c = checkModelo303Quarters([ret(2026, "2T", "2026-09-01T00:00:00Z"), ret(2026, "2T", "2026-09-25T00:00:00Z", 300_000)], TODAY);
+    expect(c.evidence.values["2T 26"]).toBe(312_000);
+  });
+
+  it("does not apply without returns", () => {
+    expect(checkModelo303Quarters([], TODAY).status).toBe("not_applicable");
+  });
+});

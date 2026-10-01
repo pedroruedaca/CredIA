@@ -203,6 +203,18 @@ export function evidenceView(
       base.values = base.values.filter((v) => v.label !== VALUE_LABEL.account);
       break;
     }
+    case "m303_quarters": {
+      // Values are keyed by quarter ("2T 26"): the accrued base, or null when that quarter is missing.
+      const quarters = Object.entries(values).filter(([k]) => /^[1-4]T \d\d$/.test(k));
+      base.table = {
+        title: "Base imponible devengada por trimestre",
+        columns: ["Trimestre", "Base devengada"],
+        rows: quarters.map(([k, v]) => ({ label: k, mono: true, a: num(v) !== null ? eurText(num(v)!) : "Falta", mismatch: num(v) === null })),
+      };
+      base.values = [];
+      base.evidenceLine = quarters.map(([k]) => k).join(" · ");
+      break;
+    }
     case "n43_overdrawn": {
       const entries = Object.entries(values).filter(([, v]) => typeof v === "number" && v < 0) as [string, number][];
       if (entries.length) {

@@ -1,6 +1,7 @@
 /** Borrower-facing names of document types, used in "this looks like X, not Y" messages. */
 export const DOC_TYPE_LABEL: Record<string, string> = {
   modelo200: "el Impuesto de Sociedades (Modelo 200)",
+  modelo303: "una declaración de IVA (Modelo 303)",
   cuentas_anuales: "las cuentas anuales",
   cirbe: "un informe CIRBE",
   aeat_cert: "un certificado de Hacienda",

@@ -161,6 +161,25 @@ export const SolvencyReportSchema = z.object({
 });
 
 export type SolvencyReport = z.infer<typeof SolvencyReportSchema>;
+
+/** LLM extraction target for one Modelo 303 (IVA) return, quarterly ("1T".."4T") or monthly ("01".."12"). */
+export const Modelo303ExtractionSchema = z.object({
+  nif: z.string(),
+  fiscalYear: z.number().int(),
+  period: z.string().regex(/^([1-4]T|0[1-9]|1[0-2])$/),
+  periodStart: date,
+  periodEnd: date,
+  accrued: z.array(z.object({ ratePercent: z.number(), base: money, quota: money, page: pageNum.nullable() })),
+  /** Sum of the accrued bases (régimen general). */
+  accruedBase: money,
+  accruedQuota: money.nullable(),
+  deductibleQuota: money.nullable(),
+  result: money.nullable(),
+  intraEuSupplies: money.nullable(),
+  exports: money.nullable(),
+  page: pageNum.nullable(),
+});
+export type Modelo303Extraction = z.infer<typeof Modelo303ExtractionSchema>;
 export type Modelo200Extraction = z.infer<typeof Modelo200ExtractionSchema>;
 export type CirbeExtraction = z.infer<typeof CirbeExtractionSchema>;
 export type CertificateExtraction = z.infer<typeof CertificateExtractionSchema>;

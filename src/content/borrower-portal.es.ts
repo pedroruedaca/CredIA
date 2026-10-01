@@ -35,6 +35,15 @@ export const ITEM_COPY: Record<RequirementKind, ItemCopy> = {
       "Descarga el PDF de la declaración presentada y súbelo aquí.",
     ],
   },
+  modelo303: {
+    title: "IVA trimestral (Modelo 303)",
+    description: "Las declaraciones de IVA de los últimos 4 trimestres presentadas en la Agencia Tributaria.",
+    steps: [
+      "Entra en la sede electrónica de la Agencia Tributaria → [RUTA PARA DESCARGAR EL MODELO 303 PRESENTADO].",
+      "Identifícate con el certificado digital de la empresa.",
+      "Descarga el PDF de cada uno de los últimos 4 trimestres (si declaras el IVA cada mes, los 12 meses) y súbelos aquí.",
+    ],
+  },
   cuentas_anuales: {
     title: "Cuentas anuales",
     description: "Las del último ejercicio, tal como se depositaron en el Registro Mercantil.",
@@ -111,6 +120,12 @@ export const STEP_COPY: Record<RequirementKind, StepCopy> = {
     heading: "Tu Impuesto de Sociedades",
     why: (l) => `La declaración del último ejercicio (Modelo 200). ${l} la usa como referencia oficial del año cerrado.`,
     estimate: "≈ 5 min",
+  },
+  modelo303: {
+    short: "IVA (Modelo 303)",
+    heading: "Tus declaraciones de IVA",
+    why: (l) => `Los Modelos 303 de los últimos 4 trimestres. ${l} los usa para ver la evolución de tus ventas declaradas.`,
+    estimate: "≈ 10 min",
   },
   cuentas_anuales: {
     short: "Cuentas anuales",

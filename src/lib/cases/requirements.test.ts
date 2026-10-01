@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeness, isRequirementMet } from "./requirements.ts";
+import { completeness, isRequirementMet, REQUIREMENT_MODULES } from "./requirements.ts";
 
 const reqs = [
   { doc_kind: "trial_balance", required: true },
@@ -32,3 +32,13 @@ describe("completeness", () => {
     expect(completeness([{ doc_kind: "cirbe", required: false }], [], [])).toEqual({ done: 0, total: 0, pct: 100 });
   });
 });
+
+describe("REQUIREMENT_MODULES", () => {
+  it("groups the Modelo 200 and the Modelo 303 as «Documentos fiscales»", () => {
+    const fiscal = REQUIREMENT_MODULES.find((m) => m.label === "Documentos fiscales")!;
+    expect(fiscal.specs.map((s) => s.kind)).toEqual(["modelo200", "modelo303"]);
+    expect(REQUIREMENT_MODULES.flatMap((m) => m.specs).length).toBe(9);
+    expect(REQUIREMENT_MODULES.map((m) => m.label)).not.toContain("Modelo 200");
+  });
+});
+

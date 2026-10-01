@@ -5,7 +5,8 @@
  */
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import { JUDICIAL_TYPE_LABEL, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
-import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
+import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, Modelo303Extraction, SolvencyReport } from "../schema/canonical.ts";
+import { expectedQuarters, quarterCoverage, quarterLabel } from "../tax/modelo303.ts";
 import { minRunningBalance, type N43Account } from "../parsers/norma43.ts";
 import { monthsBetween } from "../types.ts";
 
@@ -321,4 +322,43 @@ export function checkSolvencyReport(r: SolvencyReport, docId: string, closed: Ca
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Modelo 303: the last 4 quarters filed
+
+/**
+ * Which of the last 4 quarters already due are covered by the Modelo 303 returns received (quarterly, or three
+ * monthly returns). Evidence: the accrued base (régimen general) per quarter, keyed by quarter label ("2T 26").
+ * The newest upload wins when the same period appears twice (a complementaria).
+ */
+export function checkModelo303Quarters(returns: { docId: string; uploadedAt: string; data: Modelo303Extraction }[], today: string): CheckResult {
+  const key = "m303_quarters";
+  if (returns.length === 0) return na(key, "No hay declaraciones de IVA leídas.");
+  const byPeriod = new Map<string, (typeof returns)[number]>();
+  for (const r of [...returns].sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt))) byPeriod.set(`${r.data.fiscalYear}-${r.data.period}`, r);
+  const latest = [...byPeriod.values()];
+  const expected = expectedQuarters(today);
+  const { missing } = quarterCoverage(latest.map((r) => ({ start: r.data.periodStart, end: r.data.periodEnd })), expected);
+
+  const values: Record<string, number | string | null> = {};
+  const sources: string[] = [];
+  for (const q of expected) {
+    const inQ = latest.filter((r) => r.data.periodStart >= q.start && r.data.periodEnd <= q.end);
+    const isMissing = missing.includes(q);
+    values[quarterLabel(q)] = isMissing ? null : r2(inQ.reduce((s, r) => s + r.data.accruedBase, 0));
+    if (!isMissing) sources.push(...inQ.map((r) => `doc:${r.docId}${r.data.page ? `:page:${r.data.page}` : ""}`));
+  }
+  const rule = "Últimos 4 trimestres con plazo de presentación vencido (día 20 del mes siguiente; 30 de enero el cuarto)";
+  if (missing.length === 0) {
+    return { key, status: "pass", severity: "info", message: `Modelo 303 de los últimos 4 trimestres (${quarterLabel(expected[0])} a ${quarterLabel(expected[3])}).`, evidence: { values, sources, rule } };
+  }
+  const list = missing.map(quarterLabel);
+  return {
+    key,
+    status: "fail",
+    severity: "warn",
+    message: `Falta${list.length > 1 ? "n" : ""} el Modelo 303 de ${list.length > 1 ? `${list.slice(0, -1).join(", ")} y ${list.at(-1)}` : list[0]}.`,
+    evidence: { values, sources, rule },
+  };
 }

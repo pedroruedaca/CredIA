@@ -5,7 +5,7 @@ import { PRODUCTS } from "@/content/products.es";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Pill, TogglePill } from "@/components/ui/Pill";
-import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
+import { REQUIREMENT_MODULES, type RequirementModule } from "@/lib/cases/requirements";
 import { createCase, type CreateCaseState } from "./actions";
 import { CopyLink } from "@/components/CopyLink";
 
@@ -106,18 +106,21 @@ type Level = "required" | "optional" | "cif" | "none";
 const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", cif: "Por CIF" } as const;
 
 /**
- * Requested documents as toggle pills. Selected documents show "Obligatorio / Opcional" (plus "Por CIF" for those
- * the lender can obtain without the company) and, where it applies, a maximum age. Posts the same `req_<kind>` / `age_<kind>` fields the server action already validates.
+ * Requested documents as toggle pills, one per module (a document, or several requested together such as «Documentos
+ * fiscales»). Selected modules show "Obligatorio / Opcional" (plus "Por CIF" for those the lender can obtain without
+ * the company) and, where it applies, a maximum age. Posts `req_<kind>` for every kind of the module and `age_<kind>`,
+ * the fields the server action validates.
  */
 function Requirements({ values, error }: { values: Record<string, string>; error?: string }) {
   const [levels, setLevels] = useState<Record<string, Level>>(() =>
-    Object.fromEntries(
-      // A new case starts with nothing selected; after a failed submit the lender's choices are kept.
-      REQUIREMENT_SPECS.map((spec) => [spec.kind, (values[`req_${spec.kind}`] as Level) ?? "none"]),
-    ),
+    // A new case starts with nothing selected; after a failed submit the lender's choices are kept.
+    Object.fromEntries(REQUIREMENT_MODULES.map((m) => [m.id, (values[`req_${m.specs[0].kind}`] as Level) ?? "none"])),
   );
-  const set = (kind: string, level: Level) => setLevels((l) => ({ ...l, [kind]: level }));
-  const selected = REQUIREMENT_SPECS.filter((s) => levels[s.kind] !== "none");
+  const set = (id: string, level: Level) => setLevels((l) => ({ ...l, [id]: level }));
+  const selected = REQUIREMENT_MODULES.filter((m) => levels[m.id] !== "none");
+  const byCif = (m: RequirementModule) => m.specs.every((s) => s.byCif);
+  // Maximum age only for single-document modules.
+  const ageSpec = (m: RequirementModule) => (m.specs.length === 1 && m.specs[0].supportsMaxAge ? m.specs[0] : null);
 
   return (
     <fieldset className="flex flex-col gap-4" aria-describedby={error ? "requirements-error" : "requirements-hint"}>
@@ -125,47 +128,49 @@ function Requirements({ values, error }: { values: Record<string, string>; error
       <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima. «Por CIF»: los obtienes tú con el CIF de la empresa y no se le piden.</p>
       {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
       <div className="flex flex-wrap gap-2">
-        {REQUIREMENT_SPECS.map((spec) => (
-          <TogglePill key={spec.kind} pressed={levels[spec.kind] !== "none"} onClick={() => set(spec.kind, levels[spec.kind] === "none" ? (spec.defaultRequired === false ? "optional" : "required") : "none")} title={spec.hint}>
-            {spec.label}
+        {REQUIREMENT_MODULES.map((m) => (
+          <TogglePill key={m.id} pressed={levels[m.id] !== "none"} onClick={() => set(m.id, levels[m.id] === "none" ? (m.specs[0].defaultRequired === false ? "optional" : "required") : "none")} title={m.hint}>
+            {m.label}
           </TogglePill>
         ))}
       </div>
-      {REQUIREMENT_SPECS.map((spec) => <input key={spec.kind} type="hidden" name={`req_${spec.kind}`} value={levels[spec.kind]} />)}
+      {REQUIREMENT_MODULES.flatMap((m) => m.specs.map((spec) => <input key={spec.kind} type="hidden" name={`req_${spec.kind}`} value={levels[m.id]} />))}
 
       {selected.length > 0 && (
         // One grid for all rows (subgrid), so the choice pills line up on the left whether they have two or three options.
         <ul className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-          {selected.map((spec) => (
-            <li key={spec.kind} className="-mx-4 flex flex-col gap-3 rounded-row px-4 py-3 hover:bg-soft sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-x-3">
+          {selected.map((m) => {
+            const age = ageSpec(m);
+            return (
+            <li key={m.id} className="-mx-4 flex flex-col gap-3 rounded-row px-4 py-3 hover:bg-soft sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-x-3">
               <div className="min-w-0 grow">
-                <div className="text-[15px] font-medium">{spec.label}</div>
-                <div className="text-[13px] text-muted">{spec.hint}</div>
+                <div className="text-[15px] font-medium">{m.label}</div>
+                <div className="text-[13px] text-muted">{m.hint}</div>
               </div>
               <div className="flex shrink-0 items-center gap-3 sm:contents">
-              <div role="group" aria-label={`${spec.label}: ${spec.byCif ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
-                {(spec.byCif ? (["required", "optional", "cif"] as const) : (["required", "optional"] as const)).map((lvl) => (
+              <div role="group" aria-label={`${m.label}: ${byCif(m) ? "obligatorio, opcional o por CIF" : "obligatorio u opcional"}`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
+                {(byCif(m) ? (["required", "optional", "cif"] as const) : (["required", "optional"] as const)).map((lvl) => (
                   <button
                     key={lvl}
                     type="button"
-                    aria-pressed={levels[spec.kind] === lvl}
-                    onClick={() => set(spec.kind, lvl)}
-                    className={`min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors ${levels[spec.kind] === lvl ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink"}`}
+                    aria-pressed={levels[m.id] === lvl}
+                    onClick={() => set(m.id, lvl)}
+                    className={`min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors ${levels[m.id] === lvl ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink"}`}
                   >
                     {LEVEL_LABEL[lvl]}
                   </button>
                 ))}
               </div>
-              {spec.supportsMaxAge ? (
+              {age ? (
                 <label className="flex w-[140px] items-center gap-2 text-[13px] text-muted">
                   <span className="whitespace-nowrap">Máx.</span>
                   <Input
-                    name={`age_${spec.kind}`}
+                    name={`age_${age.kind}`}
                     type="number"
                     min={1}
                     max={3650}
-                    defaultValue={values[`age_${spec.kind}`] ?? spec.defaultMaxAgeDays?.toString() ?? ""}
-                    aria-label={`Antigüedad máxima de ${spec.label}, en días`}
+                    defaultValue={values[`age_${age.kind}`] ?? age.defaultMaxAgeDays?.toString() ?? ""}
+                    aria-label={`Antigüedad máxima de ${age.label}, en días`}
                     className="w-[72px] px-3 font-mono"
                   />
                   <span>días</span>
@@ -175,7 +180,8 @@ function Requirements({ values, error }: { values: Record<string, string>; error
               )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </fieldset>

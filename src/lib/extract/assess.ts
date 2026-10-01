@@ -11,6 +11,8 @@ import {
   CertificateExtractionSchema,
   CirbeExtractionSchema,
   Modelo200ExtractionSchema,
+  Modelo303ExtractionSchema,
+  type Modelo303Extraction,
   SolvencyReportSchema,
   type SolvencyReport,
   type CertificateExtraction,
@@ -18,7 +20,8 @@ import {
   type Modelo200Extraction,
 } from "../schema/canonical.ts";
 import type { Warning } from "../types.ts";
-import type { AccountsWire, AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, SolvencyWire } from "./schemas.ts";
+import type { AccountsWire, AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, Modelo303Wire, SolvencyWire } from "./schemas.ts";
+import { periodRange } from "../tax/modelo303.ts";
 
 export interface AssessContext {
   fileName: string;
@@ -31,6 +34,7 @@ export interface AssessContext {
 
 export type Canonical =
   | { kind: "accounts"; data: Modelo200Extraction; periodEnd: string | null }
+  | { kind: "modelo303"; data: Modelo303Extraction }
   | { kind: "annual_accounts"; data: AnnualAccountsExtraction }
   | { kind: "cirbe"; data: CirbeExtraction }
   | { kind: "certificate"; data: CertificateExtraction }
@@ -58,7 +62,7 @@ export function cleanNif(raw: string | null | undefined): string | null {
 
 const fail = (attentionMessage: string, warnings: Warning[] = []): Assessment => ({ status: "failed", attentionMessage, issuedOn: null, canonical: null, warnings });
 
-type Wire = AccountsWire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
+type Wire = AccountsWire | Modelo303Wire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
 
 /** Checks shared by every kind: legible, right document, right company. */
 function identity(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment | Warning[] {
@@ -235,12 +239,48 @@ function solvency(w: SolvencyWire, ctx: AssessContext, warnings: Warning[]): Ass
   return { status: "parsed", attentionMessage: null, issuedOn: reportDate, canonical: { kind: "solvency", data: parsed.data }, warnings };
 }
 
+/** One Modelo 303 return: which period it covers and the figures of the liquidación. */
+function modelo303(w: Modelo303Wire, ctx: AssessContext, warnings: Warning[]): Assessment {
+  if (w.fiscal_year <= 0 || w.period === "") {
+    return {
+      status: "needs_review",
+      attentionMessage: `No encontramos el ejercicio o el periodo en «${ctx.fileName}». Sube la declaración completa, tal como la descargas de la sede electrónica.`,
+      issuedOn: null,
+      canonical: null,
+      warnings: [...warnings, { code: "m303_no_period", message: "No se ha encontrado el ejercicio o el periodo del Modelo 303." }],
+    };
+  }
+  if (w.accrued.length === 0 && [w.accrued_quota_total, w.deductible_quota_total, w.result].every((v) => v === null)) {
+    return fail(`No encontramos las cifras de la liquidación en «${ctx.fileName}». Sube la declaración completa, no solo el justificante de pago.`, warnings);
+  }
+  const { start, end } = periodRange(w.fiscal_year, w.period);
+  const parsed = Modelo303ExtractionSchema.safeParse({
+    nif: cleanNif(w.company_nif) ?? cleanNif(ctx.caseCif) ?? "",
+    fiscalYear: w.fiscal_year,
+    period: w.period,
+    periodStart: start,
+    periodEnd: end,
+    accrued: w.accrued.map((a) => ({ ratePercent: a.rate_percent, base: a.base, quota: a.quota, page: pos(a.page) })),
+    accruedBase: Math.round(w.accrued.reduce((s, a) => s + a.base, 0) * 100) / 100,
+    accruedQuota: w.accrued_quota_total,
+    deductibleQuota: w.deductible_quota_total,
+    result: w.result,
+    intraEuSupplies: w.intra_eu_supplies,
+    exports: w.exports,
+    page: pos(w.summary_page),
+  });
+  if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn: null, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };
+  return { status: "parsed", attentionMessage: null, issuedOn: null, canonical: { kind: "modelo303", data: parsed.data }, warnings };
+}
+
 export function assessExtraction(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment {
   const id = identity(kind, wire, ctx);
   if (!Array.isArray(id)) return id;
   switch (kind) {
     case "modelo200":
       return accounts(kind, wire as AccountsWire, ctx, id);
+    case "modelo303":
+      return modelo303(wire as Modelo303Wire, ctx, id);
     case "cuentas_anuales":
       return annualAccounts(wire as AnnualAccountsWire, ctx, id);
     case "cirbe":

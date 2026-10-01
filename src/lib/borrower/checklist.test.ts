@@ -172,3 +172,22 @@ describe("detected period on files", () => {
     expect(none.items.find((i) => i.kind === "norma43")!.files[0].period).toBeNull();
   });
 });
+
+describe("Modelo 303 quarters", () => {
+  const ret = (start: string, end: string) => doc("modelo303", { status: "parsed", summary: { period: { start, end } } });
+  const reqs = [{ doc_kind: "modelo303", required: true, max_age_days: null }];
+
+  it("says which of the last 4 quarters are missing, without blocking the step", () => {
+    const c = buildChecklist(input({ requirements: reqs, today: "2026-10-01", documents: [ret("2025-07-01", "2025-09-30"), ret("2026-04-01", "2026-06-30")] }));
+    expect(byKind(c, "modelo303")).toMatchObject({ state: "done", summary: "2 de 4 trimestres · faltan 4T 25, 1T 26" });
+    expect(byKind(c, "modelo303").files[0].period).toBe("abr 26 – jun 26");
+  });
+
+  it("confirms the 4 quarters", () => {
+    const c = buildChecklist(
+      input({ requirements: reqs, today: "2026-10-01", documents: [ret("2025-07-01", "2025-09-30"), ret("2025-10-01", "2025-12-31"), ret("2026-01-01", "2026-03-31"), ret("2026-04-01", "2026-06-30")] }),
+    );
+    expect(byKind(c, "modelo303").summary).toBe("Últimos 4 trimestres · 3T 25 a 2T 26");
+  });
+});
+

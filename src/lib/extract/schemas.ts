@@ -10,8 +10,9 @@
  * schemas.test.ts checks every schema against the limit.
  */
 import * as z from "zod/v4";
+import { M303_PERIODS } from "../tax/modelo303.ts";
 
-export const DOC_TYPES = ["modelo200", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report", "bank_statement", "trial_balance", "invoice", "other"] as const;
+export const DOC_TYPES = ["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report", "bank_statement", "trial_balance", "invoice", "other"] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
 const common = {
@@ -228,10 +229,38 @@ export const SolvencyWire = z.object({
 });
 export type SolvencyWire = z.infer<typeof SolvencyWire>;
 
-export type ExtractKind = "modelo200" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report";
+/**
+ * One Modelo 303 return (IVA, autoliquidación trimestral o mensual). Figures as printed; the canonical schema adds
+ * the period dates and the sum of the accrued bases.
+ */
+export const Modelo303Wire = z.object({
+  ...common,
+  fiscal_year: z.number().int().describe("Ejercicio of the return; 0 if not printed."),
+  period: z.enum([...M303_PERIODS, ""]).describe('Periodo of the return: "1T".."4T" for a quarter, "01".."12" for a month; "" if not printed.'),
+  accrued: z
+    .array(
+      z.object({
+        rate_percent: z.number().describe("Tipo (%) of the line, e.g. 21, 10, 4, 0."),
+        base: z.number().describe("Base imponible of the line, euros, sign as printed."),
+        quota: z.number().describe("Cuota of the line, euros, sign as printed."),
+        page: z.number().int().describe("1-based PDF page; 0 if not identifiable."),
+      }),
+    )
+    .describe("IVA devengado, régimen general: one entry per tipo line with a base (the 0 %, 4 %, 5 %, 10 % and 21 % lines as printed). Not adquisiciones intracomunitarias, inversión del sujeto pasivo or recargo de equivalencia. Empty if none."),
+  accrued_quota_total: z.number().nullable().describe("Total cuota devengada (casilla 27). null if not printed."),
+  deductible_quota_total: z.number().nullable().describe("Total a deducir (casilla 45). null if not printed."),
+  result: z.number().nullable().describe("Resultado de la liquidación (casilla 71): positive a ingresar, negative a compensar o devolver. null if not printed."),
+  intra_eu_supplies: z.number().nullable().describe("Entregas intracomunitarias de bienes y servicios (casilla 59). null if not printed."),
+  exports: z.number().nullable().describe("Exportaciones y operaciones asimiladas (casilla 60). null if not printed."),
+  summary_page: z.number().int().describe("1-based PDF page with the liquidación (casillas 27 to 71); 0 if not identifiable."),
+});
+export type Modelo303Wire = z.infer<typeof Modelo303Wire>;
+
+export type ExtractKind = "modelo200" | "modelo303" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report";
 
 export const WIRE_FOR = {
   modelo200: AccountsWire,
+  modelo303: Modelo303Wire,
   cuentas_anuales: AnnualAccountsWire,
   cirbe: CirbeWire,
   aeat_cert: CertificateWire,
@@ -242,6 +271,8 @@ export const WIRE_FOR = {
 export const EXTRACT_INSTRUCTIONS: Record<ExtractKind, string> = {
   modelo200:
     "This should be a Spanish corporate income tax return (Modelo 200, Impuesto sobre Sociedades). Extract the figures from the balance sheet and profit and loss pages of the return.",
+  modelo303:
+    "This should be a Spanish VAT return (Modelo 303, Impuesto sobre el Valor Añadido, autoliquidación), quarterly or monthly, as filed with the Agencia Tributaria. Extract the ejercicio, the periodo and the figures of the liquidación exactly as printed; do not compute anything the return does not show.",
   cuentas_anuales:
     "These should be Spanish annual accounts (cuentas anuales: balance, cuenta de pérdidas y ganancias, memoria), often the deposit in the Registro Mercantil on the official model (normal, abreviado or PYMES). Extract every requested line of the balance sheet and the profit and loss account for the current-year column and, when printed, the prior-year column. Copy amounts as printed, with their sign, in the document's units; do not add, compute or reclassify lines: a line the model does not show is 0.",
   cirbe:

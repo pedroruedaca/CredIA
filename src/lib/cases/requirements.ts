@@ -4,6 +4,7 @@ export const REQUIREMENT_KINDS = [
   "trial_balance",
   "norma43",
   "modelo200",
+  "modelo303",
   "cuentas_anuales",
   "cirbe",
   "aeat_cert",
@@ -24,18 +25,39 @@ export interface RequirementSpec {
   supportsMaxAge: boolean;
   /** Can be obtained without the company, from its CIF (Registro Mercantil, credit-report providers). */
   byCif?: boolean;
+  /** Requested together with other kinds under one choice in the new-case form (see REQUIREMENT_MODULES). */
+  module?: "fiscal";
 }
 
 export const REQUIREMENT_SPECS: RequirementSpec[] = [
   { kind: "trial_balance", label: "Contabilidad", hint: "Sumas y saldos o conexión con Holded", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
   { kind: "norma43", label: "Extractos bancarios (Norma 43)", hint: "Últimos 12 meses, todas las cuentas", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
-  { kind: "modelo200", label: "Modelo 200", hint: "Impuesto sobre Sociedades del último ejercicio", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false },
+  { kind: "modelo200", label: "Modelo 200", hint: "Impuesto sobre Sociedades del último ejercicio", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false, module: "fiscal" },
+  { kind: "modelo303", label: "Modelo 303", hint: "IVA de los últimos 4 trimestres", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: false, module: "fiscal" },
   { kind: "cuentas_anuales", label: "Cuentas anuales", hint: "Depositadas en el Registro Mercantil", defaultRequired: false, defaultMaxAgeDays: null, supportsMaxAge: false, byCif: true },
   { kind: "cirbe", label: "Informe CIRBE", hint: "Banco de España", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "aeat_cert", label: "Certificado AEAT", hint: "Estar al corriente con Hacienda", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "tgss_cert", label: "Certificado TGSS", hint: "Estar al corriente con la Seguridad Social", defaultRequired: true, defaultMaxAgeDays: 90, supportsMaxAge: true },
   { kind: "solvency_report", label: "Informe de solvencia", hint: "Experian, Informa, Axesor, Iberinform…", defaultRequired: null, defaultMaxAgeDays: 90, supportsMaxAge: true, byCif: true },
 ];
+
+/** One choice in the new-case form: a single document, or several requested together ("Documentos fiscales"). */
+export interface RequirementModule {
+  id: string;
+  label: string;
+  hint: string;
+  specs: RequirementSpec[];
+}
+
+const MODULE_COPY = { fiscal: { label: "Documentos fiscales", hint: "Modelo 200 del último ejercicio y Modelo 303 (IVA) de los últimos 4 trimestres" } };
+
+export const REQUIREMENT_MODULES: RequirementModule[] = REQUIREMENT_SPECS.reduce<RequirementModule[]>((out, spec) => {
+  const id = spec.module ?? spec.kind;
+  const existing = out.find((m) => m.id === id);
+  if (existing) existing.specs.push(spec);
+  else out.push({ id, ...(spec.module ? MODULE_COPY[spec.module] : { label: spec.label, hint: spec.hint }), specs: [spec] });
+  return out;
+}, []);
 
 export const canBeObtainedByCif = (kind: string) => REQUIREMENT_SPECS.some((s) => s.kind === kind && s.byCif);
 

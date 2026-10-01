@@ -25,6 +25,7 @@ const KIND_SHORT: Record<string, string> = {
   trial_balance: "Sumas y saldos",
   norma43: "Norma 43",
   modelo200: "Modelo 200",
+  modelo303: "Modelo 303",
   cuentas_anuales: "Cuentas anuales",
   cirbe: "CIRBE",
   aeat_cert: "AEAT",
