@@ -46,6 +46,8 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
       borrower_token_hash: hash,
       borrower_token_expires_at: expiresAt,
       created_by: lender.userId,
+      // The template it was started from (its dashboard applies); a database trigger checks it is this lender's.
+      template_id: /^[0-9a-f-]{36}$/i.test(values.template_id ?? "") ? values.template_id : null,
     })
     .select("id")
     .single();

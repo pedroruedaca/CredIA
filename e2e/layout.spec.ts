@@ -40,6 +40,7 @@ test("personalise the case view for the team, then restore it", async ({ page })
   const order = await tiles.locator("li").evaluateAll((lis) => lis.map((li) => li.querySelector("span span")?.textContent));
   expect(order.slice(0, 4)).toEqual(["Resumen", "Para revisar", "Indicadores", "Balance"]);
 
+  await page.getByRole("radio", { name: /Todo el equipo/ }).check();
   await page.getByRole("button", { name: "Guardar diseño" }).click();
   await expect(page).toHaveURL(caseUrl);
   await expect(page.locator('footer[aria-label="Fuentes"]')).toHaveCount(0);

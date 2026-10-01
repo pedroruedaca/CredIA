@@ -22,7 +22,7 @@ interface Item {
 const MAIN: Item[] = [
   { label: "Casos", icon: Briefcase, href: "/casos", match: /^\/casos(\/|$)/ },
   { label: "Bandeja", icon: Inbox, href: "/bandeja", match: /^\/bandeja(\/|$)/ },
-  { label: "Plantillas", icon: FileText, href: null },
+  { label: "Plantillas", icon: FileText, href: "/plantillas", match: /^\/plantillas(\/|$)/ },
 ];
 const SETTINGS: Item = { label: "Ajustes", icon: Settings, href: "/ajustes", match: /^\/ajustes(\/|$)/ };
 

@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { CaseView } from "@/components/case/CaseView";
 import { loadCaseView } from "@/lib/case-view/load";
-import { loadTeamLayout } from "@/lib/case-view/layout-store";
+import { loadCaseLayout } from "@/lib/case-view/layout-store";
 import { requireLender } from "@/lib/lender";
 import { logCaseRead } from "@/lib/lender-audit";
 import { stuckCases } from "@/lib/pipeline/kick";
@@ -28,7 +28,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const data = await loadCaseView(db, id);
   if (!data) notFound();
   await logCaseRead(db, lender, id, "case.viewed");
-  const team = await loadTeamLayout(db, lender.lenderId);
+  const caseLayout = await loadCaseLayout(db, id, lender.lenderId);
   const canEdit = lender.role !== "viewer";
   const editing = canEdit && personalizar === "1";
   // A run that died (time limit, deploy, database read-only) leaves the case in "Procesando": run it again.
@@ -39,7 +39,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   return (
     <>
       <AutoRefresh active={busy && !editing} />
-      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={team.layout} layoutCustom={team.custom} editing={editing} />
+      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} />
     </>
   );
 }

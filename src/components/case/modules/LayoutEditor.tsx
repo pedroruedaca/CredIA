@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * "Personalizar": the team's case-view layout as a canvas of module tiles, in the same rows they will be drawn in
- * (full width, or two half-width modules side by side). Drag a tile by its handle (mouse, touch or keyboard: focus the
- * handle, Space, arrows, Space), or use the arrow buttons; switch full/half width; remove; add from the catalogue.
- * «Para revisar» can be moved but not removed. Saving changes the layout for the whole team.
+ * "Personalizar": a case-view layout as a canvas of module tiles, in the same rows they will be drawn in (full width,
+ * or two half-width modules side by side). Drag a tile by its handle (mouse, touch or keyboard: focus the handle,
+ * Space, arrows, Space), or use the arrow buttons; switch full/half width; remove; add from the catalogue.
+ * «Para revisar» can be moved but not removed. Where it is saved is chosen among `targets` (this case, its template,
+ * the whole team); `resets` are the "go back to…" links for layouts saved before.
  */
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
@@ -12,7 +13,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ArrowDown, ArrowUp, Columns2, GripVertical, Plus, RectangleHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { resetTeamLayout, saveTeamLayout } from "@/app/casos/layout-actions";
+import { resetLayout, saveLayout, type LayoutTarget } from "@/app/casos/layout-actions";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cx } from "@/components/ui/cx";
@@ -32,14 +33,37 @@ import {
 const iconButton =
   "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent sm:size-9";
 
-export function LayoutEditor({ initial, caseId, custom }: { initial: Layout; caseId: string; custom: boolean }) {
+export interface SaveOption {
+  target: LayoutTarget;
+  label: string;
+  hint: string;
+}
+
+export function LayoutEditor({
+  initial,
+  back,
+  title,
+  intro,
+  targets,
+  resets,
+}: {
+  initial: Layout;
+  /** Where to go after saving or cancelling. */
+  back: string;
+  title: string;
+  intro: string;
+  /** Where it can be saved; the first is preselected. */
+  targets: SaveOption[];
+  resets: { target: LayoutTarget; label: string }[];
+}) {
   const router = useRouter();
   const [layout, setLayout] = useState(initial);
+  const [targetIndex, setTargetIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, startSave] = useTransition();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-  const back = `/casos/${caseId}`;
-  const dirty = !sameLayout(layout, initial);
+  // Saving to another target is a change even when the modules are the same.
+  const dirty = !sameLayout(layout, initial) || targetIndex !== 0;
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -49,15 +73,15 @@ export function LayoutEditor({ initial, caseId, custom }: { initial: Layout; cas
   const save = () =>
     startSave(async () => {
       setError(null);
-      const r = await saveTeamLayout(layout);
+      const r = await saveLayout(targets[targetIndex].target, layout);
       if (!r.ok) return setError(r.message);
       router.push(back);
       router.refresh();
     });
-  const reset = () =>
+  const reset = (target: LayoutTarget) =>
     startSave(async () => {
       setError(null);
-      const r = await resetTeamLayout();
+      const r = await resetLayout(target);
       if (!r.ok) return setError(r.message);
       router.push(back);
       router.refresh();
@@ -68,11 +92,23 @@ export function LayoutEditor({ initial, caseId, custom }: { initial: Layout; cas
     <section aria-labelledby="personalizar" className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <div>
-          <h2 id="personalizar" className="heading-section">Personalizar el panel del caso</h2>
-          <p className="mt-1 max-w-[640px] text-[15px] text-ink-2">
-            Ordena, ensancha o quita módulos. El diseño se guarda para todo el equipo y se aplica a todos los casos.
-          </p>
+          <h2 id="personalizar" className="heading-section">{title}</h2>
+          <p className="mt-1 max-w-[640px] text-[15px] text-ink-2">{intro}</p>
         </div>
+        {targets.length > 1 && (
+          <fieldset className="flex flex-col gap-1">
+            <legend className="mb-1 text-[13px] font-medium text-ink-2">Guardar para</legend>
+            {targets.map((t, i) => (
+              <label key={i} className="-mx-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-row px-3 py-2 hover:bg-soft">
+                <input type="radio" name="layout-target" className="mt-1 size-4 accent-[#0E5A61]" checked={i === targetIndex} onChange={() => setTargetIndex(i)} />
+                <span className="flex flex-col">
+                  <span className="text-[15px] font-medium">{t.label}</span>
+                  <span className="text-[13px] text-muted">{t.hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={save} disabled={saving || !dirty}>{saving ? "Guardando…" : "Guardar diseño"}</Button>
           <ButtonLink href={back} variant="secondary" size="sm">Cancelar</ButtonLink>
@@ -121,12 +157,12 @@ export function LayoutEditor({ initial, caseId, custom }: { initial: Layout; cas
         <Button variant="link" size="sm" onClick={() => setLayout(DEFAULT_LAYOUT)} disabled={saving || sameLayout(layout, DEFAULT_LAYOUT)}>
           Volver al diseño original
         </Button>
-        {custom && (
-          <>
+        {resets.map((r) => (
+          <span key={r.label} className="contents">
             <span aria-hidden>·</span>
-            <Button variant="link" size="sm" onClick={reset} disabled={saving}>Restaurar el diseño original para el equipo</Button>
-          </>
-        )}
+            <Button variant="link" size="sm" onClick={() => reset(r.target)} disabled={saving}>{r.label}</Button>
+          </span>
+        ))}
       </div>
     </section>
   );

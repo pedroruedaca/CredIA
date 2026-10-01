@@ -146,3 +146,16 @@ export const setModuleWidth = (l: Layout, id: ModuleId, width: ModuleWidth): Lay
   MODULE_SPECS[id].widths.includes(width) ? { version: 1, modules: l.modules.map((m) => (m.id === id ? { ...m, width } : m)) } : l;
 
 export const sameLayout = (a: Layout, b: Layout) => JSON.stringify(a.modules) === JSON.stringify(b.modules);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Which layout a case draws: its own (personalised for that case), else its template's, else the team's, else the
+// original. Each stored layout is normalised.
+
+export type LayoutSource = "case" | "template" | "team" | "default";
+
+export function resolveCaseLayout(stored: { caseLayout?: unknown; templateLayout?: unknown; teamLayout?: unknown }): { layout: Layout; source: LayoutSource } {
+  if (stored.caseLayout) return { layout: normalizeLayout(stored.caseLayout), source: "case" };
+  if (stored.templateLayout) return { layout: normalizeLayout(stored.templateLayout), source: "template" };
+  if (stored.teamLayout) return { layout: normalizeLayout(stored.teamLayout), source: "team" };
+  return { layout: DEFAULT_LAYOUT, source: "default" };
+}

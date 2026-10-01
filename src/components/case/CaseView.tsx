@@ -14,9 +14,9 @@ import { Pill } from "@/components/ui/Pill";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
-import { DEFAULT_LAYOUT, type Layout } from "@/lib/case-view/modules";
+import { DEFAULT_LAYOUT, type Layout, type LayoutSource } from "@/lib/case-view/modules";
 import { CaseModules } from "@/components/case/modules/CaseModules";
-import { LayoutEditor } from "@/components/case/modules/LayoutEditor";
+import { LayoutEditor, type SaveOption } from "@/components/case/modules/LayoutEditor";
 import { caseRef, formatDate, formatFigure, relativeTime } from "@/lib/format";
 
 export function CaseView({
@@ -26,7 +26,7 @@ export function CaseView({
   userId,
   now = new Date(),
   layout = DEFAULT_LAYOUT,
-  layoutCustom = false,
+  layoutInfo = null,
   editing = false,
 }: {
   data: CaseViewData;
@@ -35,8 +35,8 @@ export function CaseView({
   userId: string;
   now?: Date;
   layout?: Layout;
-  /** The team saved its own layout (offers "Restaurar el diseño original para el equipo"). */
-  layoutCustom?: boolean;
+  /** Where the layout comes from and what is saved at each level (for the editor's "save for…" / "go back to…"). */
+  layoutInfo?: CaseLayoutInfo | null;
   /** "Personalizar" mode: the layout editor instead of the modules. */
   editing?: boolean;
 }) {
@@ -133,10 +133,51 @@ export function CaseView({
           </div>
         )}
 
-        {editing ? <LayoutEditor initial={layout} caseId={kase.id} custom={layoutCustom} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
+        {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
       </div>
 
       <EvidencePanel caseId={kase.id} views={pkg.open} selected={check} canEdit={canEdit} />
     </main>
+  );
+}
+
+export interface CaseLayoutInfo {
+  source: LayoutSource;
+  template: { id: string; name: string; hasLayout: boolean } | null;
+  caseHasLayout: boolean;
+  teamHasLayout: boolean;
+}
+
+const SOURCE_TEXT = (info: CaseLayoutInfo) =>
+  ({
+    case: "Ahora ves el diseño propio de este caso.",
+    template: `Ahora ves el diseño de la plantilla «${info.template?.name ?? ""}».`,
+    team: "Ahora ves el diseño del equipo.",
+    default: "Ahora ves el diseño original.",
+  })[info.source];
+
+/** The editor from a case: save for this case (default), its template, or the whole team; and the "go back to…" links. */
+function CaseLayoutEditor({ caseId, layout, info }: { caseId: string; layout: Layout; info: CaseLayoutInfo | null }) {
+  const i: CaseLayoutInfo = info ?? { source: "default", template: null, caseHasLayout: false, teamHasLayout: false };
+  const targets: SaveOption[] = [
+    { target: { kind: "case", id: caseId }, label: "Solo este caso", hint: "Los demás casos no cambian." },
+    ...(i.template
+      ? [{ target: { kind: "template" as const, id: i.template.id }, label: `La plantilla «${i.template.name}»`, hint: "Los casos de esta plantilla, salvo los que tengan un diseño propio." }]
+      : []),
+    { target: { kind: "team" }, label: "Todo el equipo", hint: "Los casos sin diseño propio ni plantilla con diseño." },
+  ];
+  const resets = [
+    ...(i.caseHasLayout ? [{ target: { kind: "case" as const, id: caseId }, label: i.template?.hasLayout ? "Volver al diseño de la plantilla" : "Volver al diseño del equipo" }] : []),
+    ...(i.teamHasLayout ? [{ target: { kind: "team" as const }, label: "Restaurar el diseño original para el equipo" }] : []),
+  ];
+  return (
+    <LayoutEditor
+      initial={layout}
+      back={`/casos/${caseId}`}
+      title="Personalizar el panel del caso"
+      intro={`Ordena, ensancha o quita módulos. ${SOURCE_TEXT(i)}`}
+      targets={targets}
+      resets={resets}
+    />
   );
 }

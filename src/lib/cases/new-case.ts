@@ -47,8 +47,7 @@ export type FieldErrors = Partial<Record<keyof z.input<typeof newCaseSchema> | "
 type FormValues = Record<string, string | undefined>;
 
 /**
- * Requirement fields are `req_<kind>` = required | optional | cif | none, and `age_<kind>` = days. `cif` (the lender
- * obtains it by the company's CIF) only for documents that can be; it counts as required and the company is not asked.
+ * Validates the whole form; the document choices go through parseRequirementFields.
  */
 export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {};
@@ -68,12 +67,26 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
     }
   }
 
+  const req = parseRequirementFields(values);
+  const requirements = req.requirements;
+  if (req.error) errors.requirements ??= req.error;
+
+  if (!parsed.success || Object.keys(errors).length > 0) return { ok: false, errors };
+  return { ok: true, data: { ...parsed.data, requirements } };
+}
+
+/**
+ * The document choices of the new-case form and the template form: `req_<kind>` = required | optional | lender | none,
+ * `age_<kind>` = maximum age in days (only for documents that take one). At least one document.
+ */
+export function parseRequirementFields(values: FormValues): { requirements: NewCase["requirements"]; error: string | null } {
+  let error: string | null = null;
   const requirements: NewCase["requirements"] = [];
   for (const kind of REQUIREMENT_KINDS) {
     const choice = values[`req_${kind}`] ?? "none";
     if (choice === "none") continue;
     if (!["required", "optional", "lender"].includes(choice)) {
-      errors.requirements ??= "Elige para cada documento si es obligatorio, opcional o lo subes tú.";
+      error ??= "Elige para cada documento si es obligatorio, opcional o lo subes tú.";
       continue;
     }
     const spec = REQUIREMENT_SPECS.find((s) => s.kind === kind)!;
@@ -82,14 +95,12 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
     if (spec.supportsMaxAge && ageRaw !== "") {
       const n = Number(ageRaw);
       if (!Number.isInteger(n) || n < 1 || n > 3650) {
-        errors.requirements ??= `La antigüedad máxima de «${spec.label}» debe ser un número de días entre 1 y 3650.`;
+        error ??= `La antigüedad máxima de «${spec.label}» debe ser un número de días entre 1 y 3650.`;
       } else maxAgeDays = n;
     }
     // "lender": the analyst uploads it ("Lo subo yo"); the company's portal does not ask for it.
     requirements.push({ kind, required: choice !== "optional", maxAgeDays, source: choice === "lender" ? "lender" : "borrower" });
   }
-  if (requirements.length === 0) errors.requirements ??= "Solicita al menos un documento.";
-
-  if (!parsed.success || Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, data: { ...parsed.data, requirements } };
+  if (requirements.length === 0) error ??= "Solicita al menos un documento.";
+  return { requirements, error };
 }

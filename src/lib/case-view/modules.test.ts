@@ -76,3 +76,14 @@ describe("editing a layout", () => {
     expect(sameLayout(l, normalizeLayout(JSON.parse(JSON.stringify(l))))).toBe(true);
   });
 });
+
+describe("which layout a case draws", () => {
+  it("the case's own, else the template's, else the team's, else the original", async () => {
+    const { resolveCaseLayout } = await import("./modules.ts");
+    const mk = (id: string) => ({ version: 1, modules: [{ id, width: "full" }] });
+    expect(resolveCaseLayout({ caseLayout: mk("kpis"), templateLayout: mk("pnl"), teamLayout: mk("balance") }).source).toBe("case");
+    expect(resolveCaseLayout({ templateLayout: mk("pnl"), teamLayout: mk("balance") })).toMatchObject({ source: "template", layout: { modules: [{ id: "pnl" }, { id: "review" }] } });
+    expect(resolveCaseLayout({ teamLayout: mk("balance") }).source).toBe("team");
+    expect(resolveCaseLayout({})).toEqual({ layout: DEFAULT_LAYOUT, source: "default" });
+  });
+});

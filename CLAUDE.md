@@ -156,6 +156,20 @@ analysts via `is_lender_editor`, never viewers; `tests/integration/layouts.test.
 `saveTeamLayout` / `resetTeamLayout` (`src/app/casos/layout-actions.ts`, normalise, audit `layout.saved/reset`).
 Edit operations are pure in `modules.ts` (`moveModule`, `removeModule`, `addModule`, `setModuleWidth`).
 
+## Process templates («Plantillas»)
+A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
+maxAgeDays}]`) and optionally its own case-view layout (`case_templates`, 0019; members read, owners/analysts write).
+Pure model `src/lib/cases/templates.ts` (`parseTemplateForm`, `normalizeTemplateRequirements`, `templateFormValues`);
+store `template-store.ts`; pages `/plantillas`, `/plantillas/nueva`, `/plantillas/[id]` (`?panel=1` = its layout
+editor); actions `src/app/plantillas/actions.ts`. The new-case form's «Plantilla» select fills product and documents
+(still editable; `RequirementsPicker`, shared with the template form, posts `req_*`/`age_*` → `parseRequirementFields`)
+and stores `cases.template_id` (trigger: same lender; `on delete set null`). Documents are copied into the case at
+creation; template edits never change existing cases' documents.
+**Which layout a case draws** (`resolveCaseLayout`, `loadCaseLayout`): `cases.layout` (this case only) → the template's
+→ the team's (`dashboard_layouts`) → `DEFAULT_LAYOUT`. The editor from a case saves to «Solo este caso» (default),
+«La plantilla …» or «Todo el equipo» (`saveLayout(target)` / `resetLayout(target)` in `src/app/casos/layout-actions.ts`);
+«Volver al diseño de la plantilla/del equipo» clears the case's own. Integration: `tests/integration/templates.test.ts`.
+
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
 - Groups 46/47/55: classify by sign (debit → asset, credit → liability).
@@ -193,7 +207,8 @@ closing-entries suspicion.
   a minute before the migration finishes, so keep migrations compatible with the code before them where you can.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
-  analyst's upload); the team personalises the case view and restores it. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  analyst's upload); the team personalises the case view and restores it; a template pre-sets a case's documents and
+  dashboard, with a case-only layout and back. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.

@@ -4,8 +4,9 @@ import { useActionState, useState } from "react";
 import { PRODUCTS } from "@/content/products.es";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Input";
-import { Pill, TogglePill } from "@/components/ui/Pill";
-import { REQUIREMENT_MODULES, type RequirementModule } from "@/lib/cases/requirements";
+import { Pill } from "@/components/ui/Pill";
+import { RequirementsPicker } from "@/components/RequirementsPicker";
+import { templateFormValues, type TemplateRequirement } from "@/lib/cases/templates";
 import { createCase, type CreateCaseState } from "./actions";
 import { CopyLink } from "@/components/CopyLink";
 
@@ -13,8 +14,18 @@ function lastYearEnd(): string {
   return `${new Date().getFullYear() - 1}-12-31`;
 }
 
-export function NewCaseForm() {
+/** What the form needs of a template: its choices, not its dashboard. */
+export interface TemplateOption {
+  id: string;
+  name: string;
+  description: string | null;
+  product: string | null;
+  requirements: TemplateRequirement[];
+}
+
+export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templates?: TemplateOption[]; initialTemplateId?: string }) {
   const [state, action, pending] = useActionState<CreateCaseState, FormData>(createCase, { status: "idle" });
+  const [templateId, setTemplateId] = useState(initialTemplateId);
 
   if (state.status === "created") {
     const actions = (
@@ -57,7 +68,12 @@ export function NewCaseForm() {
     );
   }
 
-  const values = state.status === "idle" ? {} : state.values;
+  // A template fills product and documents (still editable); after a validation error, what was posted wins.
+  const template = templates.find((t) => t.id === templateId) ?? null;
+  const fromTemplate: Record<string, string> = template ? { product: template.product ?? "", ...templateFormValues(template.requirements) } : {};
+  const values = state.status === "idle" || state.values.template_id !== templateId ? { ...(state.status === "idle" ? {} : state.values), ...fromTemplate } : state.values;
+  // Remount the fields a template fills when it changes, so they take its values.
+  const fillKey = `${templateId}:${state.status}`;
   const errors = state.status === "invalid" ? state.errors : {};
   const v = (k: string, d = "") => values[k] ?? d;
   const err = (k: keyof typeof errors) => errors[k];
@@ -73,6 +89,18 @@ export function NewCaseForm() {
       )}
       {state.status === "invalid" && (
         <p role="alert" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="high">Revisa</Pill>Revisa los campos marcados.</p>
+      )}
+
+      {templates.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <Field id="template_id" label="Plantilla" hint="Rellena el producto y los documentos; puedes cambiarlos.">
+            <Select id="template_id" name="template_id" value={templateId} onChange={(e) => setTemplateId(e.target.value)} aria-describedby="template_id-hint">
+              <option value="">Sin plantilla</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </Select>
+          </Field>
+          {template?.description && <p className="text-[13px] text-muted">{template.description}</p>}
+        </section>
       )}
 
       <section className="flex flex-col gap-5">
@@ -94,7 +122,7 @@ export function NewCaseForm() {
       <section className="flex flex-col gap-5">
         <h2 className="heading-section">Solicitud</h2>
         <Field id="product" label="Producto" error={err("product")}>
-          <Select id="product" name="product" required defaultValue={v("product", "")} {...a11y("product")}>
+          <Select key={fillKey} id="product" name="product" required defaultValue={values.product ?? ""} {...a11y("product")}>
             <option value="" disabled>Elige…</option>
             {PRODUCTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </Select>
@@ -109,98 +137,12 @@ export function NewCaseForm() {
         </div>
       </section>
 
-      <Requirements values={values} error={errors.requirements} />
+      <RequirementsPicker key={fillKey} values={values} error={errors.requirements} />
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>{pending ? "Creando…" : "Crear caso"}</Button>
         <ButtonLink href="/casos" variant="secondary">Cancelar</ButtonLink>
       </div>
     </form>
-  );
-}
-
-type Level = "required" | "optional" | "lender" | "none";
-const LEVEL_LABEL = { required: "Obligatorio", optional: "Opcional", lender: "Lo subo yo" } as const;
-const LEVELS = ["required", "optional", "lender"] as const;
-
-/**
- * Requested documents as toggle pills, one per module (a document, or several requested together such as «Documentos
- * fiscales»). Selected modules show "Obligatorio / Opcional / Lo subo yo" (the analyst uploads it from the case view and
- * the company is not asked for it) and, where it applies, a maximum age. Posts `req_<kind>` for every kind of the module and `age_<kind>`,
- * the fields the server action validates.
- */
-function Requirements({ values, error }: { values: Record<string, string>; error?: string }) {
-  const [levels, setLevels] = useState<Record<string, Level>>(() =>
-    // A new case starts with nothing selected; after a failed submit the lender's choices are kept.
-    Object.fromEntries(REQUIREMENT_MODULES.map((m) => [m.id, (values[`req_${m.specs[0].kind}`] as Level) ?? "none"])),
-  );
-  const set = (id: string, level: Level) => setLevels((l) => ({ ...l, [id]: level }));
-  const selected = REQUIREMENT_MODULES.filter((m) => levels[m.id] !== "none");
-  // Maximum age only for single-document modules.
-  const ageSpec = (m: RequirementModule) => (m.specs.length === 1 && m.specs[0].supportsMaxAge ? m.specs[0] : null);
-
-  return (
-    <fieldset className="flex flex-col gap-4" aria-describedby={error ? "requirements-error" : "requirements-hint"}>
-      <legend className="heading-section mb-1">Documentación solicitada</legend>
-      <p id="requirements-hint" className="text-[15px] text-ink-2">Elige qué documentos pedir. Puedes marcarlos como opcionales y fijar una antigüedad máxima. «Lo subo yo»: lo aportas tú desde el caso y no se le pide a la empresa; la empresa recibe el aviso solo con el resto.</p>
-      {error && <p id="requirements-error" className="flex items-center gap-2 text-sm text-ink-2"><Pill tone="high">Revisa</Pill>{error}</p>}
-      <div className="flex flex-wrap gap-2">
-        {REQUIREMENT_MODULES.map((m) => (
-          <TogglePill key={m.id} pressed={levels[m.id] !== "none"} onClick={() => set(m.id, levels[m.id] === "none" ? (m.specs[0].defaultRequired === false ? "optional" : "required") : "none")} title={m.hint}>
-            {m.label}
-          </TogglePill>
-        ))}
-      </div>
-      {REQUIREMENT_MODULES.flatMap((m) => m.specs.map((spec) => <input key={spec.kind} type="hidden" name={`req_${spec.kind}`} value={levels[m.id]} />))}
-
-      {selected.length > 0 && (
-        // One grid for all rows (subgrid), so the choice pills line up on the left whether they have two or three options.
-        <ul className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-          {selected.map((m) => {
-            const age = ageSpec(m);
-            return (
-            <li key={m.id} className="-mx-4 flex flex-col gap-3 rounded-row px-4 py-3 hover:bg-soft sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-x-3">
-              <div className="min-w-0 grow">
-                <div className="text-[15px] font-medium">{m.label}</div>
-                <div className="text-[13px] text-muted">{m.hint}</div>
-              </div>
-              <div className="flex shrink-0 items-center gap-3 sm:contents">
-              <div role="group" aria-label={`${m.label}: obligatorio, opcional o lo subo yo`} className="flex w-fit gap-1 rounded-full bg-soft-control p-1 sm:justify-self-start">
-                {LEVELS.map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    aria-pressed={levels[m.id] === lvl}
-                    onClick={() => set(m.id, lvl)}
-                    className={`min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors ${levels[m.id] === lvl ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink"}`}
-                  >
-                    {LEVEL_LABEL[lvl]}
-                  </button>
-                ))}
-              </div>
-              {age ? (
-                <label className="flex w-[140px] items-center gap-2 text-[13px] text-muted">
-                  <span className="whitespace-nowrap">Máx.</span>
-                  <Input
-                    name={`age_${age.kind}`}
-                    type="number"
-                    min={1}
-                    max={3650}
-                    defaultValue={values[`age_${age.kind}`] ?? age.defaultMaxAgeDays?.toString() ?? ""}
-                    aria-label={`Antigüedad máxima de ${age.label}, en días`}
-                    className="w-[72px] px-3 font-mono"
-                  />
-                  <span>días</span>
-                </label>
-              ) : (
-                <span className="hidden w-[140px] sm:block" aria-hidden />
-              )}
-              </div>
-            </li>
-            );
-          })}
-        </ul>
-      )}
-    </fieldset>
   );
 }
