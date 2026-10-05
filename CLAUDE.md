@@ -208,6 +208,11 @@ closing-entries suspicion.
   non-localhost URL). `tests/integration/rls.test.ts` checks tenant isolation table by table: **every new
   case-scoped table needs RLS by `lender_id`, a lender-match trigger (see `0008_lender_match_everywhere.sql`) and a
   row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
+- **Data residency:** Supabase runs in `eu-west-1` (Ireland); Vercel functions are pinned to `dub1` (Dublin) in
+  `vercel.json`. Keep both in the EU.
+- **Function privileges (0020):** functions in `public` are not executable by `anon` (default privileges revoked).
+  A new SECURITY DEFINER helper called from RLS needs `grant execute … to authenticated, service_role`; trigger
+  functions need no grant and get `set search_path = public`.
 - Migrations: applied to the live project by `.github/workflows/supabase-migrations.yml` (`supabase db push` on push
   to main touching `supabase/migrations/`; secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`; also runnable by
   hand from the Actions tab). By hand only with `supabase db push`, never through the Supabase MCP tool (it records

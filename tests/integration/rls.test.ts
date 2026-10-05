@@ -145,6 +145,14 @@ describe("secrets and anonymous access", () => {
     expect((await anon.from("cases").insert({ lender_id: A.lenderId, borrower_cif: "B12345674" })).error).not.toBeNull();
     expect((await anon.storage.from("case-files").download(filePath())).data).toBeNull();
   });
+  it("an anonymous client cannot call the RLS helpers or the trigger functions", async () => {
+    const anon = anonClient();
+    for (const fn of ["is_lender_member", "is_lender_owner", "is_lender_editor"]) {
+      expect((await anon.rpc(fn, { l: A.lenderId })).error, fn).not.toBeNull();
+    }
+    expect((await anon.rpc("touch_case")).error).not.toBeNull();
+    expect((await A.db.rpc("is_lender_member", { l: A.lenderId })).data).toBe(true);
+  });
 });
 
 describe("BORME (shared public data)", () => {
