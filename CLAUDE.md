@@ -208,6 +208,9 @@ closing-entries suspicion.
   non-localhost URL). `tests/integration/rls.test.ts` checks tenant isolation table by table: **every new
   case-scoped table needs RLS by `lender_id`, a lender-match trigger (see `0008_lender_match_everywhere.sql`) and a
   row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
+- **Access by approval:** the login form never creates accounts (`shouldCreateUser: false`). A new lender is
+  onboarded with `npm run seed:lender -- --email … --lender "…"` (creates the user and the lender); its owner adds
+  colleagues in Ajustes → Equipo. Supabase Auth «Allow new users to sign up» stays off.
 - **Data residency:** Supabase runs in `eu-west-1` (Ireland); Vercel functions are pinned to `dub1` (Dublin) in
   `vercel.json`. Keep both in the EU.
 - **Function privileges (0020):** functions in `public` are not executable by `anon` (default privileges revoked).

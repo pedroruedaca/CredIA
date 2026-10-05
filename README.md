@@ -14,7 +14,8 @@ npm run dev
 Create a private Storage bucket `case-files` with a 20 MB file size limit (borrower uploads go straight to it through signed upload URLs). In Supabase Auth → URL configuration, add
 `<app url>/auth/callback` to the allowed redirect URLs.
 
-First lender: sign in once at `/login` (magic link), then link your user to a new lender:
+Access is by approval: the login form never creates accounts, and Supabase Auth «Allow new users to sign up» should be
+off. Add a lender and its first user (owner) with the script below; the owner adds colleagues in Ajustes → Equipo.
 ```bash
 npm run seed:lender -- --email you@fondo.es --lender "Fondo Ejemplo Capital"
 ```

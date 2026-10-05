@@ -1,6 +1,7 @@
 /**
- * Creates a lender and links an existing Supabase Auth user as its owner.
- * The user must have signed in once (magic link) so the auth user exists.
+ * Creates a lender and makes the user with this email its owner, creating the user if needed (confirmed, no
+ * password: they sign in with a magic link). This is how a new lender is approved: the login form never creates
+ * accounts, so nobody can sign in until credIA or a lender owner (Ajustes → Equipo) adds them.
  *
  *   npm run seed:lender -- --email ana@fondo.es --lender "Fondo Ejemplo Capital"
  */
@@ -48,10 +49,12 @@ async function findUserId(target: string): Promise<string | null> {
   }
 }
 
-const userId = await findUserId(email);
+let userId = await findUserId(email);
 if (!userId) {
-  console.error(`No existe ningún usuario con el correo ${email}. Accede una vez en /login y vuelve a ejecutar el script.`);
-  process.exit(1);
+  const { data, error } = await db.auth.admin.createUser({ email, email_confirm: true });
+  if (error || !data.user) throw error ?? new Error("No se pudo crear el usuario");
+  userId = data.user.id;
+  console.log(`Usuario ${email} creado.`);
 }
 
 const { data: existing } = await db.from("lender_members").select("lender_id, lenders(name)").eq("user_id", userId);

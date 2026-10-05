@@ -16,7 +16,14 @@ export function LoginForm({ next }: { next: string }) {
     e.preventDefault();
     setState({ kind: "sending" });
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-    const { error } = await createClient().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectTo } });
+    // Access is by approval: accounts are created by credIA (seed:lender) or a lender owner (Ajustes → Equipo), never here.
+    const { error } = await createClient().auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+    });
+    if (error?.code === "otp_disabled" || error?.code === "signup_disabled") {
+      return setState({ kind: "error", message: "Este correo no tiene acceso a credIA. Pide a tu entidad que te dé acceso." });
+    }
     if (error) return setState({ kind: "error", message: "No hemos podido enviar el enlace. Revisa el correo e inténtalo de nuevo." });
     setState({ kind: "sent", email: email.trim() });
   }
