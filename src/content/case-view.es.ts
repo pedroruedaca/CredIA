@@ -281,4 +281,16 @@ export const KPI_TILE_LABEL: Record<string, string> = {
   financialDebt: "Deuda financiera",
 };
 
+/** Figures the «Resumen» sentence can state (its settings in the panel designer). */
+export const SUMMARY_FACT_LABEL: Record<string, string> = {
+  revenue: "Ventas",
+  ebitda: "EBITDA y margen",
+  cirbe: "Deuda CIRBE frente a libros",
+  netIncome: "Resultado neto",
+  ytdRevenue: "Ventas del año en curso",
+  netDebt: "Deuda financiera neta",
+  equity: "Patrimonio neto",
+  workingCapital: "Fondo de maniobra",
+};
+
 export const PERIOD_CHOICE_LABEL = { base: "Periodo base", closed: "Ejercicio cerrado", ytd: "Año en curso" } as const;

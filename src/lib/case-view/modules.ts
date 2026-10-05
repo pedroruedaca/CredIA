@@ -37,7 +37,7 @@ export interface ModuleSpec {
 }
 
 export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
-  summary: { id: "summary", title: "Resumen", description: "Frase con ventas, EBITDA y deuda CIRBE frente a libros.", removable: true, widths: ["full"] },
+  summary: { id: "summary", title: "Resumen", description: "Frase con las cifras que elijas: ventas, EBITDA, deuda CIRBE frente a libros, resultado, deuda neta…", removable: true, widths: ["full"] },
   kpis: { id: "kpis", title: "Indicadores", description: "Hasta cinco indicadores a elegir: DSCR, DSO/DPO, cifra de negocios, EBITDA…", removable: true, widths: ["full"] },
   review: { id: "review", title: "Para revisar", description: "Verificaciones abiertas y correctas, con su evidencia.", removable: false, widths: ["full", "half"] },
   pnl: { id: "pnl", title: "Cuenta de resultados", description: "Diagrama de ingresos a resultado del periodo base.", removable: true, widths: ["full"] },
@@ -52,6 +52,11 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
 // ---------------------------------------------------------------------------------------------------------------
 // Module settings (optional, per module, saved with the layout)
 
+/** Figures the summary sentence can state («Resumen» module settings); the first three are the default (the original sentence). */
+export const SUMMARY_FACT_IDS = ["revenue", "ebitda", "cirbe", "netIncome", "ytdRevenue", "netDebt", "equity", "workingCapital"] as const;
+export type SummaryFactId = (typeof SUMMARY_FACT_IDS)[number];
+export const DEFAULT_SUMMARY_FACTS: SummaryFactId[] = ["revenue", "ebitda", "cirbe"];
+
 /** KPI tiles the «Indicadores» module can show; the first five are the default row. */
 export const KPI_TILE_IDS = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo", "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"] as const;
 export type KpiTileId = (typeof KPI_TILE_IDS)[number];
@@ -62,6 +67,8 @@ export const MAX_KPI_TILES = 5;
 export type PeriodChoice = "base" | "closed" | "ytd";
 
 export interface ModuleSettings {
+  /** «Resumen»: figures the sentence states (at least one). */
+  facts?: SummaryFactId[];
   /** «Indicadores»: tiles in order (1 to 5). */
   tiles?: KpiTileId[];
   /** «Cuenta de resultados», «Balance». */
@@ -72,13 +79,14 @@ export interface ModuleSettings {
 
 /** Which settings each module takes. */
 export const MODULE_SETTINGS: Partial<Record<ModuleId, (keyof ModuleSettings)[]>> = {
+  summary: ["facts"],
   kpis: ["tiles"],
   pnl: ["period"],
   balance: ["period"],
   review: ["showPassed"],
 };
 
-export const DEFAULT_SETTINGS: Required<ModuleSettings> = { tiles: DEFAULT_KPI_TILES, period: "base", showPassed: true };
+export const DEFAULT_SETTINGS: Required<ModuleSettings> = { facts: DEFAULT_SUMMARY_FACTS, tiles: DEFAULT_KPI_TILES, period: "base", showPassed: true };
 
 /** Stored settings → only the keys the module takes, with valid values; nothing when none is valid. */
 export function normalizeSettings(id: ModuleId, raw: unknown): ModuleSettings | undefined {
@@ -86,6 +94,10 @@ export function normalizeSettings(id: ModuleId, raw: unknown): ModuleSettings | 
   if (!keys || !raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
   const out: ModuleSettings = {};
+  if (keys.includes("facts") && Array.isArray(r.facts)) {
+    const facts = [...new Set(r.facts.filter((f): f is SummaryFactId => (SUMMARY_FACT_IDS as readonly unknown[]).includes(f)))];
+    if (facts.length) out.facts = facts;
+  }
   if (keys.includes("tiles") && Array.isArray(r.tiles)) {
     const tiles = [...new Set(r.tiles.filter((t): t is KpiTileId => (KPI_TILE_IDS as readonly unknown[]).includes(t)))].slice(0, MAX_KPI_TILES);
     if (tiles.length) out.tiles = tiles;

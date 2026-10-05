@@ -48,4 +48,28 @@ describe("caseSummary", () => {
     const text = summaryText(caseSummary({ closed, ytd, cirbe: cirbe([400_000]) }));
     for (const w of ["sólid", "buen", "mal", "riesg", "preocup", "saneada", "débil", "fuerte", "recomend", "aprob"]) expect(text.toLowerCase()).not.toContain(w);
   });
+  it("states only the chosen figures, in a fixed order", () => {
+    const sum = (facts: Parameters<typeof caseSummary>[0]["facts"], y = ytd) => summaryText(caseSummary({ closed, ytd: y, cirbe: cirbe([158_000]), facts }));
+    expect(sum(["revenue"])).toBe("Facturó 1,0 M€ en 2025.");
+    expect(sum(["ebitda"])).toBe("En 2025 tuvo un EBITDA de 110 k€ (11 % de las ventas).");
+    expect(sum(["cirbe"])).toBe("Su deuda bancaria según CIRBE es de 158 k€, en línea con la contabilidad.");
+    const n = closed.incomeStatement.netIncome;
+    expect(sum(["netIncome", "ebitda", "revenue"])).toBe(`Facturó 1,0 M€ en 2025 con un EBITDA de 110 k€ (11 %) y un resultado neto de ${formatCompactEur(n)}.`);
+    const { netDebt, workingCapital } = closed.derived;
+    const equity = closed.balanceSheet.equityAndLiabilities.equity;
+    const netDebtText = netDebt < 0 ? `una caja neta de ${formatCompactEur(-netDebt)}` : `una deuda financiera neta de ${formatCompactEur(netDebt)}`;
+    expect(sum(["workingCapital", "equity", "netDebt"])).toBe(
+      `A 31 de diciembre de 2025 tenía ${netDebtText}, un patrimonio neto de ${formatCompactEur(equity)} y un fondo de maniobra de ${formatCompactEur(workingCapital)}.`,
+    );
+  });
+  it("adds the current year's sales next to the closed year's, not twice", () => {
+    const s = caseSummary({ closed, ytd, cirbe: null, facts: ["revenue", "ytdRevenue"] });
+    expect(summaryText(s)).toBe("Facturó 1,0 M€ en 2025. En 2026 hasta agosto lleva facturados 1,0 M€.");
+    expect(s!.filter((x) => x.emphasis === "figure")).toHaveLength(2);
+    expect(summaryText(caseSummary({ closed: null, ytd, cirbe: null, facts: ["revenue", "ytdRevenue"] }))).toBe("Facturó 1,0 M€ en 2026 hasta agosto.");
+    expect(summaryText(caseSummary({ closed: null, ytd, cirbe: null, facts: ["ytdRevenue"] }))).toBe("En 2026 hasta agosto lleva facturados 1,0 M€.");
+  });
+  it("is null when none of the chosen figures exists", () => {
+    expect(caseSummary({ closed, ytd: null, cirbe: null, facts: ["cirbe", "ytdRevenue"] })).toBeNull();
+  });
 });

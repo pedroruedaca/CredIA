@@ -32,16 +32,19 @@ import {
   sameLayout,
   setModuleSettings,
   setModuleWidth,
+  SUMMARY_FACT_IDS,
   type KpiTileId,
   type Layout,
   type ModuleId,
   type LayoutModule,
   type ModuleSettings,
   type PeriodChoice,
+  type SummaryFactId,
 } from "@/lib/case-view/modules";
-import { KPI_TILE_LABEL, PERIOD_CHOICE_LABEL } from "@/content/case-view.es";
+import { KPI_TILE_LABEL, PERIOD_CHOICE_LABEL, SUMMARY_FACT_LABEL } from "@/content/case-view.es";
 
 const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
+  summary: "Elige qué cifras dice la frase.",
   kpis: "Elige qué indicadores se muestran (hasta cinco).",
   pnl: "Elige el periodo: el del caso, el cierre o el año en curso.",
   balance: "Elige el periodo: el del caso, el cierre o el año en curso.",
@@ -307,6 +310,7 @@ function ModuleSettingsPanel({ module: m, title, onChange }: { module: LayoutMod
   const o = moduleSettings(m);
   return (
     <div role="group" aria-label={`Ajustes de ${title}`} className="ml-12 flex flex-col gap-4 border-t border-hairline pt-3 sm:ml-10">
+      {keys.includes("facts") && <FactsSetting facts={o.facts} onChange={(facts) => onChange({ facts })} />}
       {keys.includes("tiles") && <TilesSetting tiles={o.tiles} onChange={(tiles) => onChange({ tiles })} />}
       {keys.includes("period") && (
         <div className="flex flex-col gap-1.5">
@@ -330,6 +334,33 @@ function ModuleSettingsPanel({ module: m, title, onChange }: { module: LayoutMod
         </label>
       )}
     </div>
+  );
+}
+
+/** «Resumen»: the figures the sentence states (at least one; the sentence order is fixed). */
+function FactsSetting({ facts, onChange }: { facts: SummaryFactId[]; onChange: (facts: SummaryFactId[]) => void }) {
+  return (
+    <fieldset className="flex flex-col gap-1">
+      <legend className="mb-1 text-[13px] font-medium text-ink-2">Cifras que dice la frase</legend>
+      <div className="grid sm:grid-cols-2">
+        {SUMMARY_FACT_IDS.map((f) => {
+          const on = facts.includes(f);
+          return (
+            <label key={f} className="flex min-h-11 w-fit cursor-pointer items-center gap-3 text-[15px]">
+              <input
+                type="checkbox"
+                className="size-4 accent-[#0E5A61]"
+                checked={on}
+                disabled={on && facts.length === 1}
+                onChange={() => onChange(on ? facts.filter((x) => x !== f) : SUMMARY_FACT_IDS.filter((x) => x === f || facts.includes(x)))}
+              />
+              {SUMMARY_FACT_LABEL[f]}
+            </label>
+          );
+        })}
+      </div>
+      <span className="text-[13px] text-muted">Las que el caso no tenga se omiten. La frase indica siempre de qué documentos sale el ejercicio.</span>
+    </fieldset>
   );
 }
 

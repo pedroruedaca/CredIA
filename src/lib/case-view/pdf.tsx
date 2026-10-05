@@ -13,7 +13,7 @@ import type { BalanceSegment, SegmentTone } from "./balance.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
 import { DEFAULT_LAYOUT, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
-import { periodView } from "./package.ts";
+import { periodView, summaryView } from "./package.ts";
 import { pickTiles } from "./present.ts";
 import { layoutSankey, type PnlSankey } from "./sankey.ts";
 import { statementTables, type TableRow } from "./tables.ts";
@@ -287,17 +287,20 @@ function Solvency({ d }: { d: CaseViewData }) {
  */
 function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Required<ModuleSettings>) => React.ReactNode> {
   return {
-    summary: () => (
+    summary: (o) => {
+      const summary = summaryView(d, o.facts);
+      return (
       <>
-      {pkg.summary && (
+      {summary && (
         <Text style={s.summary}>
-          {pkg.summary.map((seg, i) => (
+          {summary.map((seg, i) => (
             <Text key={i} style={seg.emphasis === "figure" ? { color: C.ink, fontWeight: 600 } : seg.emphasis === "discrepancy" ? { color: C.high, fontWeight: 600 } : {}}>{seg.text}</Text>
           ))}
         </Text>
       )}
       </>
-    ),
+      );
+    },
     kpis: (o) => (
       <>
       {pickTiles(pkg.tiles, o.tiles).length > 0 && (

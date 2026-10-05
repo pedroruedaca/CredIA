@@ -18,7 +18,7 @@ import { SeverityDot } from "@/components/ui/SeverityDot";
 import { CHECK_PASS_LABEL, REVIEW_LABEL } from "@/content/case-view.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { layoutRows, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "@/lib/case-view/modules";
-import { periodView, type CasePackage } from "@/lib/case-view/package";
+import { periodView, summaryView, type CasePackage } from "@/lib/case-view/package";
 import { pickTiles, sourceHref } from "@/lib/case-view/present";
 import { formatCompactEur, formatDate } from "@/lib/format";
 
@@ -34,11 +34,12 @@ export interface ModuleContext {
   hasFinancials: boolean;
 }
 
-function SummaryModule({ pkg, hasFinancials }: ModuleContext) {
-  if (!hasFinancials || !pkg.summary) return null;
+function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
+  const summary = summaryView(data, settings.facts);
+  if (!hasFinancials || !summary) return null;
   return (
     <p className="max-w-[720px] text-[19px] leading-normal tracking-[-0.01em] text-ink-2 sm:text-[22px]">
-      {pkg.summary.map((s, i) =>
+      {summary.map((s, i) =>
         s.emphasis === "figure" ? <b key={i} className="font-semibold text-ink">{s.text}</b> : s.emphasis === "discrepancy" ? <b key={i} className="font-semibold text-high">{s.text}</b> : <span key={i}>{s.text}</span>,
       )}
     </p>

@@ -11,7 +11,7 @@ import { checkSlugs, evidenceView, type EvidenceView } from "./evidence.ts";
 import type { CaseViewData } from "./load.ts";
 import { pnlSankey, type PnlSankey } from "./sankey.ts";
 import { isFullStatement } from "../pgc/mapping.ts";
-import type { PeriodChoice } from "./modules.ts";
+import type { PeriodChoice, SummaryFactId } from "./modules.ts";
 import { kpiTiles, splitChecks, summariseSources, type KpiTile, type SourceLabel } from "./present.ts";
 
 export interface SourceChip {
@@ -51,6 +51,12 @@ export function periodView(d: CaseViewData, period: PeriodChoice): Pick<CasePack
   };
 }
 
+/** The «Resumen» sentence with the figures a layout chose (the package's own uses the default ones). */
+export function summaryView(d: CaseViewData, facts?: readonly SummaryFactId[]): SummarySegment[] | null {
+  const { closed, ytd, closedSource, ytdSource } = d.statements;
+  return caseSummary({ closed, ytd, cirbe: d.cirbe, closedSource, ytdSource, facts });
+}
+
 export function buildPackage(d: CaseViewData): CasePackage {
   const { closed: closedAny, ytd: ytdAny } = d.statements;
   // KPI tiles, balance and P&L need a full statement; revenue-only periods (Modelo 303) appear in the summary and tables.
@@ -80,7 +86,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
   }
 
   return {
-    summary: caseSummary({ closed: closedAny, ytd: ytdAny, cirbe: d.cirbe, closedSource: d.statements.closedSource, ytdSource: d.statements.ytdSource }),
+    summary: summaryView(d),
     tiles: kpiTiles(
       closed ? { statement: closed, kpis: d.kpis.closed } : null,
       ytd ? { statement: ytd, kpis: d.kpis.ytd } : null,

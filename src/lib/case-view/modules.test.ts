@@ -99,13 +99,20 @@ describe("module settings", () => {
     expect(normalizeSettings("review", { showPassed: false })).toEqual({ showPassed: false });
     expect(normalizeSettings("sources", { showPassed: false })).toBeUndefined();
     expect(normalizeSettings("kpis", { tiles: [] })).toBeUndefined();
+    expect(normalizeSettings("summary", { facts: ["netDebt", "scoring", "netDebt", "revenue"], tiles: ["dscr"] })).toEqual({ facts: ["netDebt", "revenue"] });
+    expect(normalizeSettings("summary", { facts: [] })).toBeUndefined();
   });
 
   it("survive normalizeLayout and fill in defaults", async () => {
     const { moduleSettings, setModuleSettings } = await import("./modules.ts");
     const l = normalizeLayout({ version: 1, modules: [{ id: "kpis", width: "full", settings: { tiles: ["dsoDpo"] } }, { id: "balance", width: "half", settings: { period: "closed" } }] });
     expect(l.modules[0]).toEqual({ id: "kpis", width: "full", settings: { tiles: ["dsoDpo"] } });
-    expect(moduleSettings(l.modules[1])).toEqual({ tiles: ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"], period: "closed", showPassed: true });
+    expect(moduleSettings(l.modules[1])).toEqual({
+      facts: ["revenue", "ebitda", "cirbe"],
+      tiles: ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"],
+      period: "closed",
+      showPassed: true,
+    });
     const changed = setModuleSettings(l, "balance", { period: "ytd" });
     expect(changed.modules.find((m) => m.id === "balance")!.settings).toEqual({ period: "ytd" });
     expect(setModuleSettings(l, "balance", { period: "bad" as never }).modules.find((m) => m.id === "balance")!.settings).toEqual({ period: "closed" });

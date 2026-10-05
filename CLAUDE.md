@@ -152,7 +152,8 @@ layout; Excel/JSON exports stay complete. Phases: 1 registry + default layout �
 **PDF follows the layout** (`packagePdf(…, layout)`, export route uses `loadCaseLayout`): modules in layout order, half
 widths printed full width, `analyst_documents` / `annual_accounts` print nothing, financial statements always as an
 appendix. **Module settings** (`LayoutModule.settings`, `MODULE_SETTINGS`, `normalizeSettings`, `moduleSettings`):
-«Indicadores» `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
+«Resumen» `facts` (≥ 1 of `SUMMARY_FACT_IDS`: revenue, EBITDA, CIRBE vs books by default; net income, YTD sales, net
+debt, equity, working capital; fixed sentence order, source notes always said; `summaryView`), «Indicadores» `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
 debt/equity, working capital, financial debt from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
 (base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
 applied in the case view and the PDF.
