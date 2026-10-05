@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { n43Sample } from "../__fixtures__/n43-sample.ts";
+import { n43BankA, n43BankB, TWO_BANKS_COMPANY } from "../__fixtures__/n43-two-banks.ts";
+import { classifyAccounts } from "../bank/classify.ts";
 import { tbSmallSl } from "../__fixtures__/tb-small-sl.ts";
 import { parseNorma43 } from "../parsers/norma43.ts";
 import { buildStatement } from "../pgc/mapping.ts";
@@ -16,6 +18,7 @@ import {
   checkDebtPaymentsVsDeclaredDebt,
   checkModelo200VsBooks,
   checkModelo303Quarters,
+  checkFinancingInflows,
   checkN43InflowsVsRevenue,
   checkOverdrafts,
   cirbeAnnualPrincipal,
@@ -96,6 +99,51 @@ describe("Norma 43 checks", () => {
     expect(checkDebtPaymentsVsDeclaredDebt(monthly, null, null)).toMatchObject({ status: "fail", severity: "high" });
     expect(checkDebtPaymentsVsDeclaredDebt(monthly, closed, null).status).toBe("pass");
     expect(checkDebtPaymentsVsDeclaredDebt(accounts, closed, null).status).toBe("not_applicable"); // one month only
+  });
+});
+
+describe("Norma 43 checks: two banks, money in that is not sales", () => {
+  const accounts = classifyAccounts([...parseNorma43(n43BankA, { docId: "a" }).data, ...parseNorma43(n43BankB, { docId: "b" }).data], { companyName: TWO_BANKS_COMPANY });
+  const q1 = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-03-31" }).data;
+  // Q1 sales of 72.000 € (87.120 € with VAT): what the bank should show as customer receipts.
+  const ytd = { ...q1, incomeStatement: { ...q1.incomeStatement, revenue: 72_000 } };
+
+  it("counts customer receipts only, and lists what it left out", () => {
+    const r = checkN43InflowsVsRevenue(ytd, accounts);
+    expect(r.status).toBe("pass"); // counting every inflow (372.107 €) would have been +327 %
+    expect(r.evidence.values).toMatchObject({
+      bank_inflows: 86_707.35,
+      identified_receipts: 87_697.35,
+      unclassified_inflows: 1_430,
+      returned_receipts: 2_420,
+      excluded_financing: 150_000,
+      excluded_trade_finance: 34_680,
+      excluded_equity: 60_000,
+      excluded_internal_transfer: 35_000,
+      excluded_refund: 3_300,
+      total_bank_inflows: 372_107.35,
+    });
+    expect(r.message).toContain("No se cuentan 282.980 € de traspasos, financiación y otros ingresos que no son ventas.");
+    expect(r.evidence.rule).toMatch(/No cuentan como cobros: traspasos/);
+  });
+
+  it("says when much of what it counted is unidentified", () => {
+    const vague = classifyAccounts(parseNorma43(n43BankA, { docId: "a" }).data);
+    for (const t of vague[0].transactions) if (t.category === "customer_receipt") Object.assign(t, { category: "other_inflow" });
+    expect(checkN43InflowsVsRevenue(ytd, vague).message).toMatch(/son ingresos sin identificar/);
+  });
+
+  it("flags loans and advances arriving without declared debt (high), and states them when there is debt", () => {
+    const none = checkFinancingInflows(accounts, null, null);
+    expect(none).toMatchObject({ status: "fail", severity: "high" });
+    expect(none.message).toBe("Entran 150.000 € de préstamos o pólizas y 34.680 € de anticipos, factoring o descuento en los extractos, pero no consta deuda financiera ni en contabilidad ni en CIRBE.");
+    expect(checkFinancingInflows(accounts, closed, null)).toMatchObject({ status: "pass", severity: "info" });
+    expect(checkFinancingInflows(parseNorma43(n43Sample, { docId: "n1" }).data, null, null).status).toBe("not_applicable");
+  });
+
+  it("counts interest on credit lines as debt payments", () => {
+    const r = checkDebtPaymentsVsDeclaredDebt(accounts, null, null);
+    expect(r.evidence.values).toMatchObject({ debt_payments: 3_425.25, months_with_payments: 2 });
   });
 });
 

@@ -7,6 +7,7 @@ import type { CanonicalStatement } from "../pgc/mapping.ts";
 import { JUDICIAL_TYPE_LABEL, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
 import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import { declaredSales, expectedQuarters, quarterCoverage, quarterLabel, returnLabel, returnsForPeriod, type M303Return } from "../tax/modelo303.ts";
+import { inflowBreakdown } from "../bank/classify.ts";
 import { minRunningBalance, type N43Account } from "../parsers/norma43.ts";
 import { monthsBetween } from "../types.ts";
 import { de } from "../format.ts";
@@ -120,25 +121,51 @@ export function checkN43InflowsVsRevenue(s: CanonicalStatement, accounts: N43Acc
   const overlapMonths = monthsBetween(start, end);
   if (overlapMonths < 1) return na(key, "Los extractos bancarios cubren menos de un mes del periodo contable.");
 
-  const txs = accounts.flatMap((a) => a.transactions).filter((t) => t.amount > 0 && t.bookingDate >= start && t.bookingDate <= end && t.category === "revenue");
-  const inflows = r2(txs.reduce((sum, t) => sum + t.amount, 0));
+  const inPeriod = accounts.flatMap((a) => a.transactions).filter((t) => t.bookingDate >= start && t.bookingDate <= end);
+  const b = inflowBreakdown(inPeriod);
+  const inflows = b.receipts;
   const expected = r2(s.incomeStatement.revenue * (overlapMonths / s.months) * (1 + vatRate));
-  const values = { bank_inflows: inflows, expected_from_revenue: expected, overlap_start: start, overlap_end: end, overlap_months: overlapMonths, vat_rate: vatRate };
-  const sources = [...lineageRefs(s, "revenue"), ...txs.slice(0, 50).map((t) => t.sourceRef)];
-  const rule = `Cobros bancarios (ingresos) vs ventas × ${1 + vatRate} prorrateadas al periodo común; tolerancia ±25 %`;
+  // Every inflow left out of receipts is listed by type, so the lender sees what was not counted as sales.
+  const excluded = Object.fromEntries(Object.entries(b.excluded).map(([cat, v]) => [`excluded_${cat}`, v as number]));
+  const values = {
+    bank_inflows: inflows,
+    expected_from_revenue: expected,
+    identified_receipts: b.identifiedReceipts,
+    unclassified_inflows: b.unclassified,
+    returned_receipts: b.returnedReceipts,
+    ...excluded,
+    total_bank_inflows: b.total,
+    overlap_start: start,
+    overlap_end: end,
+    overlap_months: overlapMonths,
+    vat_rate: vatRate,
+  };
+  const sources = [...lineageRefs(s, "revenue"), ...b.counted.slice(0, 50).map((t) => t.sourceRef)];
+  const rule =
+    `Cobros de clientes (más ingresos sin clasificar, menos recibos devueltos) vs ventas × ${1 + vatRate} prorrateadas al periodo común; ` +
+    "tolerancia ±25 %. No cuentan como cobros: traspasos entre cuentas propias, financiación, anticipos y descuento, aportaciones de socios, devoluciones, inversiones ni anulaciones.";
   if (expected <= 0) return na(key, "Sin ventas en el periodo para comparar.");
   const ratio = inflows / expected;
+  // Unclassified money is counted (most of it is customers paying) but said, so a pass is not taken as certain.
+  const unclassifiedNote =
+    b.unclassified > 0 && b.unclassified >= 0.2 * Math.max(inflows, 1)
+      ? ` ${eur(b.unclassified)} de los cobros (${pct(b.unclassified / Math.max(inflows, 1))}) son ingresos sin identificar.`
+      : "";
+  const excludedTotal = r2(Object.values(b.excluded).reduce((x, v) => x + (v ?? 0), 0));
+  const excludedNote = excludedTotal > 0 ? ` No se cuentan ${eur(excludedTotal)} de traspasos, financiación y otros ingresos que no son ventas.` : "";
   if (ratio >= 0.75 && ratio <= 1.25) {
-    return { key, status: "pass", severity: "info", message: `Los cobros bancarios (${eur(inflows)}) son coherentes con las ventas (${eur(expected)} con IVA).`, evidence: { values: { ...values, ratio: r2(ratio) }, sources, rule } };
+    return { key, status: "pass", severity: "info", message: `Los cobros bancarios (${eur(inflows)}) son coherentes con las ventas (${eur(expected)} con IVA).${excludedNote}${unclassifiedNote}`, evidence: { values: { ...values, ratio: r2(ratio) }, sources, rule } };
   }
   return {
     key,
     status: "fail",
     severity: "warn",
     message:
-      ratio < 0.75
+      (ratio < 0.75
         ? `Los cobros bancarios (${eur(inflows)}) son un ${pct(1 - ratio)} inferiores a las ventas con IVA del periodo (${eur(expected)}). Puede faltar alguna cuenta bancaria o cobrarse por otros medios.`
-        : `Los cobros bancarios (${eur(inflows)}) superan en un ${pct(ratio - 1)} a las ventas con IVA del periodo (${eur(expected)}). Pueden incluir financiación, aportaciones o traspasos.`,
+        : `Los cobros bancarios (${eur(inflows)}) superan en un ${pct(ratio - 1)} a las ventas con IVA del periodo (${eur(expected)}).`) +
+      excludedNote +
+      unclassifiedNote,
     evidence: { values: { ...values, ratio: r2(ratio) }, sources, rule },
   };
 }
@@ -238,7 +265,8 @@ export function checkOverdrafts(accounts: N43Account[]): CheckResult {
 
 export function checkDebtPaymentsVsDeclaredDebt(accounts: N43Account[], s: CanonicalStatement | null, cirbe: CirbeExtraction | null): CheckResult {
   const key = "n43_debt_payments_vs_declared";
-  const payments = accounts.flatMap((a) => a.transactions).filter((t) => t.category === "debt_service" && t.amount < 0);
+  // Instalments and interest on credit lines: what the company pays its lenders.
+  const payments = accounts.flatMap((a) => a.transactions).filter((t) => (t.category === "debt_service" || t.category === "interest") && t.amount < 0);
   const months = new Set(payments.map((t) => t.bookingDate.slice(0, 7)));
   if (months.size < 2) return na(key, "Sin pagos de deuda recurrentes en los extractos.");
   const total = r2(-payments.reduce((sum, t) => sum + t.amount, 0));
@@ -250,6 +278,28 @@ export function checkDebtPaymentsVsDeclaredDebt(accounts: N43Account[], s: Canon
     return { key, status: "fail", severity: "high", message: `Hay pagos recurrentes de préstamos en los extractos (${eur(total)} en ${months.size} meses) pero no consta deuda financiera ni en contabilidad ni en CIRBE.`, evidence: { values, sources } };
   }
   return { key, status: "pass", severity: "info", message: `Los pagos de deuda en los extractos (${eur(total)} en ${months.size} meses) corresponden a deuda declarada.`, evidence: { values, sources } };
+}
+
+/**
+ * Money lent to the company that arrived through the bank: loan and credit-line drawdowns, and advances on invoices
+ * (factoring, discounting, anticipos). With none declared in the books or the CIRBE, it is undeclared debt (high).
+ */
+export function checkFinancingInflows(accounts: N43Account[], s: CanonicalStatement | null, cirbe: CirbeExtraction | null): CheckResult {
+  const key = "n43_financing_inflows";
+  const txs = accounts.flatMap((a) => a.transactions).filter((t) => t.amount > 0 && (t.category === "financing" || t.category === "trade_finance"));
+  if (txs.length === 0) return na(key, "Sin entradas de financiación en los extractos.");
+  const loans = r2(txs.filter((t) => t.category === "financing").reduce((x, t) => x + t.amount, 0));
+  const advances = r2(txs.filter((t) => t.category === "trade_finance").reduce((x, t) => x + t.amount, 0));
+  const booksDebt = s?.derived.financialDebt ?? 0;
+  const cirbeDebt = cirbe ? cirbeDrawnDebt(cirbe) : 0;
+  const values = { financing_inflows: loans, trade_finance_inflows: advances, books_financial_debt: r2(booksDebt), cirbe_drawn: r2(cirbeDebt) };
+  const sources = txs.slice(0, 50).map((t) => t.sourceRef);
+  const what = [loans > 0 ? `${eur(loans)} de préstamos o pólizas` : null, advances > 0 ? `${eur(advances)} de anticipos, factoring o descuento` : null].filter(Boolean).join(" y ");
+  const rule = "Ingresos clasificados como financiación en los extractos frente a la deuda financiera en contabilidad y en CIRBE";
+  if (booksDebt <= 0 && cirbeDebt <= 0) {
+    return { key, status: "fail", severity: "high", message: `Entran ${what} en los extractos, pero no consta deuda financiera ni en contabilidad ni en CIRBE.`, evidence: { values, sources, rule } };
+  }
+  return { key, status: "pass", severity: "info", message: `Entran ${what} en los extractos; consta deuda financiera declarada.`, evidence: { values, sources, rule } };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -52,6 +52,12 @@ export function formatEvidenceValue(key: string, v: number | string | null | und
   return `${formatEurWhole(v)} €`;
 }
 
+/** Rows of the bank inflow breakdown, in this order: counted first, then what was left out. */
+const INFLOW_ROWS = [
+  "identified_receipts", "unclassified_inflows", "returned_receipts",
+  ...["internal_transfer", "financing", "trade_finance", "equity", "refund", "investment_income", "reversal"].map((c) => `excluded_${c}`),
+];
+
 /** Stable deep-link id per check: its key, suffixed when a key repeats (e.g. one per period). */
 export function checkSlugs<T extends { check_key: string }>(checks: T[]): (T & { slug: string })[] {
   const seen = new Map<string, number>();
@@ -150,6 +156,17 @@ export function evidenceView(
         { label: "Cobros", value: inflows },
       ];
       base.evidenceLine = `${values.overlap_months ?? "?"} meses comparados · ${formatDate(String(values.overlap_start))} – ${formatDate(String(values.overlap_end))}`;
+      // What came into the bank, by type: counted as receipts or left out (older checks lack the breakdown).
+      const kinds = INFLOW_ROWS.flatMap((k) => (num(values[k]) ? [[k, values[k]] as const] : []));
+      if (kinds.length) {
+        base.table = {
+          title: "Ingresos en banco por tipo",
+          columns: ["Tipo", "Importe"],
+          rows: kinds.map(([k, v]) => ({ label: VALUE_LABEL[k] ?? k, a: eurText(num(v)!), mismatch: k === "unclassified_inflows" })),
+        };
+        const shown = new Set(kinds.map(([k]) => VALUE_LABEL[k] ?? k));
+        base.values = base.values.filter((v) => !shown.has(v.label));
+      }
       base.gaps.push("La comparación es agregada: no se desglosa por cuenta bancaria ni por cliente.");
       break;
     }

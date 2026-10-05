@@ -13,6 +13,7 @@ import { assessExtraction, type Canonical } from "../extract/assess.ts";
 import { extractPdf, mapTrialBalanceColumns } from "../extract/claude.ts";
 import { modelFor } from "../llm/model.ts";
 import type { ExtractKind } from "../extract/schemas.ts";
+import { classifyAccounts } from "../bank/classify.ts";
 import { computeKpis } from "../kpis/engine.ts";
 import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
@@ -30,6 +31,7 @@ import {
   checkCertificate,
   checkCirbeVsBooks,
   checkDebtPaymentsVsDeclaredDebt,
+  checkFinancingInflows,
   checkModelo200VsBooks,
   checkModelo303Quarters,
   checkModelo303VsBooks,
@@ -428,6 +430,9 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
 
   // --- Bank transactions (Norma 43)
   const bank = dedupeBankAccounts(parsed.filter((d) => d.kind === "norma43").map((d) => ({ docId: d.id, uploadedAt: d.uploadedAt, accounts: (d.output.accounts as N43Account[]) ?? [] })));
+  // Classified again over all the case's files: rule changes reach files parsed before, and transfers between
+  // accounts in different files are found.
+  classifyAccounts(bank.map((b) => b.account), { companyName: kase.borrower_name });
   await db.from("bank_transactions").delete().eq("case_id", kase.id);
   await insertChunks(
     db,
@@ -532,7 +537,7 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     const flows = [ytd, closed].filter(Boolean).map((s) => checkN43InflowsVsRevenue(s!, accounts)).find((c) => c.status !== "not_applicable");
     if (flows) checks.push(flows);
     const debtBasis = isFullStatement(ytd) ? ytd : isFullStatement(closed) ? closed : null;
-    checks.push(checkOverdrafts(accounts), checkDebtPaymentsVsDeclaredDebt(accounts, debtBasis, cirbe));
+    checks.push(checkOverdrafts(accounts), checkDebtPaymentsVsDeclaredDebt(accounts, debtBasis, cirbe), checkFinancingInflows(accounts, debtBasis, cirbe));
   }
   const { data: reqs } = await db.from("case_requirements").select("doc_kind, required, max_age_days, source").eq("case_id", kase.id);
   for (const kind of ["aeat_cert", "tgss_cert"] as const) {

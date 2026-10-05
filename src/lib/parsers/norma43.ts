@@ -4,12 +4,14 @@
  * Amounts are 14 digits with 2 implied decimals; debit/credit keys are 1 = debe (cargo), 2 = haber (abono).
  * Pure. Never throws on bad data: malformed lines and totals that don't reconcile become warnings.
  *
- * Categories are keyword heuristics on the concept text (see categorise); they are hints for the checks,
- * not accounting. LLM categorisation can replace them later.
+ * Each movement is classified by src/lib/bank/classify.ts (concept text, AEB common concept, transfers between the
+ * file's own accounts). The pipeline classifies again over all of a case's bank files together (see recompute), so
+ * transfers between accounts in different files are found too.
  */
+import { classifyAccounts, type BankCategory, type ClassificationBasis } from "../bank/classify.ts";
 import type { Result, Warning } from "../types.ts";
 
-export type TxCategory = "revenue" | "payroll" | "social_security" | "tax" | "debt_service" | "bank_fees" | "card_settlement" | "transfer" | "other";
+export type TxCategory = BankCategory;
 
 export interface N43Transaction {
   bookingDate: string; // YYYY-MM-DD
@@ -22,6 +24,9 @@ export interface N43Transaction {
   reference2: string;
   description: string; // record 23 concepts joined
   category: TxCategory;
+  /** What decided the category, and which rule (see classify.ts). */
+  categoryBasis?: ClassificationBasis;
+  categoryRule?: string;
   sourceRef: string; // doc:<id>:line:<n>
 }
 
@@ -56,35 +61,6 @@ export function n43Amount(digits: string, key: string): number | null {
   if (!/^\d{14}$/.test(digits) || (key !== "1" && key !== "2")) return null;
   const v = Number(digits) / 100;
   return key === "1" ? -v : v;
-}
-
-const CATEGORY_RULES: [TxCategory, RegExp][] = [
-  ["payroll", /\bnomina|\bnomin|\bsalario|\bpayroll/],
-  ["social_security", /seg(uridad)?\.? ?social|\btgss\b|\bs\.? ?social\b|tesoreria gral/],
-  ["tax", /\baeat\b|hacienda|agencia tribut|\bimpuesto|\biva\b|\birpf\b|\bmodelo \d{3}\b|\bmod\.? ?\d{3}\b/],
-  ["debt_service", /prestamo|amortiz|\bcuota\b.*(prest|credit|leasing|renting)|\bleasing\b|intereses|liquidacion (poliza|credito|cuenta de credito)/],
-  ["bank_fees", /comision|\bcomis\b|gastos (de )?mantenimiento|\bcuota (de )?(tarjeta|mantenimiento)/],
-  ["card_settlement", /\btpv\b|liquidacion (de )?(tarjetas|comercio)|abono (de )?tarjetas/],
-  ["transfer", /\btransf|\bsepa\b/],
-];
-
-/** Moves between the company's own accounts: never receipts. */
-const INTERNAL_TRANSFER = /\btraspaso|entre cuentas|cuenta propia|\bmismo titular\b/;
-
-export function categorise(description: string, amount: number): TxCategory {
-  const t = description
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-  if (INTERNAL_TRANSFER.test(t)) return "transfer";
-  for (const [cat, re] of CATEGORY_RULES) {
-    if (!re.test(t)) continue;
-    if (cat === "card_settlement" && amount > 0) return "revenue";
-    // An incoming transfer from a third party is how most customers pay: count it as a receipt.
-    if (cat === "transfer" && amount > 0) return "revenue";
-    return cat;
-  }
-  return amount > 0 ? "revenue" : "other";
 }
 
 function maskAccount(bank: string, branch: string, account: string): string {
@@ -153,7 +129,7 @@ export function parseNorma43(text: string, opts: { docId: string }): Result<N43A
           reference1: line.slice(52, 64).trim(),
           reference2: line.slice(64, 80).trim(),
           description: "",
-          category: "other",
+          category: "other_inflow",
           sourceRef: `doc:${opts.docId}:line:${lineNo}`,
         };
         current.transactions.push(lastTx);
@@ -199,8 +175,8 @@ export function parseNorma43(text: string, opts: { docId: string }): Result<N43A
   }
   if (accounts.length === 0) warnings.push({ code: "n43_no_accounts", message: "El fichero no contiene cuentas Norma 43." });
 
+  classifyAccounts(accounts);
   for (const a of accounts) {
-    for (const t of a.transactions) t.category = categorise(t.description, t.amount);
     const debits = r2(-a.transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0));
     const credits = r2(a.transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0));
     const detail = { account: a.accountMasked };

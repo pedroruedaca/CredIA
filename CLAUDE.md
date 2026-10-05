@@ -29,7 +29,7 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 |---|---|---|
 | Sumas y saldos (xlsx/csv) | Deterministic, per-software template (A3, Sage, Contasol, Holded, Odoo) | LLM only for header/column detection |
 | **Holded API (borrower-supplied key)** | `src/lib/connectors/holded.ts` | Produces the same `LedgerBalance[]` as a trial balance upload |
-| Norma 43 | Deterministic fixed-width parser | LLM for transaction categorisation |
+| Norma 43 | Deterministic fixed-width parser + rule classifier (`src/lib/bank/classify.ts`) | LLM later, only for unclassified movements |
 | Modelo 200 PDF | Claude structured output → Zod (`Modelo200Wire`) | Verification anchor for closed year; its balance + P&L pages build the closed year when nothing better exists |
 | Modelo 303 PDFs (IVA) | Claude structured output → Zod (`Modelo303Wire`) | Last 4 quarters due (or 12 monthly returns); requested with the Modelo 200 as «Documentos fiscales»; revenue-only periods |
 | Cuentas anuales PDF (official model) | Claude structured output → Zod (`AnnualAccountsWire`) | Full balance + P&L, current and prior year; closed-year statement when there is no TB/Holded |
@@ -179,6 +179,18 @@ creation; template edits never change existing cases' documents.
 «La plantilla …» or «Todo el equipo» (`saveLayout(target)` / `resetLayout(target)` in `src/app/casos/layout-actions.ts`);
 «Volver al diseño de la plantilla/del equipo» clears the case's own. Integration: `tests/integration/templates.test.ts`.
 
+## Bank movements (Norma 43)
+`parseNorma43` reads the fixed-width records; `classifyAccounts` (`src/lib/bank/classify.ts`, pure) gives every movement a
+category, its basis and the rule that decided (`categoryBasis`, `categoryRule`). Evidence, strongest first: **pair** (same
+amount out of one of the company's accounts and into another within 3 days → `internal_transfer`), **holder** (the
+company named as payer of an inflow / payee of an outflow; never "a favor de", which banks print on every incoming
+transfer), **text** (Spanish banking phrases, ordered rules), **code** (AEB common concept), **default**
+(`other_inflow` / `other_outflow`). `recompute` classifies all of a case's bank files together (rule changes reach old
+files; pairs across files). Inflows that are not sales — `internal_transfer`, `financing`, `trade_finance`, `equity`,
+`refund`, `investment_income`, `reversal` — never count as receipts (`inflowBreakdown`); unclassified inflows count but
+are reported. Fixture `__fixtures__/n43-two-banks.ts` (two banks, hand-written concept shapes, every movement's
+expected category). **Not yet checked against real exports from Spanish banks: add their concept shapes as tests.**
+
 ## PGC normalisation
 - Roll every account up to its **3-digit PGC code** (`4300001` → `430`, `70500001` → `705`).
 - Groups 46/47/55: classify by sign (debit → asset, credit → liability).
@@ -193,7 +205,7 @@ net debt, net debt/EBITDA, debt/equity, interest coverage, DSCR, DSO, DPO. Flows
 and `inputs` so the UI can show its derivation. Division by zero/negative denominators → `null` + reason.
 
 ## Cross-checks (`checks` table; severity info|warn|high)
-TB revenue vs N43 inflows (±25%) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,
+TB revenue vs N43 customer receipts (±25%; excluded inflows listed by type) · N43 loan/advance drawdowns vs declared debt (`n43_financing_inflows`) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,
 result, equity) · recurring debt payments in N43 vs declared debt · AEAT/TGSS certificates valid ·
 BORME adverse acts · Modelo 303 last 4 quarters received (`m303_quarters`, warn) · Modelo 303 declared sales vs revenue of a period they cover month by month (`m303_vs_books_revenue`, 10 % / 5.000 €, warn) · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
 closing-entries suspicion.

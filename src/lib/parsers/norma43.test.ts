@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { n43Sample, r11, r22, r33 } from "../__fixtures__/n43-sample.ts";
-import { categorise, minRunningBalance, n43Amount, n43Date, parseNorma43 } from "./norma43.ts";
+import { minRunningBalance, n43Amount, n43Date, parseNorma43 } from "./norma43.ts";
 
 describe("field decoding", () => {
   it("dates and signed amounts", () => {
@@ -29,8 +29,9 @@ describe("parseNorma43", () => {
     expect(inflow).toMatchObject({ bookingDate: "2026-01-05", amount: 48400, reference1: "FRA 2026-001", description: "TRANSFERENCIA DE CLIENTE A SL FRA 2026-001", sourceRef: "doc:doc1:line:2" });
     expect(payroll.amount).toBe(-15000);
   });
-  it("categorises by concept", () => {
-    expect(data[0].transactions.map((t) => t.category)).toEqual(["revenue", "payroll", "social_security", "tax", "revenue", "bank_fees"]);
+  it("classifies each movement and says why", () => {
+    expect(data[0].transactions.map((t) => t.category)).toEqual(["customer_receipt", "payroll", "social_security", "tax", "customer_receipt", "bank_fees"]);
+    expect(data[0].transactions[1]).toMatchObject({ categoryBasis: "text", categoryRule: "payroll" });
     expect(data[1].transactions[0].category).toBe("debt_service");
   });
   it("finds the lowest running balance (overdraft)", () => {
@@ -50,21 +51,5 @@ describe("parseNorma43", () => {
     const r = parseNorma43("Fecha;Concepto;Importe\n01/01/2026;x;1", { docId: "d" });
     expect(r.data).toEqual([]);
     expect(r.warnings.map((w) => w.code)).toContain("n43_no_accounts");
-  });
-});
-
-describe("categorise", () => {
-  it("covers common Spanish bank concepts", () => {
-    expect(categorise("RECIBO PRESTAMO 123", -500)).toBe("debt_service");
-    expect(categorise("CUOTA LEASING VEHICULO", -300)).toBe("debt_service");
-    expect(categorise("IMPUESTO SOCIEDADES MOD. 200", -2000)).toBe("tax");
-    expect(categorise("ABONO TARJETAS TPV", 900)).toBe("revenue");
-    expect(categorise("INGRESO EFECTIVO", 100)).toBe("revenue");
-    expect(categorise("TRANSFERENCIA DE CLIENTE LOGISTICA SUR SL", 12_000)).toBe("revenue");
-    expect(categorise("TRANSF. SEPA RECIBIDA GRUPO MEDITERRANEO", 5_000)).toBe("revenue");
-    expect(categorise("TRASPASO DESDE SANTANDER", 3_000)).toBe("transfer");
-    expect(categorise("TRANSFERENCIA ENTRE CUENTAS", 3_000)).toBe("transfer");
-    expect(categorise("TRANSFERENCIA A PROVEEDOR SL", -8_000)).toBe("transfer");
-    expect(categorise("RECIBO LUZ", -80)).toBe("other");
   });
 });

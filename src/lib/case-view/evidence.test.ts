@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { n43BankA, n43BankB } from "../__fixtures__/n43-two-banks.ts";
 import { tbSmallSl } from "../__fixtures__/tb-small-sl.ts";
+import { classifyAccounts } from "../bank/classify.ts";
+import { parseNorma43 } from "../parsers/norma43.ts";
 import { checkCirbeVsBooks, checkN43InflowsVsRevenue } from "../checks/engine.ts";
 import { buildStatement } from "../pgc/mapping.ts";
 import type { CirbeExtraction } from "../schema/canonical.ts";
@@ -36,6 +39,27 @@ describe("evidenceView", () => {
     expect(v.severity).toBe("high");
   });
 
+  it("bank receipts vs sales: what came in, by type, counted or left out", () => {
+    const accounts = classifyAccounts([...parseNorma43(n43BankA, { docId: "a" }).data, ...parseNorma43(n43BankB, { docId: "b" }).data]);
+    const q1 = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-03-31" }).data;
+    const ytd = { ...q1, incomeStatement: { ...q1.incomeStatement, revenue: 72_000 } };
+    const v = evidenceView(row(checkN43InflowsVsRevenue(ytd, accounts)), { closed: null, ytd, cirbe: null });
+    expect(v.table?.title).toBe("Ingresos en banco por tipo");
+    expect(v.table?.rows.map((r) => r.label)).toEqual([
+      "Cobros de clientes identificados",
+      "Ingresos sin clasificar (contados)",
+      "Recibos devueltos (restados)",
+      "Traspasos entre cuentas propias (no cuentan)",
+      "Préstamos y pólizas (no cuentan)",
+      "Anticipos, factoring y descuento (no cuentan)",
+      "Aportaciones de socios (no cuentan)",
+      "Devoluciones (no cuentan)",
+    ]);
+    expect(v.table?.rows.find((r) => r.label.startsWith("Ingresos sin clasificar"))?.mismatch).toBe(true);
+    expect(v.values.map((x) => x.label)).not.toContain("Préstamos y pólizas (no cuentan)");
+    expect(v.compare?.map((c) => c.value)).toEqual([87_120, 86_707.35]);
+  });
+
   it("falls back to text and values, listing the gap, for checks without a structured view", () => {
     const v = evidenceView(
       { id: 9, check_key: "holded_opening_reconstructed", status: "fail", severity: "warn", message: "Apertura reconstruida.", evidence: { values: { accounts: 12 }, sources: [] }, source: "holded", document_id: null, slug: "x" },
@@ -49,7 +73,7 @@ describe("evidenceView", () => {
   it("bank inflows: percentage delta against revenue with VAT", () => {
     const account = {
       accountMasked: "ES** 0001", bankCode: "0049", start: "2025-01-01", end: "2025-12-31", openingBalance: 0, closingBalance: 0, currency: "EUR",
-      transactions: [{ bookingDate: "2025-06-01", valueDate: "2025-06-01", amount: 834_900, conceptCode: "02", description: "cobro", category: "revenue", counterparty: null, sourceRef: "doc:n1:line:3" }],
+      transactions: [{ bookingDate: "2025-06-01", valueDate: "2025-06-01", amount: 834_900, conceptCode: "02", description: "cobro", category: "customer_receipt", counterparty: null, sourceRef: "doc:n1:line:3" }],
     };
     const r = checkN43InflowsVsRevenue(closed, [account as never]);
     const v = evidenceView({ ...row(r as never), check_key: r.key }, { closed, ytd: null, cirbe: null });
