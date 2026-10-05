@@ -100,6 +100,21 @@ describe("exports", () => {
     expect(pkg.passed.length).toBeGreaterThan(0);
   }, 30_000);
 
+  it("PDF states the summary figures chosen for «Resumen»", async () => {
+    const { pdfText } = await import("../borme/fetch.ts");
+    const { summaryText } = await import("../summary.ts");
+    const { summaryView } = await import("./package.ts");
+    const flat = (t: string) => t.replace(/\s+/g, " ");
+    const pdf = async (facts?: ("revenue" | "netDebt" | "equity")[]) =>
+      flat(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at, { version: 1, modules: [{ id: "summary", width: "full", ...(facts ? { settings: { facts } } : {}) }, { id: "review", width: "full" }] }))));
+    const chosen = summaryText(summaryView(sample, ["revenue", "netDebt", "equity"]));
+    expect(chosen).toMatch(/patrimonio neto/);
+    const withChoice = await pdf(["revenue", "netDebt", "equity"]);
+    expect(withChoice).toContain(flat(chosen));
+    expect(withChoice).not.toContain("EBITDA de");
+    expect(await pdf()).toContain(flat(summaryText(pkg.summary)));
+  }, 30_000);
+
   it("PDF renders", async () => {
     const buf = await packagePdf(sample, pkg, at);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
