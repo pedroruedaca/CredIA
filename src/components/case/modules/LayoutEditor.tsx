@@ -23,7 +23,7 @@ import {
   availableModules,
   DEFAULT_LAYOUT,
   MODULE_SPECS,
-  KPI_TILE_IDS,
+  KPI_TILE_GROUPS,
   MAX_KPI_TILES,
   MODULE_SETTINGS,
   moduleSettings,
@@ -41,7 +41,7 @@ import {
   type PeriodChoice,
   type SummaryFactId,
 } from "@/lib/case-view/modules";
-import { KPI_TILE_LABEL, PERIOD_CHOICE_LABEL, SUMMARY_FACT_LABEL } from "@/content/case-view.es";
+import { KPI_TILE_GROUP_LABEL, KPI_TILE_LABEL, PERIOD_CHOICE_LABEL, SUMMARY_FACT_LABEL } from "@/content/case-view.es";
 
 const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
   summary: "Elige qué cifras dice la frase.",
@@ -372,7 +372,7 @@ function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tile
     next.splice(to, 0, t);
     onChange(next);
   };
-  const rest = KPI_TILE_IDS.filter((t) => !tiles.includes(t));
+  const groups = KPI_TILE_GROUPS.map((g) => ({ ...g, rest: g.tiles.filter((t) => !tiles.includes(t)) })).filter((g) => g.rest.length > 0);
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[13px] font-medium text-ink-2">Indicadores que se muestran, en orden (máximo {MAX_KPI_TILES})</span>
@@ -393,23 +393,27 @@ function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tile
           </li>
         ))}
       </ol>
-      {rest.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {rest.map((t) => (
-            <button
-              key={t}
-              type="button"
-              disabled={tiles.length >= MAX_KPI_TILES}
-              onClick={() => onChange([...tiles, t])}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-[13px] font-medium text-ink hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45"
-              aria-label={`Añadir ${KPI_TILE_LABEL[t]}`}
-            >
-              <Plus size={14} strokeWidth={2} aria-hidden /> {KPI_TILE_LABEL[t]}
-            </button>
-          ))}
+      {groups.map((g) => (
+        <div key={g.id} role="group" aria-label={KPI_TILE_GROUP_LABEL[g.id]} className="flex flex-col gap-1.5 pt-1">
+          <span className="text-[13px] text-muted">{KPI_TILE_GROUP_LABEL[g.id]}</span>
+          <div className="flex flex-wrap gap-2">
+            {g.rest.map((t) => (
+              <button
+                key={t}
+                type="button"
+                disabled={tiles.length >= MAX_KPI_TILES}
+                onClick={() => onChange([...tiles, t])}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-[13px] font-medium text-ink hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45"
+                aria-label={`Añadir ${KPI_TILE_LABEL[t]}`}
+              >
+                <Plus size={14} strokeWidth={2} aria-hidden /> {KPI_TILE_LABEL[t]}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
       {tiles.length >= MAX_KPI_TILES && <span className="text-[13px] text-muted">Quita uno para añadir otro.</span>}
+      <span className="text-[13px] text-muted">Un indicador sin datos en el caso no se muestra: los de los extractos necesitan ficheros Norma 43.</span>
     </div>
   );
 }

@@ -91,6 +91,7 @@ export function buildPackage(d: CaseViewData): CasePackage {
       closed ? { statement: closed, kpis: d.kpis.closed } : null,
       ytd ? { statement: ytd, kpis: d.kpis.ytd } : null,
       d.cirbe ? cirbeDrawnDebt(d.cirbe) : null,
+      d.bank,
     ),
     basePeriod: closed ? "closed_fy" : ytd ? "ytd" : null,
     open: views,

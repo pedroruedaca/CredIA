@@ -20,6 +20,10 @@ describe("exports", () => {
     expect(c.source_refs.length).toBeGreaterThan(0);
     expect(JSON.stringify(j)).not.toMatch(/\b(score|scoring|rating|aprobad[oa]|recomendamos)\b/i);
     expect(exportFilename(sample, "json", "2026-09-29")).toBe("credia-Distribuciones-Ejemplo-S-L-2026-09-29.json");
+    // Bank KPIs travel with their window and the files behind them.
+    expect(j.bank_kpis?.sources).toEqual(["doc:n1"]);
+    expect(j.bank_kpis?.period).toMatchObject({ start: "2026-01-01", end: "2026-03-31" });
+    expect(j.bank_kpis?.kpis.find((k) => k.key === "daysCashOnHand")?.label).toBe("Días de caja");
   });
 
   it("Excel has the five sheets and a traceability row per account", async () => {
@@ -28,6 +32,8 @@ describe("exports", () => {
     await wb.xlsx.load(buf as unknown as ArrayBuffer);
     expect(wb.worksheets.map((w) => w.name)).toEqual(["Balance", "PyG", "KPIs", "Alertas", "Trazabilidad"]);
     expect(wb.getWorksheet("Trazabilidad")!.rowCount).toBeGreaterThan(10);
+    const rows = wb.getWorksheet("KPIs")!.getSheetValues().filter(Boolean) as unknown[][];
+    expect(rows.filter((r) => r[2] === "Bancos").length).toBe(16);
   });
 
   it("PDF includes the Registro Mercantil section with officers and acts", async () => {
@@ -88,13 +94,16 @@ describe("exports", () => {
     const layout = {
       version: 1 as const,
       modules: [
-        { id: "kpis" as const, width: "full" as const, settings: { tiles: ["revenue" as const, "dsoDpo" as const] } },
+        { id: "kpis" as const, width: "full" as const, settings: { tiles: ["revenue" as const, "dsoDpo" as const, "daysCashOnHand" as const, "debtServiceBurden" as const] } },
         { id: "review" as const, width: "full" as const, settings: { showPassed: false } },
       ],
     };
     const text = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at, layout)));
     expect(text).toContain("Cifra de negocios");
     expect(text).toContain("DSO / DPO");
+    // Bank tiles, with their unit.
+    expect(text).toContain("Días de caja");
+    expect(text).toMatch(/Carga de deuda[\s\S]*\d %/);
     expect(text).not.toContain("DSCR");
     for (const v of pkg.passed) expect(text).not.toContain(CHECK_PASS_LABEL[v.key] ?? v.name);
     expect(pkg.passed.length).toBeGreaterThan(0);

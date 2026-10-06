@@ -19,14 +19,14 @@ export const formatMonthYear = (iso: string) => monthYear.format(new Date(iso));
 export const todayMadrid = (now = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 
-export type FigureUnit = "EUR" | "x" | "%" | "days";
+export type FigureUnit = "EUR" | "x" | "%" | "days" | "count";
 
-const UNIT_LABEL: Record<FigureUnit, string> = { EUR: "€", x: "x", "%": "%", days: "días" };
+const UNIT_LABEL: Record<FigureUnit, string> = { EUR: "€", x: "x", "%": "%", days: "días", count: "" };
 
 /**
  * Spanish formatting for a figure, split into number and unit so the UI can style them apart.
  * EUR ≥ 1M is shown in millions ("1,25 M€"), otherwise whole euros with grouping ("412.345 €").
- * Ratios/percentages keep `decimals` (default 1 for x, 0 for % and days). null → "—" with no unit.
+ * Ratios/percentages keep `decimals` (default 1 for x, 0 for % and days; counts whole, or 1 decimal for averages). null → "—" with no unit.
  */
 export function formatFigure(value: number | null | undefined, unit: FigureUnit, decimals?: number): { number: string; unit: string } {
   if (value === null || value === undefined || !Number.isFinite(value)) return { number: "—", unit: "" };
@@ -36,7 +36,7 @@ export function formatFigure(value: number | null | undefined, unit: FigureUnit,
     if (Math.abs(value) >= 1_000_000) return { number: fmt(value / 1_000_000, decimals ?? 2), unit: "M€" };
     return { number: fmt(value, decimals ?? 0), unit: "€" };
   }
-  return { number: fmt(value, decimals ?? (unit === "x" ? 1 : 0)), unit: UNIT_LABEL[unit] };
+  return { number: fmt(value, decimals ?? (unit === "x" ? 1 : unit === "count" && !Number.isInteger(value) ? 1 : 0)), unit: UNIT_LABEL[unit] };
 }
 
 /** "ahora", "hace 5 min", "hace 3 h", "ayer", "hace 4 días", then the short date. */

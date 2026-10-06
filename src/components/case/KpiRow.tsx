@@ -1,12 +1,15 @@
 "use client";
 
-/** Header metrics (up to five, chosen in the «Indicadores» settings) without containers. Each opens a popover with its formula and inputs per period. */
+/** Header metrics (up to five, chosen in the «Indicadores» settings, from the books or the bank movements) without containers. Each opens a popover with its formula and inputs per period. */
 import { Figure } from "@/components/ui/Figure";
 import { Popover } from "@/components/ui/Popover";
 import { VALUE_LABEL } from "@/content/case-view.es";
 import { formatEvidenceValue } from "@/lib/case-view/evidence";
 import { formatCompactEur } from "@/lib/format";
 import type { KpiTile } from "@/lib/case-view/present";
+
+/** Ratios with two decimals; percentages with one when they have them; counts and the rest as formatFigure does. */
+const decimalsFor = (unit: KpiTile["unit"], v: number | null) => (unit === "x" ? 2 : unit === "%" ? (v !== null && !Number.isInteger(v) ? 1 : 0) : undefined);
 
 export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
   return (
@@ -33,7 +36,7 @@ export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
                     {t.value !== null && <span className="ml-[0.2em] text-[0.6em] font-normal tracking-normal text-muted">{formatCompactEur(t.value).match(/(k€|M€|€)$/)?.[0]}</span>}
                   </span>
                 ) : t.secondary === null && t.unit !== "days" ? (
-                  <Figure value={t.value} unit={t.unit} decimals={t.unit === "x" ? 2 : 0} />
+                  <Figure value={t.value} unit={t.unit} decimals={decimalsFor(t.unit, t.value)} />
                 ) : (
                   <span className="font-mono tracking-[-0.03em] tabular-nums">
                     {t.value ?? "—"}
@@ -52,7 +55,7 @@ export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
               <div key={j} className="flex flex-col gap-2">
                 <div className="flex items-baseline gap-2">
                   <span className="grow text-[13px] font-medium">{period}</span>
-                  <Figure value={kpi.value} unit={kpi.unit} decimals={kpi.unit === "x" ? 2 : undefined} className="text-[15px]" />
+                  <Figure value={kpi.value} unit={kpi.unit} decimals={decimalsFor(kpi.unit, kpi.value)} className="text-[15px]" />
                 </div>
                 <p className="font-mono text-xs leading-relaxed text-ink-2">{kpi.formula}</p>
                 {Object.keys(kpi.inputs).length > 0 && (

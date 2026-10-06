@@ -7,6 +7,7 @@
  * as JSON in this same shape, so whatever is stored goes through normalizeLayout before it is drawn.
  */
 import { z } from "zod";
+import type { BankKpiKey } from "../kpis/bank.ts";
 
 export const MODULE_IDS = [
   "summary",
@@ -38,7 +39,7 @@ export interface ModuleSpec {
 
 export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
   summary: { id: "summary", title: "Resumen", description: "Frase con las cifras que elijas: ventas, EBITDA, deuda CIRBE frente a libros, resultado, deuda neta…", removable: true, widths: ["full"] },
-  kpis: { id: "kpis", title: "Indicadores", description: "Hasta cinco indicadores a elegir: DSCR, DSO/DPO, cifra de negocios, EBITDA…", removable: true, widths: ["full"] },
+  kpis: { id: "kpis", title: "Indicadores", description: "Hasta cinco indicadores a elegir, de la contabilidad (DSCR, DSO/DPO, EBITDA…) o de los extractos bancarios (saldo mínimo, días de caja, carga de deuda…).", removable: true, widths: ["full"] },
   review: { id: "review", title: "Para revisar", description: "Verificaciones abiertas y correctas, con su evidencia.", removable: false, widths: ["full", "half"] },
   pnl: { id: "pnl", title: "Cuenta de resultados", description: "Diagrama de ingresos a resultado del periodo base.", removable: true, widths: ["full"] },
   balance: { id: "balance", title: "Balance", description: "Estructura del activo y del pasivo, con su origen.", removable: true, widths: ["full", "half"] },
@@ -57,9 +58,21 @@ export const SUMMARY_FACT_IDS = ["revenue", "ebitda", "cirbe", "netIncome", "ytd
 export type SummaryFactId = (typeof SUMMARY_FACT_IDS)[number];
 export const DEFAULT_SUMMARY_FACTS: SummaryFactId[] = ["revenue", "ebitda", "cirbe"];
 
-/** KPI tiles the «Indicadores» module can show; the first five are the default row. */
-export const KPI_TILE_IDS = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo", "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"] as const;
+/** Tiles from the books (statements); the first five are the default row. */
+export const ACCOUNTING_KPI_TILE_IDS = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo", "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"] as const;
+/** Tiles from the bank movements (Norma 43; src/lib/kpis/bank.ts), one per bank KPI, same ids as the KPI keys. */
+export const BANK_KPI_TILE_IDS = [
+  "minBalance", "averageDailyBalance", "currentToAverage", "daysCashOnHand", "operatingCashFlow", "netBurn", "inflowOutflowRatio", "inflowVolatility",
+  "receiptsPerMonth", "debtServiceBurden", "payrollRegularity", "returnedItems", "overdraftDays", "returnedReceiptsRatio", "publicInflowShare", "internalTransferShare",
+] as const satisfies readonly BankKpiKey[];
+/** KPI tiles the «Indicadores» module can show. */
+export const KPI_TILE_IDS = [...ACCOUNTING_KPI_TILE_IDS, ...BANK_KPI_TILE_IDS] as const;
 export type KpiTileId = (typeof KPI_TILE_IDS)[number];
+/** The tile catalogue in the designer, by where the figures come from. */
+export const KPI_TILE_GROUPS: { id: "accounting" | "bank"; tiles: readonly KpiTileId[] }[] = [
+  { id: "accounting", tiles: ACCOUNTING_KPI_TILE_IDS },
+  { id: "bank", tiles: BANK_KPI_TILE_IDS },
+];
 export const DEFAULT_KPI_TILES: KpiTileId[] = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"];
 export const MAX_KPI_TILES = 5;
 

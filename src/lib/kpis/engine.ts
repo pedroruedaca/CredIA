@@ -3,6 +3,7 @@
  * credit decision: the lender interprets. Each KPI exposes its formula and inputs for drill-down.
  */
 import type { CanonicalStatement } from "../pgc/mapping.ts";
+import type { BankKpiKey } from "./bank.ts";
 
 export type KpiKey =
   | "revenue" | "ebitda" | "ebitdaMargin" | "currentRatio" | "quickRatio" | "workingCapital"
@@ -10,9 +11,10 @@ export type KpiKey =
   | "dscr" | "dso" | "dpo";
 
 export interface Kpi {
-  key: KpiKey;
+  /** Accounting KPIs (this file) or bank KPIs read from the bank movements (bank.ts). */
+  key: KpiKey | BankKpiKey;
   value: number | null;
-  unit: "EUR" | "x" | "%" | "days";
+  unit: "EUR" | "x" | "%" | "days" | "count";
   formula: string;
   inputs: Record<string, number>;
   note?: string;

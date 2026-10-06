@@ -15,6 +15,8 @@ export function exportFilename(d: CaseViewData, ext: string, today: string): str
   return `credia-${name}-${today}.${ext}`;
 }
 
+const unitLabel = (u: string) => (u === "EUR" ? "€" : u === "days" ? "días" : u === "count" ? "n.º" : u);
+
 const periodOf = (d: CaseViewData) => [d.statements.closed, d.statements.ytd].filter((s) => s !== null);
 
 export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: string) {
@@ -69,6 +71,15 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
     kpis: Object.fromEntries(
       statements.map((s) => [s.period.kind, (s.period.kind === "closed_fy" ? d.kpis.closed : d.kpis.ytd).map((k) => ({ key: k.key, label: KPI_LABEL[k.key] ?? k.key, value: k.value, unit: k.unit, formula: k.formula, inputs: k.inputs, note: k.note ?? null }))]),
     ),
+    bank_kpis: d.bank
+      ? {
+          period: d.bank.period,
+          accounts: d.bank.accounts,
+          sources: d.bank.sources,
+          coverage_note: d.bank.coverageNote,
+          kpis: d.bank.kpis.map((k) => ({ key: k.key, label: KPI_LABEL[k.key] ?? k.key, value: k.value, unit: k.unit, formula: k.formula, inputs: k.inputs, note: k.note ?? null })),
+        }
+      : null,
     checks: [...pkg.open.map((v) => ({ v, review: v.review })), ...pkg.passed.map((v) => ({ v, review: null }))].map(({ v, review }) => ({
       id: v.slug,
       key: v.key,
@@ -143,8 +154,13 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   for (const s of statements) {
     for (const k of s.period.kind === "closed_fy" ? d.kpis.closed : d.kpis.ytd) {
       const inputs = Object.entries(k.inputs).map(([key, v]) => `${VALUE_LABEL[key] ?? key}: ${v}`).join("; ");
-      kpis.addRow([KPI_LABEL[k.key] ?? k.key, s.period.kind === "closed_fy" ? "Cierre" : "YTD", k.value, k.unit === "EUR" ? "€" : k.unit === "days" ? "días" : k.unit, k.formula, inputs, k.note ?? ""]);
+      kpis.addRow([KPI_LABEL[k.key] ?? k.key, s.period.kind === "closed_fy" ? "Cierre" : "YTD", k.value, unitLabel(k.unit), k.formula, inputs, k.note ?? ""]);
     }
+  }
+  // KPIs read from the bank movements (Norma 43), over their own window.
+  for (const k of d.bank?.kpis ?? []) {
+    const inputs = Object.entries(k.inputs).map(([key, v]) => `${VALUE_LABEL[key] ?? key}: ${v}`).join("; ");
+    kpis.addRow([KPI_LABEL[k.key] ?? k.key, "Bancos", k.value, unitLabel(k.unit), k.formula, inputs, k.note ?? ""]);
   }
   [26, 10, 14, 8, 60, 60, 50].forEach((w, i) => (kpis.getColumn(i + 1).width = w));
 

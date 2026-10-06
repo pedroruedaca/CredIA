@@ -73,7 +73,13 @@ const s = StyleSheet.create({
 });
 
 const eur = formatEurWhole;
-const fig = (v: number | null, unit: "x" | "days") => (v === null ? "—" : unit === "x" ? `${formatFigure(v, "x", 2).number}x` : `${v}d`);
+const fig = (v: number | null, unit: "x" | "days" | "%" | "count") => {
+  if (v === null) return "—";
+  if (unit === "x") return `${formatFigure(v, "x", 2).number}x`;
+  if (unit === "days") return `${v}d`;
+  const f = formatFigure(v, unit, unit === "%" && !Number.isInteger(v) ? 1 : undefined);
+  return unit === "%" ? `${f.number} %` : f.number;
+};
 
 function Bars({ label, segments }: { label: string; segments: BalanceSegment[] }) {
   return (
@@ -308,7 +314,7 @@ function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Req
           {pickTiles(pkg.tiles, o.tiles).map((k) => (
             <View key={k.id} style={s.kpi}>
               <Text style={[s.muted, { fontSize: 8.5 }]}>{k.label}</Text>
-              <Text style={s.kpiValue}>{k.id === "dsoDpo" ? `${k.value ?? "—"}/${k.secondary ?? "—"}d` : k.unit === "EUR" ? (k.value === null ? "—" : formatCompactEur(k.value)) : fig(k.value, k.unit === "days" ? "days" : "x")}</Text>
+              <Text style={s.kpiValue}>{k.id === "dsoDpo" ? `${k.value ?? "—"}/${k.secondary ?? "—"}d` : k.unit === "EUR" ? (k.value === null ? "—" : formatCompactEur(k.value)) : fig(k.value, k.unit)}</Text>
               {k.sub && <Text style={[s.muted, { fontSize: 7.5 }]}>{k.sub}</Text>}
             </View>
           ))}

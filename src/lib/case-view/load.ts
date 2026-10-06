@@ -3,6 +3,7 @@ import "server-only";
 import { isLenderProvided } from "../cases/requirements.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
+import type { BankKpiSet } from "../kpis/bank.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { AnnualAccountsExtraction, CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
@@ -32,6 +33,8 @@ export interface CaseViewData {
   };
   statements: { closed: CanonicalStatement | null; ytd: CanonicalStatement | null; closedSource: string | null; ytdSource: string | null };
   kpis: { closed: Kpi[]; ytd: Kpi[] };
+  /** KPIs read from the bank movements (Norma 43), null without bank files. */
+  bank: BankKpiSet | null;
   checks: CheckRow[];
   reviews: Record<string, { status: "open" | "reviewed" | "clarification_requested"; note: string | null; at: string }>;
   documents: (SourceDoc & { status: string; uploaded_at: string; attention_message: string | null; summary: Record<string, unknown> | null })[];
@@ -77,7 +80,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -105,6 +108,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       .eq("kind", "cuentas_anuales")
       .order("uploaded_at", { ascending: false })
       .limit(10),
+    // On its own: before migration 0020 the column does not exist and the case view goes on without bank KPIs.
+    db.from("cases").select("bank_kpis").eq("id", caseId).maybeSingle(),
   ]);
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
@@ -175,6 +180,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     },
     statements: { closed: pick("closed_fy")?.statement ?? null, ytd: pick("ytd")?.statement ?? null, closedSource: pick("closed_fy")?.source ?? null, ytdSource: pick("ytd")?.source ?? null },
     kpis: { closed: toKpis(pick("closed_fy")), ytd: toKpis(pick("ytd")) },
+    bank: ((bankKpis.data as { bank_kpis?: BankKpiSet | null } | null)?.bank_kpis ?? null),
     checks: (checks.data ?? []) as CheckRow[],
     reviews: latestReview,
     documents: (docs.data ?? []).map(({ extractions, ...d }) => ({

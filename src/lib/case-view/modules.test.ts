@@ -99,6 +99,8 @@ describe("module settings", () => {
     expect(normalizeSettings("review", { showPassed: false })).toEqual({ showPassed: false });
     expect(normalizeSettings("sources", { showPassed: false })).toBeUndefined();
     expect(normalizeSettings("kpis", { tiles: [] })).toBeUndefined();
+    // Bank tiles are ids like any other.
+    expect(normalizeSettings("kpis", { tiles: ["daysCashOnHand", "dscr", "overdraftDays"] })).toEqual({ tiles: ["daysCashOnHand", "dscr", "overdraftDays"] });
     expect(normalizeSettings("summary", { facts: ["netDebt", "scoring", "netDebt", "revenue"], tiles: ["dscr"] })).toEqual({ facts: ["netDebt", "revenue"] });
     expect(normalizeSettings("summary", { facts: [] })).toBeUndefined();
   });

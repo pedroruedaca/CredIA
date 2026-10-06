@@ -14,6 +14,7 @@ import { extractPdf, mapTrialBalanceColumns } from "../extract/claude.ts";
 import { modelFor } from "../llm/model.ts";
 import type { ExtractKind } from "../extract/schemas.ts";
 import { classifyAccounts } from "../bank/classify.ts";
+import { computeBankKpis } from "../kpis/bank.ts";
 import { computeKpis } from "../kpis/engine.ts";
 import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
@@ -446,6 +447,11 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
     ),
   );
   const accounts = bank.map((b) => b.account);
+  // Bank KPIs (balances and cash flows from the movements). Written on their own: a database without migration 0020
+  // only loses them.
+  const bankKpis = computeBankKpis(bank.map(({ docId, account }) => ({ ...account, docId })));
+  const { error: bankKpisError } = await db.from("cases").update({ bank_kpis: bankKpis }).eq("id", kase.id);
+  if (bankKpisError) console.error("[pipeline] bank KPIs not saved:", bankKpisError.message?.slice(0, 200));
 
   // --- CIRBE → debt_positions
   const cirbeDoc = latest("cirbe");
