@@ -6,7 +6,7 @@ import { LayoutEditor } from "@/components/case/modules/LayoutEditor";
 import { ButtonLink } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { loadTeamLayout } from "@/lib/case-view/layout-store";
-import { MODULE_SPECS, normalizeLayout } from "@/lib/case-view/modules";
+import { moduleTitle, normalizeLayout } from "@/lib/case-view/modules";
 import { getTemplate } from "@/lib/cases/template-store";
 import { templateFormValues } from "@/lib/cases/templates";
 import { requireLender } from "@/lib/lender";
@@ -74,7 +74,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
             </Link>
           )}
         </div>
-        <p className="text-[15px] text-ink-2">{layout.modules.map((m) => MODULE_SPECS[m.id].title + (m.width === "half" ? " (½)" : "")).join(" · ")}</p>
+        <p className="text-[15px] text-ink-2">{layout.modules.map((m) => moduleTitle(m) + (m.width === "half" ? " (½)" : "")).join(" · ")}</p>
       </section>
 
       <TemplateForm

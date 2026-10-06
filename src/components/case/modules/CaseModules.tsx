@@ -17,13 +17,13 @@ import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
 import { CHECK_PASS_LABEL, REVIEW_LABEL } from "@/content/case-view.es";
 import type { CaseViewData } from "@/lib/case-view/load";
-import { layoutRows, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "@/lib/case-view/modules";
+import { layoutRows, moduleKey, moduleSettings, type Layout, type ModuleId, type ModuleSettings, type ModuleWidth } from "@/lib/case-view/modules";
 import { periodView, summaryView, type CasePackage } from "@/lib/case-view/package";
 import { pickTiles, sourceHref } from "@/lib/case-view/present";
 import { formatCompactEur, formatDate } from "@/lib/format";
 
-/** A module's own settings (defaults filled in), next to the page context. */
-type ModuleProps = ModuleContext & { settings: Required<ModuleSettings> };
+/** A module's own settings (defaults filled in) and width, next to the page context. */
+type ModuleProps = ModuleContext & { settings: Required<ModuleSettings>; width: ModuleWidth };
 
 /** Everything a module may need, computed once for the page. */
 export interface ModuleContext {
@@ -46,11 +46,11 @@ function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
   );
 }
 
-function KpisModule({ pkg, settings }: ModuleProps) {
+function KpisModule({ pkg, settings, width }: ModuleProps) {
   // Tiles exist only with data behind them: books tiles with a statement, bank tiles with bank files.
   const tiles = pickTiles(pkg.tiles, settings.tiles);
   if (tiles.length === 0) return null;
-  return <KpiRow tiles={tiles} />;
+  return <KpiRow tiles={tiles} half={width === "half"} />;
 }
 
 function ReviewModule({ pkg, check, hasFinancials, settings }: ModuleProps) {
@@ -209,13 +209,13 @@ export function CaseModules({ layout, ctx }: { layout: Layout; ctx: ModuleContex
       {layoutRows(layout.modules).map((row) => {
         if (row.length === 1 && row[0].width === "full") {
           const Module = MODULES[row[0].id];
-          return <Module key={row[0].id} {...ctx} settings={moduleSettings(row[0])} />;
+          return <Module key={moduleKey(row[0])} {...ctx} settings={moduleSettings(row[0])} width="full" />;
         }
         return (
-          <div key={row.map((m) => m.id).join("+")} className="grid gap-10 md:grid-cols-2">
+          <div key={row.map(moduleKey).join("+")} className="grid gap-10 md:grid-cols-2">
             {row.map((m) => {
               const Module = MODULES[m.id];
-              return <div key={m.id} className="min-w-0"><Module {...ctx} settings={moduleSettings(m)} /></div>;
+              return <div key={moduleKey(m)} className="min-w-0"><Module {...ctx} settings={moduleSettings(m)} width={m.width} /></div>;
             })}
           </div>
         );

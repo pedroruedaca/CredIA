@@ -1,6 +1,7 @@
 "use client";
 
 /** Header metrics (up to five, chosen in the «Indicadores» settings, from the books or the bank movements) without containers. Each opens a popover with its formula and inputs per period. */
+import { cx } from "@/components/ui/cx";
 import { Figure } from "@/components/ui/Figure";
 import { Popover } from "@/components/ui/Popover";
 import { VALUE_LABEL } from "@/content/case-view.es";
@@ -11,9 +12,10 @@ import type { KpiTile } from "@/lib/case-view/present";
 /** Ratios with two decimals; percentages with one when they have them; counts and the rest as formatFigure does. */
 const decimalsFor = (unit: KpiTile["unit"], v: number | null) => (unit === "x" ? 2 : unit === "%" ? (v !== null && !Number.isInteger(v) ? 1 : 0) : undefined);
 
-export function KpiRow({ tiles }: { tiles: KpiTile[] }) {
+/** `half`: a half-width «Indicadores» module (up to three tiles), so at most three columns. */
+export function KpiRow({ tiles, half = false }: { tiles: KpiTile[]; half?: boolean }) {
   return (
-    <section aria-label="Indicadores" className="grid grid-cols-2 gap-x-2 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+    <section aria-label="Indicadores" className={cx("grid grid-cols-2 gap-x-2 gap-y-6 sm:grid-cols-3", !half && "lg:grid-cols-5")}>
       {tiles.map((t, i) => (
         <Popover
           key={t.id}

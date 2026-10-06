@@ -69,7 +69,8 @@ describe("editing a layout", () => {
 
     const back = addModule(removed, "kpis");
     expect(back.modules.at(-1)).toEqual({ id: "kpis", width: "full" });
-    expect(addModule(back, "kpis")).toBe(back);
+    expect(addModule(back, "balance")).toBe(back); // already there, and appears once
+    expect(addModule(back, "kpis").modules.at(-1)).toEqual({ id: "kpis", key: "kpis-2", width: "full" }); // repeatable
 
     expect(setModuleWidth(l, "balance", "half").modules.find((m) => m.id === "balance")!.width).toBe("half");
     expect(setModuleWidth(l, "pnl", "half")).toBe(l); // the Sankey only takes the full width
@@ -111,12 +112,65 @@ describe("module settings", () => {
     expect(l.modules[0]).toEqual({ id: "kpis", width: "full", settings: { tiles: ["dsoDpo"] } });
     expect(moduleSettings(l.modules[1])).toEqual({
       facts: ["revenue", "ebitda", "cirbe"],
-      tiles: ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"],
+      tiles: ["dscr", "interestCoverage", "netDebtToEbitda"], // half width: three tiles (only «Indicadores» uses them)
       period: "closed",
       showPassed: true,
     });
     const changed = setModuleSettings(l, "balance", { period: "ytd" });
     expect(changed.modules.find((m) => m.id === "balance")!.settings).toEqual({ period: "ytd" });
     expect(setModuleSettings(l, "balance", { period: "bad" as never }).modules.find((m) => m.id === "balance")!.settings).toEqual({ period: "closed" });
+  });
+});
+
+describe("repeatable «Indicadores»", () => {
+  it("adds numbered copies, each with its own key, width and settings, up to the limit", async () => {
+    const { addModule, availableModules, MAX_INSTANCES, moduleKey, moduleTitle, removeModule, setModuleSettings, setModuleWidth } = await import("./modules.ts");
+    let l = addModule(DEFAULT_LAYOUT, "kpis");
+    expect(l.modules.at(-1)).toEqual({ id: "kpis", key: "kpis-2", width: "full" });
+    expect(moduleTitle(l.modules.at(-1)!)).toBe("Indicadores 2");
+    expect(moduleTitle(l.modules[1])).toBe("Indicadores");
+    l = setModuleWidth(l, "kpis-2", "half");
+    l = setModuleSettings(l, "kpis-2", { tiles: ["daysCashOnHand"] });
+    expect(l.modules[1]).toEqual({ id: "kpis", width: "full" }); // the first copy untouched
+    expect(l.modules.at(-1)).toEqual({ id: "kpis", key: "kpis-2", width: "half", settings: { tiles: ["daysCashOnHand"] } });
+    for (let i = 0; i < 5; i++) l = addModule(l, "kpis");
+    expect(l.modules.filter((m) => m.id === "kpis")).toHaveLength(MAX_INSTANCES);
+    expect(availableModules(l).some((s) => s.id === "kpis")).toBe(false);
+    // Adding a module that is not repeatable twice is still a no-op.
+    expect(addModule(l, "balance")).toBe(l);
+    l = removeModule(l, "kpis-2");
+    expect(l.modules.map(moduleKey).filter((k) => k.startsWith("kpis"))).toEqual(["kpis", "kpis-3", "kpis-4"]);
+    expect(addModule(l, "kpis").modules.at(-1)!.key).toBe("kpis-2"); // the free key again
+    expect(normalizeLayout(l)).toEqual(l);
+  });
+
+  it("normalises copies: keys repaired, at most four, other modules still once", () => {
+    const l = normalizeLayout({
+      version: 1,
+      modules: [
+        { id: "kpis", width: "half" },
+        { id: "kpis", width: "half" }, // no key: gets the next free one
+        { id: "kpis", key: "kpis-2", width: "full" }, // key taken
+        { id: "kpis", key: "balance", width: "full" }, // not a key of this module
+        { id: "kpis", width: "full" }, // fifth: dropped
+        { id: "review", key: "review-2", width: "full" }, // not repeatable: the key is dropped
+      ],
+    });
+    expect(l.modules).toEqual([
+      { id: "kpis", width: "half" },
+      { id: "kpis", key: "kpis-2", width: "half" },
+      { id: "kpis", key: "kpis-3", width: "full" },
+      { id: "kpis", key: "kpis-4", width: "full" },
+      { id: "review", width: "full" },
+    ]);
+  });
+
+  it("a half-width module shows three tiles, a full one five", async () => {
+    const { moduleSettings } = await import("./modules.ts");
+    expect(moduleSettings({ width: "half" }).tiles).toEqual(["dscr", "interestCoverage", "netDebtToEbitda"]);
+    expect(moduleSettings({ width: "full" }).tiles).toHaveLength(5);
+    const tiles = ["revenue", "ebitda", "dscr", "minBalance"] as const;
+    expect(moduleSettings({ width: "half", settings: { tiles: [...tiles] } }).tiles).toEqual(["revenue", "ebitda", "dscr"]);
+    expect(moduleSettings({ width: "full", settings: { tiles: [...tiles] } }).tiles).toEqual([...tiles]);
   });
 });

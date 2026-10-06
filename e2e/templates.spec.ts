@@ -53,7 +53,7 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await page.getByRole("link", { name: "Personalizar el panel" }).click();
   await expect(page.getByText(`Ahora ves el diseño de la plantilla «${name}».`, { exact: false })).toBeVisible();
   await expect(page.getByRole("radio", { name: /Solo este caso/ })).toBeChecked();
-  await page.getByRole("button", { name: "Añadir" }).first().click(); // Fuentes is the only module outside the layout
+  await page.getByRole("button", { name: "Añadir", exact: true }).click(); // Fuentes is the only module outside the layout («Indicadores» offers «Añadir otro»)
   await page.getByRole("button", { name: "Guardar diseño" }).click();
   await expect(page).toHaveURL(caseUrl);
   await expect(footer).toBeVisible();

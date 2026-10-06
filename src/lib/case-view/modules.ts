@@ -35,11 +35,16 @@ export interface ModuleSpec {
   removable: boolean;
   /** Widths it can take; modules that need the full width (wide tables, the Sankey) only allow "full". */
   widths: readonly ModuleWidth[];
+  /** Can appear more than once (each with its own settings), up to MAX_INSTANCES. */
+  repeatable?: boolean;
 }
+
+/** Most copies of a repeatable module in one layout. */
+export const MAX_INSTANCES = 4;
 
 export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
   summary: { id: "summary", title: "Resumen", description: "Frase con las cifras que elijas: ventas, EBITDA, deuda CIRBE frente a libros, resultado, deuda neta…", removable: true, widths: ["full"] },
-  kpis: { id: "kpis", title: "Indicadores", description: "Hasta cinco indicadores a elegir, de la contabilidad (DSCR, DSO/DPO, EBITDA…) o de los extractos bancarios (saldo mínimo, días de caja, carga de deuda…).", removable: true, widths: ["full"] },
+  kpis: { id: "kpis", title: "Indicadores", description: "Indicadores de la contabilidad o de los extractos bancarios: cinco a todo el ancho, tres a media anchura. Puede haber varios.", removable: true, widths: ["full", "half"], repeatable: true },
   review: { id: "review", title: "Para revisar", description: "Verificaciones abiertas y correctas, con su evidencia.", removable: false, widths: ["full", "half"] },
   pnl: { id: "pnl", title: "Cuenta de resultados", description: "Diagrama de ingresos a resultado del periodo base.", removable: true, widths: ["full"] },
   balance: { id: "balance", title: "Balance", description: "Estructura del activo y del pasivo, con su origen.", removable: true, widths: ["full", "half"] },
@@ -75,6 +80,8 @@ export const KPI_TILE_GROUPS: { id: "accounting" | "bank"; tiles: readonly KpiTi
 ];
 export const DEFAULT_KPI_TILES: KpiTileId[] = ["dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo"];
 export const MAX_KPI_TILES = 5;
+/** How many tiles fit: five across the full width, three in a half-width module. */
+export const maxKpiTiles = (width: ModuleWidth = "full") => (width === "half" ? 3 : MAX_KPI_TILES);
 
 /** Which statement a module draws: the base period (closed year if there is one, else year to date), or a fixed one. */
 export type PeriodChoice = "base" | "closed" | "ytd";
@@ -120,13 +127,40 @@ export function normalizeSettings(id: ModuleId, raw: unknown): ModuleSettings | 
   return Object.keys(out).length ? out : undefined;
 }
 
-/** A module's settings with the defaults filled in. */
-export const moduleSettings = (m: Pick<LayoutModule, "settings"> | undefined): Required<ModuleSettings> => ({ ...DEFAULT_SETTINGS, ...(m?.settings ?? {}) });
+/** A module's settings with the defaults filled in; KPI tiles cut to what its width holds. */
+export function moduleSettings(m: (Pick<LayoutModule, "settings"> & { width?: ModuleWidth }) | undefined): Required<ModuleSettings> {
+  const o = { ...DEFAULT_SETTINGS, ...(m?.settings ?? {}) };
+  return { ...o, tiles: o.tiles.slice(0, maxKpiTiles(m?.width)) };
+}
 
 export interface LayoutModule {
   id: ModuleId;
+  /**
+   * Which copy of a repeatable module («Indicadores» twice): "kpis-2", "kpis-3"… Absent for the first copy and for
+   * modules that appear once, whose key is their id (see moduleKey).
+   */
+  key?: string;
   width: ModuleWidth;
   settings?: ModuleSettings;
+}
+
+/** A module's identity in its layout: its id, or the copy's key. */
+export const moduleKey = (m: Pick<LayoutModule, "id" | "key">) => m.key ?? m.id;
+
+/** The first key free for another copy of `id`: the id itself, then "<id>-2", "<id>-3"… */
+function nextKey(id: ModuleId, used: Set<string>): string {
+  if (!used.has(id)) return id;
+  let n = 2;
+  while (used.has(`${id}-${n}`)) n++;
+  return `${id}-${n}`;
+}
+
+const instances = (l: Layout, id: ModuleId) => l.modules.filter((m) => m.id === id).length;
+
+/** Name in the designer: the module's title, numbered from its second copy ("Indicadores 2"). */
+export function moduleTitle(m: Pick<LayoutModule, "id" | "key">): string {
+  const n = m.key ? /-(\d+)$/.exec(m.key)?.[1] : null;
+  return n ? `${MODULE_SPECS[m.id].title} ${n}` : MODULE_SPECS[m.id].title;
 }
 
 export interface Layout {
@@ -153,28 +187,35 @@ export const DEFAULT_LAYOUT: Layout = {
 
 const StoredLayout = z.object({
   version: z.literal(1),
-  modules: z.array(z.object({ id: z.string(), width: z.string().optional(), settings: z.unknown().optional() }).passthrough()),
+  modules: z.array(z.object({ id: z.string(), key: z.string().optional(), width: z.string().optional(), settings: z.unknown().optional() }).passthrough()),
 });
 
 /**
- * Any stored layout → a layout safe to draw: unknown modules dropped, each module once, a width the module allows
- * (else its first), and modules that cannot be removed added back (at their default position) if missing. Anything
- * that does not parse falls back to the default.
+ * Any stored layout → a layout safe to draw: unknown modules dropped, each module once (repeatable ones up to
+ * MAX_INSTANCES, each with its own key), a width the module allows (else its first), and modules that cannot be
+ * removed added back (at their default position) if missing. Anything that does not parse falls back to the default.
  */
 export function normalizeLayout(raw: unknown): Layout {
   const parsed = StoredLayout.safeParse(raw);
   if (!parsed.success) return DEFAULT_LAYOUT;
   const seen = new Set<ModuleId>();
+  const keys = new Set<string>();
+  const count = new Map<ModuleId, number>();
   const modules: LayoutModule[] = [];
   for (const m of parsed.data.modules) {
     if (!(MODULE_IDS as readonly string[]).includes(m.id)) continue;
     const id = m.id as ModuleId;
-    if (seen.has(id)) continue;
-    seen.add(id);
     const spec = MODULE_SPECS[id];
+    const n = count.get(id) ?? 0;
+    if (n >= (spec.repeatable ? MAX_INSTANCES : 1)) continue;
+    count.set(id, n + 1);
+    seen.add(id);
+    // A copy keeps its stored key when well formed and free; otherwise it gets the next free one.
+    const key = spec.repeatable && m.key && new RegExp(`^${id}-\\d+$`).test(m.key) && !keys.has(m.key) ? m.key : nextKey(id, keys);
+    keys.add(key);
     const width = spec.widths.includes(m.width as ModuleWidth) ? (m.width as ModuleWidth) : spec.widths[0];
     const settings = normalizeSettings(id, m.settings);
-    modules.push(settings ? { id, width, settings } : { id, width });
+    modules.push({ id, ...(key !== id ? { key } : {}), width, ...(settings ? { settings } : {}) });
   }
   for (const [i, m] of DEFAULT_LAYOUT.modules.entries()) {
     if (MODULE_SPECS[m.id].removable || seen.has(m.id)) continue;
@@ -197,8 +238,9 @@ export function layoutRows<T extends { width: ModuleWidth }>(modules: T[]): T[][
 // ---------------------------------------------------------------------------------------------------------------
 // Editing (the "Personalizar" mode): pure operations on a layout; each returns a new, normalised layout.
 
-/** Modules not in the layout, in catalogue order: what "Añadir módulo" offers. */
-export const availableModules = (l: Layout): ModuleSpec[] => MODULE_IDS.filter((id) => !l.modules.some((m) => m.id === id)).map((id) => MODULE_SPECS[id]);
+/** What "Añadir módulo" offers, in catalogue order: modules not in the layout, and repeatable ones with room for another copy. */
+export const availableModules = (l: Layout): ModuleSpec[] =>
+  MODULE_IDS.filter((id) => instances(l, id) < (MODULE_SPECS[id].repeatable ? MAX_INSTANCES : 1)).map((id) => MODULE_SPECS[id]);
 
 /** Moves the module at `from` to position `to` (indexes in the layout's order). */
 export function moveModule(l: Layout, from: number, to: number): Layout {
@@ -209,27 +251,35 @@ export function moveModule(l: Layout, from: number, to: number): Layout {
   return { version: 1, modules };
 }
 
-/** Removes a module, unless it cannot be removed («Para revisar»). */
-export const removeModule = (l: Layout, id: ModuleId): Layout =>
-  MODULE_SPECS[id].removable ? { version: 1, modules: l.modules.filter((m) => m.id !== id) } : l;
+/** Removes a module (by its key), unless it cannot be removed («Para revisar»). */
+export function removeModule(l: Layout, key: string): Layout {
+  const target = l.modules.find((m) => moduleKey(m) === key);
+  return target && MODULE_SPECS[target.id].removable ? { version: 1, modules: l.modules.filter((m) => m !== target) } : l;
+}
 
-/** Adds a module at the end, at its first allowed width; no-op if it is already there. */
-export const addModule = (l: Layout, id: ModuleId): Layout =>
-  l.modules.some((m) => m.id === id) ? l : { version: 1, modules: [...l.modules, { id, width: MODULE_SPECS[id].widths[0] }] };
+/** Adds a module at the end, at its first allowed width; a repeatable one gets a new copy, others are a no-op if already there. */
+export function addModule(l: Layout, id: ModuleId): Layout {
+  if (!availableModules(l).some((s) => s.id === id)) return l;
+  const key = nextKey(id, new Set(l.modules.map(moduleKey)));
+  return { version: 1, modules: [...l.modules, { id, ...(key !== id ? { key } : {}), width: MODULE_SPECS[id].widths[0] }] };
+}
 
-/** Sets a module's width if the module allows it. */
-export const setModuleWidth = (l: Layout, id: ModuleId, width: ModuleWidth): Layout =>
-  MODULE_SPECS[id].widths.includes(width) ? { version: 1, modules: l.modules.map((m) => (m.id === id ? { ...m, width } : m)) } : l;
+/** Sets a module's width (by its key) if the module allows it. */
+export function setModuleWidth(l: Layout, key: string, width: ModuleWidth): Layout {
+  const target = l.modules.find((m) => moduleKey(m) === key);
+  return target && MODULE_SPECS[target.id].widths.includes(width) ? { version: 1, modules: l.modules.map((m) => (m === target ? { ...m, width } : m)) } : l;
+}
 
 export const sameLayout = (a: Layout, b: Layout) => JSON.stringify(a.modules) === JSON.stringify(b.modules);
 
-/** Merges settings into a module (only those it takes; invalid values dropped). */
-export const setModuleSettings = (l: Layout, id: ModuleId, patch: ModuleSettings): Layout => ({
+/** Merges settings into a module, by its key (only those it takes; invalid values dropped). */
+export const setModuleSettings = (l: Layout, key: string, patch: ModuleSettings): Layout => ({
   version: 1,
   modules: l.modules.map((m) => {
-    if (m.id !== id) return m;
-    const settings = normalizeSettings(id, { ...(m.settings ?? {}), ...(normalizeSettings(id, patch) ?? {}) });
-    return settings ? { ...m, settings } : { id: m.id, width: m.width };
+    if (moduleKey(m) !== key) return m;
+    const settings = normalizeSettings(m.id, { ...(m.settings ?? {}), ...(normalizeSettings(m.id, patch) ?? {}) });
+    const { settings: _old, ...rest } = m;
+    return settings ? { ...rest, settings } : rest;
   }),
 });
 
