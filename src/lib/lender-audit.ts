@@ -13,7 +13,7 @@ export async function logCaseRead(
   db: SupabaseClient,
   lender: Pick<LenderContext, "lenderId" | "userId">,
   caseId: string,
-  action: "case.viewed" | "case.tables_viewed",
+  action: "case.viewed" | "case.tables_viewed" | "case.cost_of_sales_viewed",
   now = new Date(),
 ): Promise<void> {
   const since = new Date(now.getTime() - READ_DEDUPE_MINUTES * 60_000).toISOString();

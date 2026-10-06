@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { PRODUCTS } from "../../content/products.es.ts";
+import { parseCostFields, type CostOfSalesDefinition } from "../kpis/cost-of-sales.ts";
 import { parseRequirementFields, type NewCase } from "./new-case.ts";
 import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind } from "./requirements.ts";
 
@@ -25,6 +26,8 @@ export interface CaseTemplate {
   requirements: TemplateRequirement[];
   /** Raw stored layout (normalise before drawing), or null to use the team's. */
   layout: unknown;
+  /** Default cost of sales for the adjusted gross margin, copied into each case created from it; null: none. */
+  costOfSales: CostOfSalesDefinition | null;
 }
 
 /** Requirements as the case form parses them → as a template stores them. */
@@ -69,7 +72,7 @@ const productValues: string[] = PRODUCTS.map((p) => p.value);
 
 /** The template form: name, description, optional default product, the document choices. */
 export function parseTemplateForm(values: Record<string, string | undefined>):
-  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[]; panel: TemplatePanel } }
+  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[]; panel: TemplatePanel; costOfSales: CostOfSalesDefinition | null } }
   | { ok: false; errors: TemplateFieldErrors } {
   const errors: TemplateFieldErrors = {};
   const name = (values.name ?? "").trim();
@@ -82,7 +85,7 @@ export function parseTemplateForm(values: Record<string, string | undefined>):
   if (req.error) errors.requirements = req.error;
   if (Object.keys(errors).length) return { ok: false, errors };
   const panel: TemplatePanel = values.panel === "custom" ? "custom" : "team";
-  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements), panel } };
+  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements), panel, costOfSales: parseCostFields(values) } };
 }
 
 /** One line for lists: "6 documentos · 2 los subes tú". */

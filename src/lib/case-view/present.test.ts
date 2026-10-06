@@ -66,10 +66,11 @@ describe("kpiTiles", () => {
     expect(tiles.slice(0, 5).map((t) => t.label)).toEqual(["DSCR", "Cobertura int.", "DFN / EBITDA", "Liquidez", "DSO / DPO"]);
     expect(tiles.slice(5).map((t) => t.id)).toEqual([
       "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt",
-      "grossMargin", "netMargin", "roe", "ebitCoverage", "debtToEbitda", "liabilitiesToEquity", "ccc", "assetTurnover",
+      "grossMargin", "adjustedGrossMargin", "netMargin", "roe", "ebitCoverage", "debtToEbitda", "liabilitiesToEquity", "ccc", "assetTurnover",
     ]);
     const [gross, roe, ccc] = pickTiles(tiles, ["grossMargin", "roe", "ccc"]);
-    expect(gross.sub).toBe("neto 7,1 %");
+    expect(gross.sub).toBe("neto 7,1 %"); // no cost of sales defined: the net margin below
+    expect(pickTiles(tiles, ["adjustedGrossMargin"])[0]).toMatchObject({ value: null, sub: "sin definir" });
     expect(roe.sub).toBe("ROA 13,7 %");
     expect(ccc.value).toBe(36);
     expect(ccc.sub).toBe("DIO 33d");
@@ -83,6 +84,16 @@ describe("kpiTiles", () => {
     expect(tiles[4].secondary).not.toBeNull();
     expect(tiles.every((t) => t.details.length > 0)).toBe(true);
     expect(kpiTiles(null, null, null)).toEqual([]);
+  });
+
+  it("with the analyst's cost of sales, the two gross margins name each other", async () => {
+    const { kpiTiles, pickTiles } = await import("./present.ts");
+    const { caseViewSample: d } = await import("../__fixtures__/case-view-sample.ts");
+    const tiles = kpiTiles({ statement: d.statements.closed!, kpis: d.kpis.closed }, null, null);
+    const [gross, adjusted] = pickTiles(tiles, ["grossMargin", "adjustedGrossMargin"]);
+    expect(gross).toMatchObject({ value: 45, sub: "ajustado 21,5 %" });
+    expect(adjusted).toMatchObject({ value: 21.5, sub: "contable 45 %" });
+    expect(adjusted.details[0].kpi.note).toMatch(/^Criterio del analista \(Servicios\)/);
   });
 
   it("adds one tile per bank KPI after the books tiles, also without statements", async () => {

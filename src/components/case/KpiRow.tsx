@@ -1,6 +1,7 @@
 "use client";
 
 /** Header metrics (up to five, chosen in the «Indicadores» settings, from the books or the bank movements) without containers. Each opens a popover with its formula and inputs per period. */
+import Link from "next/link";
 import { cx } from "@/components/ui/cx";
 import { Figure } from "@/components/ui/Figure";
 import { Popover } from "@/components/ui/Popover";
@@ -12,8 +13,14 @@ import type { KpiTile } from "@/lib/case-view/present";
 /** Ratios with two decimals; percentages with one when they have them; counts and the rest as formatFigure does. */
 const decimalsFor = (unit: KpiTile["unit"], v: number | null) => (unit === "x" ? 2 : unit === "%" ? (v !== null && !Number.isInteger(v) ? 1 : 0) : undefined);
 
-/** `half`: a half-width «Indicadores» module (up to three tiles), so at most three columns. */
-export function KpiRow({ tiles, half = false }: { tiles: KpiTile[]; half?: boolean }) {
+/** Tiles whose popover links to the cost-of-sales editor (the analyst decides what counts as cost of sales). */
+const COST_TILES = new Set(["grossMargin", "adjustedGrossMargin"]);
+
+/**
+ * `half`: a half-width «Indicadores» module (up to three tiles), so at most three columns. `costHref`: the case's
+ * cost-of-sales editor, for those who can edit (the margin tiles link to it).
+ */
+export function KpiRow({ tiles, half = false, costHref }: { tiles: KpiTile[]; half?: boolean; costHref?: string }) {
   return (
     <section aria-label="Indicadores" className={cx("grid grid-cols-2 gap-x-2 gap-y-6 sm:grid-cols-3", !half && "lg:grid-cols-5")}>
       {tiles.map((t, i) => (
@@ -73,6 +80,11 @@ export function KpiRow({ tiles, half = false }: { tiles: KpiTile[]; half?: boole
                 {kpi.note && <p className="text-xs text-muted">{kpi.note}</p>}
               </div>
             ))}
+            {costHref && COST_TILES.has(t.id) && (
+              <Link href={costHref} className="text-[13px] font-medium">
+                {t.details.some((d) => d.kpi.key === "adjustedGrossMargin" && d.kpi.value !== null) ? "Cambiar el coste de ventas" : "Definir el coste de ventas"}
+              </Link>
+            )}
           </div>
         </Popover>
       ))}

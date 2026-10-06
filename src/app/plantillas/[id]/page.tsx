@@ -9,6 +9,7 @@ import { loadTeamLayout } from "@/lib/case-view/layout-store";
 import { moduleTitle, normalizeLayout } from "@/lib/case-view/modules";
 import { getTemplate } from "@/lib/cases/template-store";
 import { templateFormValues } from "@/lib/cases/templates";
+import { costFormValues } from "@/lib/kpis/cost-of-sales";
 import { requireLender } from "@/lib/lender";
 import { createClient } from "@/lib/supabase/server";
 import { TemplateForm } from "../TemplateForm";
@@ -81,7 +82,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
         id={t.id}
         canEdit={canEdit}
         hasOwnPanel={!!t.layout}
-        initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements) }}
+        initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements), ...costFormValues(t.costOfSales) }}
       />
 
       {canEdit && (

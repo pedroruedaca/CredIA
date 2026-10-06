@@ -17,6 +17,9 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await page.getByRole("button", { name: "Contabilidad", exact: true }).click();
   await page.getByRole("button", { name: "Informe CIRBE", exact: true }).click();
   await page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" }).click();
+  // Default cost of sales for the adjusted gross margin: «Servicios», plus Seguridad Social made explicit.
+  await page.getByRole("group", { name: "Coste de ventas por defecto" }).getByRole("button", { name: "Servicios", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: /^642/ })).toBeDisabled(); // inside «Gastos de personal», already ticked
   // 2. A personalised panel: creating the template opens the designer straight away. Without «Fuentes».
   await expect(page.getByRole("button", { name: "Crear plantilla", exact: true })).toBeVisible();
   await page.getByText("Panel personalizado").click();
@@ -62,4 +65,8 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await page.getByRole("button", { name: "Volver al diseño de la plantilla" }).click();
   await expect(page).toHaveURL(caseUrl);
   await expect(footer).toHaveCount(0);
+
+  // 6. The case got a copy of the template's cost of sales.
+  await page.goto(`${caseUrl}/coste-de-ventas`);
+  await expect(page.getByText(/Criterio de la plantilla: Servicios/)).toBeVisible();
 });

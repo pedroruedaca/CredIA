@@ -4,6 +4,7 @@ import { appBaseUrl } from "@/lib/app-url";
 import type { FieldErrors } from "@/lib/cases/new-case";
 import { parseNewCase } from "@/lib/cases/new-case";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
+import { templateCostOfSales } from "@/lib/cases/template-store";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
@@ -68,6 +69,13 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
   if (reqErr) {
     await supabase.from("cases").delete().eq("id", created.id); // keep create all-or-nothing
     return { status: "failed", message: "No hemos podido guardar los documentos solicitados. Inténtalo de nuevo.", values };
+  }
+
+  // The template's cost of sales (adjusted gross margin), copied: later template edits never change this case.
+  const templateId = /^[0-9a-f-]{36}$/i.test(values.template_id ?? "") ? values.template_id! : null;
+  const cost = templateId ? await templateCostOfSales(supabase, templateId) : null;
+  if (cost) {
+    await supabase.from("case_cost_definitions").insert({ case_id: created.id, lender_id: lender.lenderId, preset: cost.preset, selectors: cost.selectors, source: "template", updated_by: lender.userId });
   }
 
   await supabase.from("audit_log").insert({

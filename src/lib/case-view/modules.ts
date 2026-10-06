@@ -66,7 +66,7 @@ export const DEFAULT_SUMMARY_FACTS: SummaryFactId[] = ["revenue", "ebitda", "cir
 /** Tiles from the books (statements); the first five are the default row. */
 export const ACCOUNTING_KPI_TILE_IDS = [
   "dscr", "interestCoverage", "netDebtToEbitda", "currentRatio", "dsoDpo", "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt",
-  "grossMargin", "netMargin", "roe", "ebitCoverage", "debtToEbitda", "liabilitiesToEquity", "ccc", "assetTurnover",
+  "grossMargin", "adjustedGrossMargin", "netMargin", "roe", "ebitCoverage", "debtToEbitda", "liabilitiesToEquity", "ccc", "assetTurnover",
 ] as const;
 /** Tiles from the bank movements (Norma 43; src/lib/kpis/bank.ts), one per bank KPI, same ids as the KPI keys. */
 export const BANK_KPI_TILE_IDS = [

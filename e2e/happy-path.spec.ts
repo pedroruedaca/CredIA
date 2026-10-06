@@ -92,4 +92,15 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   const json = await (await page.request.get(`${caseUrl}/exportar/json`)).json();
   expect(json.disclaimer).toMatch(/no puntúa ni recomienda/);
   expect(json.kpis.closed_fy.find((k: { key: string }) => k.key === "ebitda").value).toBe(110000);
+
+  // Cost of sales: «Servicios» (purchases + personnel) gives the adjusted gross margin next to the accounting one.
+  await page.goto(`${caseUrl}/coste-de-ventas`);
+  await page.getByRole("group", { name: "Punto de partida" }).getByRole("button", { name: "Servicios", exact: true }).click();
+  await expect(page.getByText("También marcado, sin importe en este caso:")).toBeVisible(); // 623: this company has none
+  await page.getByRole("button", { name: "Guardar coste de ventas" }).click();
+  await expect(page).toHaveURL(caseUrl);
+  const after = await (await page.request.get(`${caseUrl}/exportar/json`)).json();
+  expect(after.kpis.closed_fy.find((k: { key: string }) => k.key === "grossMargin").value).toBe(45);
+  expect(after.kpis.closed_fy.find((k: { key: string }) => k.key === "adjustedGrossMargin").value).toBe(21.5);
+  expect(after.cost_of_sales).toMatchObject({ criterion: "analyst", preset: "services" });
 });

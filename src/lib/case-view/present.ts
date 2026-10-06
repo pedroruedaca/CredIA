@@ -254,7 +254,17 @@ function accountingTiles(closed: { kpis: Kpi[]; statement: CanonicalStatement } 
     simple("debtToEquity", "debtToEquity", "Deuda / patrimonio", "x"),
     simple("workingCapital", "workingCapital", "Fondo de maniobra", "EUR"),
     simple("financialDebt", "financialDebt", "Deuda financiera", "EUR"),
-    { ...simple("grossMargin", "grossMargin", "Margen bruto", "%"), sub: b.netMargin?.value != null ? `neto ${fx(b.netMargin.value, "%")}` : ytdSub("grossMargin"), details: [...det("grossMargin"), ...det("netMargin")] },
+    // Accounting gross margin (cost of sales = 60/61) and the analyst's adjusted one, each naming the other below.
+    {
+      ...simple("grossMargin", "grossMargin", "Margen bruto", "%"),
+      sub: b.adjustedGrossMargin?.value != null ? `ajustado ${fx(b.adjustedGrossMargin.value, "%")}` : b.netMargin?.value != null ? `neto ${fx(b.netMargin.value, "%")}` : ytdSub("grossMargin"),
+      details: [...det("grossMargin"), ...det("adjustedGrossMargin"), ...det("netMargin")],
+    },
+    {
+      ...simple("adjustedGrossMargin", "adjustedGrossMargin", "Margen bruto ajustado", "%"),
+      sub: b.adjustedGrossMargin?.value == null ? "sin definir" : b.grossMargin?.value != null ? `contable ${fx(b.grossMargin.value, "%")}` : null,
+      details: [...det("adjustedGrossMargin"), ...det("grossMargin")],
+    },
     simple("netMargin", "netMargin", "Margen neto", "%"),
     { ...simple("roe", "roe", "ROE", "%"), sub: b.roa?.value != null ? `ROA ${fx(b.roa.value, "%")}` : ytdSub("roe"), details: [...det("roe"), ...det("roa")] },
     simple("ebitCoverage", "ebitCoverage", "Cobertura EBIT", "x"),
