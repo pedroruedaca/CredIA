@@ -201,7 +201,8 @@ const MODULES: Record<ModuleId, (props: ModuleProps) => React.ReactNode> = {
 
 /**
  * Draws the layout's modules in order. A full-width module is drawn as is (so one with nothing to show leaves no gap);
- * two half-width modules share a row from md up and stack below it.
+ * two half-width modules share a row from md up and stack below it. A half whose module draws nothing collapses
+ * (`empty:hidden`) and its partner takes the whole row; a row where neither draws anything is hidden too.
  */
 export function CaseModules({ layout, ctx }: { layout: Layout; ctx: ModuleContext }) {
   return (
@@ -212,10 +213,10 @@ export function CaseModules({ layout, ctx }: { layout: Layout; ctx: ModuleContex
           return <Module key={moduleKey(row[0])} {...ctx} settings={moduleSettings(row[0])} width="full" />;
         }
         return (
-          <div key={row.map(moduleKey).join("+")} className="grid gap-10 md:grid-cols-2">
+          <div key={row.map(moduleKey).join("+")} className="flex flex-col gap-10 md:flex-row [&:not(:has(>:not(:empty)))]:hidden">
             {row.map((m) => {
               const Module = MODULES[m.id];
-              return <div key={moduleKey(m)} className="min-w-0"><Module {...ctx} settings={moduleSettings(m)} width={m.width} /></div>;
+              return <div key={moduleKey(m)} className="min-w-0 empty:hidden md:flex-1 md:basis-0"><Module {...ctx} settings={moduleSettings(m)} width={m.width} /></div>;
             })}
           </div>
         );

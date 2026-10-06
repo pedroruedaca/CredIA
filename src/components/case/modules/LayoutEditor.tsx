@@ -53,6 +53,8 @@ const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
   review: "Elige si se ven también las comprobaciones superadas.",
 };
 
+const NO_DATA = "Sin datos en este caso";
+
 const iconButton =
   "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent sm:size-9";
 
@@ -69,6 +71,7 @@ export function LayoutEditor({
   intro,
   targets,
   resets,
+  tilesWithData,
 }: {
   initial: Layout;
   /** Where to go after saving or cancelling. */
@@ -78,6 +81,11 @@ export function LayoutEditor({
   /** Where it can be saved; the first is preselected. */
   targets: SaveOption[];
   resets: { target: LayoutTarget; label: string }[];
+  /**
+   * Opened from a case: the KPI tiles that case has data for. The others are still offered (the layout may be saved
+   * for the template or the team) but marked «Sin datos en este caso». Absent (template designer): nothing marked.
+   */
+  tilesWithData?: readonly string[];
 }) {
   const router = useRouter();
   const [layout, setLayout] = useState(initial);
@@ -152,6 +160,7 @@ export function LayoutEditor({
                 onWidth={(w) => setLayout(setModuleWidth(layout, moduleKey(m), w))}
                 onRemove={() => setLayout(removeModule(layout, moduleKey(m)))}
                 onSettings={(patch) => setLayout(setModuleSettings(layout, moduleKey(m), patch))}
+                tilesWithData={tilesWithData}
               />
             ))}
           </ol>
@@ -200,6 +209,7 @@ function Tile({
   onWidth,
   onRemove,
   onSettings,
+  tilesWithData,
 }: {
   module: LayoutModule;
   index: number;
@@ -208,6 +218,7 @@ function Tile({
   onWidth: (w: "full" | "half") => void;
   onRemove: () => void;
   onSettings: (patch: ModuleSettings) => void;
+  tilesWithData?: readonly string[];
 }) {
   const spec = { ...MODULE_SPECS[m.id], title: moduleTitle(m) };
   const [open, setOpen] = useState(false);
@@ -298,7 +309,7 @@ function Tile({
         </Tooltip>
       </span>
       </div>
-      {hasSettings && open && <ModuleSettingsPanel module={m} title={spec.title} onChange={onSettings} />}
+      {hasSettings && open && <ModuleSettingsPanel module={m} title={spec.title} onChange={onSettings} tilesWithData={tilesWithData} />}
     </li>
   );
 }
@@ -307,13 +318,23 @@ const segment = (on: boolean) =>
   cx("min-h-9 rounded-full px-3 text-[13px] font-medium transition-colors", on ? "bg-surface text-ink shadow-tile" : "text-ink-2 hover:text-ink");
 
 /** The settings a module takes, edited inside its tile. */
-function ModuleSettingsPanel({ module: m, title, onChange }: { module: LayoutModule; title: string; onChange: (patch: ModuleSettings) => void }) {
+function ModuleSettingsPanel({
+  module: m,
+  title,
+  onChange,
+  tilesWithData,
+}: {
+  module: LayoutModule;
+  title: string;
+  onChange: (patch: ModuleSettings) => void;
+  tilesWithData?: readonly string[];
+}) {
   const keys = MODULE_SETTINGS[m.id] ?? [];
   const o = moduleSettings(m);
   return (
     <div role="group" aria-label={`Ajustes de ${title}`} className="ml-12 flex flex-col gap-4 border-t border-hairline pt-3 sm:ml-10">
       {keys.includes("facts") && <FactsSetting facts={o.facts} onChange={(facts) => onChange({ facts })} />}
-      {keys.includes("tiles") && <TilesSetting tiles={o.tiles} max={maxKpiTiles(m.width)} onChange={(tiles) => onChange({ tiles })} />}
+      {keys.includes("tiles") && <TilesSetting tiles={o.tiles} max={maxKpiTiles(m.width)} withData={tilesWithData} onChange={(tiles) => onChange({ tiles })} />}
       {keys.includes("period") && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-medium text-ink-2">Periodo</span>
@@ -366,8 +387,12 @@ function FactsSetting({ facts, onChange }: { facts: SummaryFactId[]; onChange: (
   );
 }
 
-/** «Indicadores»: the tiles shown, in order (up to `max`: 5 at full width, 3 at half), and the ones that can be added. */
-function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: number; onChange: (tiles: KpiTileId[]) => void }) {
+/**
+ * «Indicadores»: the tiles shown, in order (up to `max`: 5 at full width, 3 at half), and the ones that can be added.
+ * `withData` (from a case): tiles outside it are marked «Sin datos en este caso».
+ */
+function TilesSetting({ tiles, max, withData, onChange }: { tiles: KpiTileId[]; max: number; withData?: readonly string[]; onChange: (tiles: KpiTileId[]) => void }) {
+  const noData = (t: KpiTileId) => !!withData && !withData.includes(t);
   const move = (i: number, to: number) => {
     const next = [...tiles];
     const [t] = next.splice(i, 1);
@@ -382,7 +407,10 @@ function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: numbe
         {tiles.map((t, i) => (
           <li key={t} className="flex min-h-11 items-center gap-1">
             <span className="w-6 font-mono text-[13px] text-muted">{i + 1}</span>
-            <span className="grow text-[15px]">{KPI_TILE_LABEL[t]}</span>
+            <span className="flex grow flex-col text-[15px]">
+              {KPI_TILE_LABEL[t]}
+              {noData(t) && <span className="text-[13px] text-muted">{NO_DATA}</span>}
+            </span>
             <button type="button" className={iconButton} onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Subir ${KPI_TILE_LABEL[t]}`}>
               <ArrowUp size={15} strokeWidth={1.8} aria-hidden />
             </button>
@@ -397,7 +425,10 @@ function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: numbe
       </ol>
       {groups.map((g) => (
         <div key={g.id} role="group" aria-label={KPI_TILE_GROUP_LABEL[g.id]} className="flex flex-col gap-1.5 pt-1">
-          <span className="text-[13px] text-muted">{KPI_TILE_GROUP_LABEL[g.id]}</span>
+          <span className="text-[13px] text-muted">
+            {KPI_TILE_GROUP_LABEL[g.id]}
+            {withData && g.tiles.every(noData) && ` · ${NO_DATA.toLowerCase()}`}
+          </span>
           <div className="flex flex-wrap gap-2">
             {g.rest.map((t) => (
               <button
@@ -405,8 +436,11 @@ function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: numbe
                 type="button"
                 disabled={tiles.length >= max}
                 onClick={() => onChange([...tiles, t])}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-[13px] font-medium text-ink hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45"
-                aria-label={`Añadir ${KPI_TILE_LABEL[t]}`}
+                className={cx(
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-left text-[13px] font-medium hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45",
+                  noData(t) ? "text-muted" : "text-ink",
+                )}
+                aria-label={`Añadir ${KPI_TILE_LABEL[t]}${noData(t) ? ` (${NO_DATA.toLowerCase()})` : ""}`}
               >
                 <Plus size={14} strokeWidth={2} aria-hidden /> {KPI_TILE_LABEL[t]}
               </button>
@@ -414,8 +448,13 @@ function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: numbe
           </div>
         </div>
       ))}
+      {groups.some((g) => g.rest.some(noData) && !g.tiles.every(noData)) && <span className="text-[13px] text-muted">En gris, los que no tienen datos en este caso.</span>}
       {tiles.length >= max && <span className="text-[13px] text-muted">Quita uno para añadir otro.</span>}
-      <span className="text-[13px] text-muted">Un indicador sin datos en el caso no se muestra: los de los extractos necesitan ficheros Norma 43.</span>
+      {withData && tiles.every(noData) ? (
+        <span className="text-[13px] text-muted">Ninguno tiene datos en este caso: aquí el módulo no se mostrará (en otros casos, sí).</span>
+      ) : (
+        <span className="text-[13px] text-muted">Un indicador sin datos en el caso no se muestra: los de los extractos necesitan ficheros Norma 43.</span>
+      )}
     </div>
   );
 }

@@ -142,7 +142,7 @@ The case view body is a list of **modules** drawn from a **layout** (BI-style da
 `src/lib/case-view/modules.ts` (pure, tested): `MODULE_SPECS` (id, title, description, `removable`, allowed widths
 full/half), `DEFAULT_LAYOUT` (today's order), `normalizeLayout` (any stored JSON → safe layout: unknown/repeated
 modules dropped, widths the module allows, «Para revisar» always present), `layoutRows` (two consecutive halves share
-a row). Components: `src/components/case/modules/CaseModules.tsx` (one component per module, each renders nothing
+a row; a half that draws nothing collapses and its partner takes the row). Components: `src/components/case/modules/CaseModules.tsx` (one component per module, each renders nothing
 when empty). The header and the evidence panel are not modules.
 Decided defaults: team template per lender (owners/editors edit), product templates and personal overrides later;
 rows of full or half width (no free grid); «Para revisar» movable, not removable; the committee PDF follows the
@@ -155,7 +155,8 @@ appendix. **Module settings** (`LayoutModule.settings`, `MODULE_SETTINGS`, `norm
 «Resumen» `facts` (≥ 1 of `SUMMARY_FACT_IDS`: revenue, EBITDA, CIRBE vs books by default; net income, YTD sales, net
 debt, equity, working capital; fixed sentence order, source notes always said; `summaryView`), «Indicadores» (repeatable: up to `MAX_INSTANCES` copies, each with its own `key` — `kpis-2`… — width and settings;
 `moduleKey` identifies a module in its layout, the first copy's key is its id; full width shows 5 tiles, half width 3,
-`maxKpiTiles`) `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
+`maxKpiTiles`; opened from a case, the designer marks tiles that case has no data for «Sin datos en este caso», still
+selectable) `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
 debt/equity, working capital, financial debt, and one per bank KPI, from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
 (base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
 applied in the case view and the PDF.
