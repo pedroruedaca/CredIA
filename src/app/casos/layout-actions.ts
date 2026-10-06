@@ -7,7 +7,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { normalizeLayout } from "@/lib/case-view/modules";
+import { moduleKey, normalizeLayout } from "@/lib/case-view/modules";
 import { requireLender } from "@/lib/lender";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,7 +47,7 @@ export async function saveLayout(target: LayoutTarget, raw: unknown): Promise<La
     case_id: t.data.kind === "case" ? t.data.id : null,
     actor: lender.userId,
     action: "layout.saved",
-    detail: { scope: t.data.kind, ...(t.data.kind === "template" ? { template_id: t.data.id } : {}), modules: layout.modules.map((m) => `${m.id}:${m.width}`) },
+    detail: { scope: t.data.kind, ...(t.data.kind === "template" ? { template_id: t.data.id } : {}), modules: layout.modules.map((m) => `${moduleKey(m)}:${m.width}`) },
   });
   revalidatePath("/casos", "layout");
   revalidatePath("/plantillas", "layout");

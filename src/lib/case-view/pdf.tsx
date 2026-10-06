@@ -12,7 +12,7 @@ import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } f
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
-import { DEFAULT_LAYOUT, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
+import { DEFAULT_LAYOUT, moduleKey, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
 import { periodView, summaryView } from "./package.ts";
 import { pickTiles } from "./present.ts";
 import { layoutSankey, type PnlSankey } from "./sankey.ts";
@@ -414,7 +414,7 @@ function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePa
 
         {layout.modules.map((m) => {
           const content = mods[m.id](moduleSettings(m));
-          return content ? <Fragment key={m.id}>{content}</Fragment> : null;
+          return content ? <Fragment key={moduleKey(m)}>{content}</Fragment> : null;
         })}
 
         {statements.length > 0 && (

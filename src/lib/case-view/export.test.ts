@@ -105,6 +105,13 @@ describe("exports", () => {
     expect(text).toContain("Días de caja");
     expect(text).toMatch(/Carga de deuda[\s\S]*\d %/);
     expect(text).not.toContain("DSCR");
+    // A second «Indicadores» prints its own tiles; a half-width one, three at most.
+    const two = { version: 1 as const, modules: [...layout.modules, { id: "kpis" as const, key: "kpis-2", width: "half" as const, settings: { tiles: ["dscr" as const, "overdraftDays" as const, "minBalance" as const, "netBurn" as const] } }] };
+    const text2 = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at, two)));
+    expect(text2).toContain("Días de caja");
+    expect(text2).toContain("DSCR");
+    expect(text2).toContain("Saldo mínimo");
+    expect(text2).not.toContain("Consumo neto");
     for (const v of pkg.passed) expect(text).not.toContain(CHECK_PASS_LABEL[v.key] ?? v.name);
     expect(pkg.passed.length).toBeGreaterThan(0);
   }, 30_000);

@@ -24,7 +24,9 @@ import {
   DEFAULT_LAYOUT,
   MODULE_SPECS,
   KPI_TILE_GROUPS,
-  MAX_KPI_TILES,
+  maxKpiTiles,
+  moduleKey,
+  moduleTitle,
   MODULE_SETTINGS,
   moduleSettings,
   moveModule,
@@ -45,7 +47,7 @@ import { KPI_TILE_GROUP_LABEL, KPI_TILE_LABEL, PERIOD_CHOICE_LABEL, SUMMARY_FACT
 
 const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
   summary: "Elige qué cifras dice la frase.",
-  kpis: "Elige qué indicadores se muestran (hasta cinco).",
+  kpis: "Elige qué indicadores se muestran (cinco a todo el ancho, tres a media anchura).",
   pnl: "Elige el periodo: el del caso, el cierre o el año en curso.",
   balance: "Elige el periodo: el del caso, el cierre o el año en curso.",
   review: "Elige si se ven también las comprobaciones superadas.",
@@ -88,8 +90,8 @@ export function LayoutEditor({
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const ids = layout.modules.map((m) => m.id);
-    setLayout(moveModule(layout, ids.indexOf(active.id as LayoutModule["id"]), ids.indexOf(over.id as LayoutModule["id"])));
+    const keys = layout.modules.map(moduleKey);
+    setLayout(moveModule(layout, keys.indexOf(String(active.id)), keys.indexOf(String(over.id))));
   };
   const save = () =>
     startSave(async () => {
@@ -138,18 +140,18 @@ export function LayoutEditor({
       {error && <ErrorLine message={error} />}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={layout.modules.map((m) => m.id)} strategy={rectSortingStrategy}>
+        <SortableContext items={layout.modules.map(moduleKey)} strategy={rectSortingStrategy}>
           <ol aria-label="Módulos del panel, en orden" className="grid gap-3 md:grid-cols-2">
             {layout.modules.map((m, i) => (
               <Tile
-                key={m.id}
+                key={moduleKey(m)}
                 module={m}
                 index={i}
                 count={layout.modules.length}
                 onMove={(to) => setLayout(moveModule(layout, i, to))}
-                onWidth={(w) => setLayout(setModuleWidth(layout, m.id, w))}
-                onRemove={() => setLayout(removeModule(layout, m.id))}
-                onSettings={(patch) => setLayout(setModuleSettings(layout, m.id, patch))}
+                onWidth={(w) => setLayout(setModuleWidth(layout, moduleKey(m), w))}
+                onRemove={() => setLayout(removeModule(layout, moduleKey(m)))}
+                onSettings={(patch) => setLayout(setModuleSettings(layout, moduleKey(m), patch))}
               />
             ))}
           </ol>
@@ -167,7 +169,7 @@ export function LayoutEditor({
                   <span className="text-[13px] text-muted">{s.description}</span>
                 </span>
                 <Button variant="secondary" size="sm" onClick={() => setLayout(addModule(layout, s.id))}>
-                  <Plus size={15} strokeWidth={2} aria-hidden /> Añadir
+                  <Plus size={15} strokeWidth={2} aria-hidden /> {layout.modules.some((m) => m.id === s.id) ? "Añadir otro" : "Añadir"}
                 </Button>
               </li>
             ))}
@@ -207,10 +209,10 @@ function Tile({
   onRemove: () => void;
   onSettings: (patch: ModuleSettings) => void;
 }) {
-  const spec = MODULE_SPECS[m.id];
+  const spec = { ...MODULE_SPECS[m.id], title: moduleTitle(m) };
   const [open, setOpen] = useState(false);
   const hasSettings = !!MODULE_SETTINGS[m.id];
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: m.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: moduleKey(m) });
   const canHalf = spec.widths.includes("half");
   return (
     <li
@@ -311,7 +313,7 @@ function ModuleSettingsPanel({ module: m, title, onChange }: { module: LayoutMod
   return (
     <div role="group" aria-label={`Ajustes de ${title}`} className="ml-12 flex flex-col gap-4 border-t border-hairline pt-3 sm:ml-10">
       {keys.includes("facts") && <FactsSetting facts={o.facts} onChange={(facts) => onChange({ facts })} />}
-      {keys.includes("tiles") && <TilesSetting tiles={o.tiles} onChange={(tiles) => onChange({ tiles })} />}
+      {keys.includes("tiles") && <TilesSetting tiles={o.tiles} max={maxKpiTiles(m.width)} onChange={(tiles) => onChange({ tiles })} />}
       {keys.includes("period") && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-medium text-ink-2">Periodo</span>
@@ -364,8 +366,8 @@ function FactsSetting({ facts, onChange }: { facts: SummaryFactId[]; onChange: (
   );
 }
 
-/** «Indicadores»: the tiles shown, in order (1 to 5), and the ones that can be added. */
-function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tiles: KpiTileId[]) => void }) {
+/** «Indicadores»: the tiles shown, in order (up to `max`: 5 at full width, 3 at half), and the ones that can be added. */
+function TilesSetting({ tiles, max, onChange }: { tiles: KpiTileId[]; max: number; onChange: (tiles: KpiTileId[]) => void }) {
   const move = (i: number, to: number) => {
     const next = [...tiles];
     const [t] = next.splice(i, 1);
@@ -375,7 +377,7 @@ function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tile
   const groups = KPI_TILE_GROUPS.map((g) => ({ ...g, rest: g.tiles.filter((t) => !tiles.includes(t)) })).filter((g) => g.rest.length > 0);
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[13px] font-medium text-ink-2">Indicadores que se muestran, en orden (máximo {MAX_KPI_TILES})</span>
+      <span className="text-[13px] font-medium text-ink-2">Indicadores que se muestran, en orden (máximo {max}{max < 5 ? " a media anchura" : ""})</span>
       <ol aria-label="Indicadores elegidos" className="flex flex-col">
         {tiles.map((t, i) => (
           <li key={t} className="flex min-h-11 items-center gap-1">
@@ -401,7 +403,7 @@ function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tile
               <button
                 key={t}
                 type="button"
-                disabled={tiles.length >= MAX_KPI_TILES}
+                disabled={tiles.length >= max}
                 onClick={() => onChange([...tiles, t])}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-soft-control px-3 text-[13px] font-medium text-ink hover:bg-track/70 disabled:cursor-not-allowed disabled:opacity-45"
                 aria-label={`Añadir ${KPI_TILE_LABEL[t]}`}
@@ -412,7 +414,7 @@ function TilesSetting({ tiles, onChange }: { tiles: KpiTileId[]; onChange: (tile
           </div>
         </div>
       ))}
-      {tiles.length >= MAX_KPI_TILES && <span className="text-[13px] text-muted">Quita uno para añadir otro.</span>}
+      {tiles.length >= max && <span className="text-[13px] text-muted">Quita uno para añadir otro.</span>}
       <span className="text-[13px] text-muted">Un indicador sin datos en el caso no se muestra: los de los extractos necesitan ficheros Norma 43.</span>
     </div>
   );

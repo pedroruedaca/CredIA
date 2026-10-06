@@ -28,7 +28,8 @@ test("personalise the case view for the team, then restore it", async ({ page })
   await expect(tiles.getByRole("button", { name: "Para revisar no se puede quitar" })).toBeDisabled();
   await tiles.getByRole("button", { name: "Quitar Fuentes" }).click();
   await expect(tiles).not.toContainText("Fuentes");
-  await expect(page.getByRole("button", { name: "Añadir" })).toHaveCount(1); // Fuentes is back in the catalogue
+  await expect(page.getByRole("button", { name: "Añadir", exact: true })).toHaveCount(1); // Fuentes is back in the catalogue
+  await expect(page.getByRole("button", { name: "Añadir otro", exact: true })).toHaveCount(1); // «Indicadores» can repeat
   await tiles.getByRole("button", { name: "Subir Balance" }).click();
   await tiles.getByRole("button", { name: "Poner Balance a media anchura" }).click();
   // Keyboard drag: Indicadores one place down with the handle.
@@ -39,6 +40,15 @@ test("personalise the case view for the team, then restore it", async ({ page })
   }
   const order = await tiles.locator("li").evaluateAll((lis) => lis.map((li) => li.querySelector("span span")?.textContent));
   expect(order.slice(0, 4)).toEqual(["Resumen", "Para revisar", "Indicadores", "Balance"]);
+
+  // A second «Indicadores», at half width: three tiles at most. Then removed again.
+  await page.getByRole("button", { name: "Añadir otro", exact: true }).click();
+  await tiles.getByRole("button", { name: "Poner Indicadores 2 a media anchura" }).click();
+  await tiles.getByRole("button", { name: "Ajustes de Indicadores 2" }).click();
+  await expect(page.getByText("Indicadores que se muestran, en orden (máximo 3 a media anchura)")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Indicadores elegidos" }).locator("li")).toHaveCount(3);
+  await tiles.getByRole("button", { name: "Quitar Indicadores 2" }).click();
+  await expect(tiles).not.toContainText("Indicadores 2");
 
   // Module settings: «Indicadores» adds revenue and puts it first; the P&L shows the year to date.
   await tiles.getByRole("button", { name: "Ajustes de Indicadores" }).click();
