@@ -32,6 +32,8 @@ import type { AdminClient } from "../borrower/access.ts";
 import { addDays, fiscalYearStart, type LedgerBalance, type Period, type PeriodKind, type Warning } from "../types.ts";
 import { todayMadrid } from "../format.ts";
 import {
+  BANK_HOLDER_CHECK,
+  bankHolderCheck,
   checkCertificate,
   checkCirbeVsBooks,
   checkDebtPaymentsVsDeclaredDebt,
@@ -222,6 +224,7 @@ async function readSheetStatement(bytes: Uint8Array, ext: string, doc: DocRow, n
       extraction: { parser: "bank:sheet@1", status: "failed", output: {}, warnings: r.warnings },
     };
   }
+  if (r.data.rejected) return { status: "failed", attention: r.data.rejected, extraction: { parser: "bank:sheet@1", status: "failed", output: {}, warnings: r.warnings } };
   const status = r.data.needsReview ? "needs_review" : "parsed";
   return {
     status,
@@ -498,7 +501,17 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   const holdedAt = (kind: PeriodKind) => (syncs ?? []).filter((s) => s.period_kind === kind).map((s) => s.created_at).sort().at(-1) ?? null;
 
   // --- Bank transactions (Norma 43)
-  const bank = dedupeBankAccounts(parsed.filter((d) => d.kind === "norma43").map((d) => ({ docId: d.id, uploadedAt: d.uploadedAt, accounts: (d.output.accounts as N43Account[]) ?? [] })));
+  const allBank = dedupeBankAccounts(parsed.filter((d) => d.kind === "norma43").map((d) => ({ docId: d.id, uploadedAt: d.uploadedAt, accounts: (d.output.accounts as N43Account[]) ?? [] })));
+  // credIA covers companies: accounts held by someone else stay out until the lender confirms them (reviewing the check).
+  const uploadedAtOf = new Map(parsed.map((d) => [d.id, d.uploadedAt]));
+  const { data: holderReview } = await db.from("check_reviews").select("status, at").eq("case_id", kase.id).eq("check_key", BANK_HOLDER_CHECK).order("at", { ascending: false }).limit(1).maybeSingle();
+  const holders = bankHolderCheck(
+    allBank.map((b) => ({ ...b, uploadedAt: uploadedAtOf.get(b.docId) ?? "" })),
+    kase.borrower_name,
+    holderReview?.status === "reviewed" ? holderReview.at : null,
+  );
+  if (holders.check) checks.push(holders.check);
+  const bank = holders.used;
   // Classified again over all the case's files: rule changes reach files parsed before, and transfers between
   // accounts in different files are found.
   classifyAccounts(bank.map((b) => b.account), { companyName: kase.borrower_name });

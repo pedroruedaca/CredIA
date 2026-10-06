@@ -6,12 +6,12 @@ import { statementFromPdf } from "./pdf-statement.ts";
 const ctx = { docId: "p1", fileName: "extracto.pdf", caseCif: "B12345674", companyName: "Comercial Distribuciones Levante, S.L." };
 
 /** What the reader returns for a 6-page statement, read in windows 1–4 and 5–6: two movements per page, newest first. */
-function windows(opts: { misread?: number; nif?: string | null; type?: BankStatementWire["document_type"] } = {}) {
+function windows(opts: { misread?: number; nif?: string | null; type?: BankStatementWire["document_type"]; holderId?: string } = {}) {
   const lines = withBalances()
     .reverse()
     .map((m, i) => ({ iban: IBAN, page: Math.floor(i / 2) + 1, date: m.date, value_date: "", description: m.text, amount: i === opts.misread ? m.amount - 10 : m.amount, balance: m.balance }));
   const base = { document_type: opts.type ?? ("bank_statement" as const), company_nif: opts.nif ?? null, company_name: HOLDER, legible: true };
-  const account = { iban: IBAN, holder: HOLDER, bank_name: "Banco", currency: "EUR", period_start: "2026-01-01", period_end: "2026-03-31" };
+  const account = { iban: IBAN, holder: HOLDER, holder_id: opts.holderId ?? "", bank_name: "Banco", currency: "EUR", period_start: "2026-01-01", period_end: "2026-03-31" };
   return [
     {
       window: [1, 4] as [number, number],
@@ -46,6 +46,12 @@ describe("bank statements from PDF", () => {
   it("another company's statement, or not a statement", () => {
     expect(statementFromPdf(windows({ nif: "B87654323" }), ctx)).toMatchObject({ status: "failed", attention: expect.stringMatching(/es de otra empresa/) });
     expect(statementFromPdf(windows({ type: "invoice" }), ctx)).toMatchObject({ status: "failed", attention: expect.stringMatching(/no parece un extracto/) });
+  });
+
+  it("a person's account (DNI or NIE as the holder's ID) is not accepted", () => {
+    expect(statementFromPdf(windows({ holderId: "12345678Z" }), ctx)).toMatchObject({ status: "failed", attention: expect.stringMatching(/es de una cuenta personal/) });
+    expect(statementFromPdf(windows({ nif: "X1234567L" }), ctx).status).toBe("failed");
+    expect(statementFromPdf(windows({ holderId: "B12345674" }), ctx).status).toBe("parsed"); // the company's own CIF
   });
 
   it("no movements: says so", () => {

@@ -6,6 +6,7 @@
  * Rows without a date (totals, notes) are skipped. The statement must add up (src/lib/bank/statement.ts); when it does
  * not, the parse says so and the pipeline marks the document for review instead of using it.
  */
+import { personalAccountMessage, personalId } from "../bank/holder.ts";
 import { addsUp, parseAmount, parseDate, parseIban, reconcileRows, reconciliationWarnings, toN43Account, type StatementRow } from "../bank/statement.ts";
 import type { N43Account } from "./norma43.ts";
 import type { SheetData } from "./trial-balance.ts";
@@ -90,6 +91,19 @@ export interface BankSheetParse {
   accounts: (N43Account & { balancesKnown: boolean })[];
   /** Some account does not add up: the document needs a person to look at it before its figures are used. */
   needsReview: boolean;
+  /** Set when the file must not be used at all (a person's account): the message for the company and the lender. */
+  rejected?: string;
+}
+
+/** The holder's ID from the lines above the table: only on a line that names the holder or an ID (titular, NIF, DNI…). */
+function holderIdOf(pre: unknown[][]): string | null {
+  for (const r of pre) {
+    const line = (r ?? []).map((c) => String(c ?? "")).join(" ");
+    if (!/titular|\bnif\b|\bdni\b|\bnie\b|\bcif\b/i.test(line)) continue;
+    const id = personalId(line);
+    if (id) return id;
+  }
+  return null;
 }
 
 export function parseBankSheets(sheets: SheetData[], opts: { docId: string; fileName: string }): Result<BankSheetParse | null> {
@@ -124,6 +138,7 @@ export function parseBankSheets(sheets: SheetData[], opts: { docId: string; file
       printed.push({ date, valueDate: c.valueDate !== null ? parseDate(r[c.valueDate]) : null, description, amount, balance: c.balance !== null ? parseAmount(r[c.balance]) : null, sourceRef: ref });
     }
     if (!printed.length) continue;
+    if (holderIdOf(pre)) return { data: { accounts: [], needsReview: false, rejected: personalAccountMessage(opts.fileName) }, warnings: [{ code: "bank_personal_account", message: "Holder ID is a DNI/NIE" }] };
     const label = sheets.length > 1 ? `${opts.fileName} · ${sheet.name}` : opts.fileName;
     const rec = reconcileRows(printed);
     const iban = parseIban(ibanText)?.iban ?? null;

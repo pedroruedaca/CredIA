@@ -204,6 +204,11 @@ balance and the closing balance must follow; otherwise the document is `needs_re
 Exports without balances give flows only (`balancesKnown: false`: balance KPIs null, overdraft check skips them).
 Source refs `doc:<id>:row:<n>` / `sheet:<s>:row:<n>` / `page:<n>`. PDFs recorded as pending before (parser
 `n43:pdf@0`) are read on the case's next run. Fixtures `__fixtures__/bank-statements.ts` (hand-written shapes).
+**Whose account** (`src/lib/bank/holder.ts`; companies only): a DNI/NIE as the holder's ID (PDF `holder_id`/NIF, or
+next to «Titular»/NIF in an export) → the file is rejected («cuenta personal»). A holder name that is clearly not the
+company (`holderVerdict`, legal forms dropped, cut names allowed) → its accounts stay out of every bank figure and check,
+with the warn check `bank_holder_mismatch` (`bankHolderCheck`); marking it «Revisada» confirms them (accounts uploaded
+before the review count; `reviewCheck` reprocesses the case). No holder or no company name → used.
 **Not yet checked against real exports or PDFs from Spanish banks, nor the PDF path against the live API.**
 Fixture `__fixtures__/n43-two-banks.ts` (two banks, hand-written concept shapes, every movement's
 expected category). **Not yet checked against real exports from Spanish banks: add their concept shapes as tests.**
@@ -249,7 +254,7 @@ built (need counterparties or more history): customer concentration, recurring r
 TB revenue vs N43 customer receipts (±25%; excluded inflows listed by type) · N43 loan/advance drawdowns vs declared debt (`n43_financing_inflows`) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,
 result, equity) · recurring debt payments in N43 vs declared debt · AEAT/TGSS certificates valid ·
 BORME adverse acts · Modelo 303 last 4 quarters received (`m303_quarters`, warn) · Modelo 303 declared sales vs revenue of a period they cover month by month (`m303_vs_books_revenue`, 10 % / 5.000 €, warn) · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
-closing-entries suspicion.
+closing-entries suspicion · bank accounts held by someone other than the company (`bank_holder_mismatch`, warn).
 
 ## Conventions
 - Money as `number` in euros inside the engine; parse decimal strings with `toNumber()`; round only for display.

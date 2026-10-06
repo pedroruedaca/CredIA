@@ -10,6 +10,7 @@ import { checkDeclaredFile, cleanFilename, CONTENT_TYPES, contentMatchesExtensio
 import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
+import { BANK_HOLDER_CHECK } from "@/lib/checks/engine";
 import { processCase } from "@/lib/pipeline/process-case";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -48,6 +49,8 @@ export async function reviewCheck(input: z.input<typeof ReviewInput>): Promise<A
     action: `check.${status}`,
     detail: { check_key: checkKey, has_note: note !== null },
   });
+  // Reviewing «cuentas a nombre de otro titular» decides whether those accounts count: recompute the case.
+  if (checkKey === BANK_HOLDER_CHECK) after(() => processCase(createAdminClient(), caseId));
   revalidatePath(`/casos/${caseId}`);
   return { ok: true };
 }

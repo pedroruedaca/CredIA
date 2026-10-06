@@ -61,6 +61,13 @@ describe("bank statements from Excel/CSV", () => {
     });
   });
 
+  it("a person's account (DNI next to «Titular») is rejected; the company's CIF is fine", async () => {
+    const personal = csvNewestFirst().replace(`Titular;${HOLDER}`, "Titular;JUAN GARCIA LOPEZ;NIF 12345678Z");
+    expect((await parseCsvFile(personal)).data).toMatchObject({ accounts: [], rejected: expect.stringMatching(/cuenta personal/) });
+    const company = csvNewestFirst().replace(`Titular;${HOLDER}`, `Titular;${HOLDER};CIF B12345674`);
+    expect((await parseCsvFile(company)).data?.rejected).toBeUndefined();
+  });
+
   it("not a statement: nothing", async () => {
     expect((await parseCsvFile("cuenta;nombre;debe;haber\n4300001;Cliente;100;0")).data).toBeNull();
   });

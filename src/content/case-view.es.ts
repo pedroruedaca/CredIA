@@ -202,6 +202,7 @@ export const CHECK_PASS_LABEL: Record<string, string> = {
 
 /** Name of each check, for the evidence panel header. */
 export const CHECK_NAME: Record<string, string> = {
+  bank_holder_mismatch: "Cuentas a nombre de otro titular",
   cirbe_vs_books_debt: "Deuda CIRBE vs contabilidad",
   cirbe_overdue: "Riesgo vencido en CIRBE",
   n43_inflows_vs_revenue: "Cobros bancarios vs ventas",

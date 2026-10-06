@@ -8,6 +8,7 @@ import { JUDICIAL_TYPE_LABEL, SOLVENCY_PROVIDER_LABEL } from "../../content/solv
 import type { CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
 import { declaredSales, expectedQuarters, quarterCoverage, quarterLabel, returnLabel, returnsForPeriod, type M303Return } from "../tax/modelo303.ts";
 import { inflowBreakdown } from "../bank/classify.ts";
+import { holderVerdict } from "../bank/holder.ts";
 import { minRunningBalance, type N43Account } from "../parsers/norma43.ts";
 import { monthsBetween } from "../types.ts";
 import { de } from "../format.ts";
@@ -445,5 +446,45 @@ export function checkModelo303VsBooks(s: CanonicalStatement, returns: M303Return
     severity: "warn",
     message: `Las ventas declaradas en IVA ${period} (${eur(declared)}) difieren ${de(booksLabel)} (${eur(books)}; diferencia ${eur(diff)}). Puede deberse a ventas exentas, de inmovilizado o a ajustes de periodo.`,
     evidence: { values, sources, rule },
+  };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Whose bank accounts (credIA covers companies only)
+
+export const BANK_HOLDER_CHECK = "bank_holder_mismatch";
+
+/**
+ * Accounts whose printed holder is clearly not the company stay out of every bank figure and check until the lender
+ * confirms they are the company's, by marking this check as reviewed (`acceptedAt`: when; files uploaded after that are
+ * checked again). Returns the accounts to use and the check (null when every holder matches or cannot be compared).
+ */
+export function bankHolderCheck<T extends { docId: string; uploadedAt: string; account: N43Account }>(
+  bank: T[],
+  companyName: string | null,
+  acceptedAt: string | null,
+): { used: T[]; check: CheckResult | null } {
+  const mismatched = bank.filter((b) => holderVerdict(b.account.name, companyName) === "mismatch");
+  if (!mismatched.length) return { used: bank, check: null };
+  const held = mismatched.filter((b) => !acceptedAt || b.uploadedAt > acceptedAt);
+  const list = (xs: T[]) => xs.map((b) => `«${b.account.name}» (${b.account.accountMasked})`).join(", ");
+  const message = held.length
+    ? held.length === 1
+      ? `Una cuenta está a nombre de otro titular y no se usa en los indicadores ni en las verificaciones: ${list(held)}. Si es de la empresa, marca esta alerta como revisada y se incluirá.`
+      : `${held.length} cuentas están a nombre de otro titular y no se usan en los indicadores ni en las verificaciones: ${list(held)}. Si son de la empresa, marca esta alerta como revisada y se incluirán.`
+    : `Cuentas a nombre de otro titular, confirmadas como de la empresa y usadas: ${list(mismatched)}.`;
+  return {
+    used: bank.filter((b) => !held.includes(b)),
+    check: {
+      key: BANK_HOLDER_CHECK,
+      status: "fail",
+      severity: "warn",
+      message,
+      evidence: {
+        values: Object.fromEntries(mismatched.map((b) => [b.account.accountMasked, b.account.name])),
+        sources: [...new Set(mismatched.map((b) => `doc:${b.docId}`))],
+        rule: "Titular del extracto distinto de la empresa del caso (sin forma jurídica; nombres recortados admitidos)",
+      },
+    },
   };
 }
