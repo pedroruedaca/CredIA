@@ -36,6 +36,23 @@ describe("computeKpis — full year", () => {
     expect(k.dpo.value).toBe(42);
   });
 
+  it("computes the wider catalogue: coverage on EBIT, gross leverage, margins, returns, cycle, turnover", () => {
+    // Hand-checked on tb-small-sl: EBIT 94.000, interest 9.000, financial debt 160.000, EBITDA 110.000,
+    // total assets 519.000, equity 221.000, revenue 1.000.000, aprovisionamientos 550.000, net income 71.000,
+    // inventories 50.000.
+    expect(k.ebitCoverage.value).toBe(10.44); // 94.000 / 9.000
+    expect(k.debtToEbitda.value).toBe(1.45); // 160.000 / 110.000
+    expect(k.liabilitiesToEquity.value).toBe(1.35); // (519.000 − 221.000) / 221.000
+    expect(k.grossMargin.value).toBe(45); // 450.000 / 1.000.000
+    expect(k.netMargin.value).toBe(7.1);
+    expect(k.roa.value).toBe(13.7); // 71.000 / 519.000
+    expect(k.roe.value).toBe(32.1); // 71.000 / 221.000
+    expect(k.dio.value).toBe(33); // 50.000 / 550.000 × 365
+    expect(k.ccc.value).toBe(36); // 45 + 33 − 42, the days shown
+    expect(k.ccc.inputs).toEqual({ dsoDays: 45, dioDays: 33, dpoDays: 42 });
+    expect(k.assetTurnover.value).toBe(1.93); // 1.000.000 / 519.000
+  });
+
   it("exposes formula and inputs for drill-down", () => {
     expect(k.dscr.inputs).toMatchObject({ principal: 60_000, interestAnnualised: 9_000 });
   });
@@ -62,5 +79,18 @@ describe("computeKpis — edge cases", () => {
     expect(k.debtToEquity.value).toBeNull();
     expect(k.debtToEquity.note).toContain("363 LSC");
     expect(k.dscr.value).toBeNull();
+    // Balance-only ratios still computed; P&L ones null with the reason.
+    expect(k.liabilitiesToEquity.value).toBeNull();
+    expect(k.liabilitiesToEquity.note).toContain("363 LSC");
+    for (const key of ["grossMargin", "roe", "ccc", "assetTurnover", "ebitCoverage"]) expect(k[key].note).toBe("Sin cuenta de resultados para este periodo");
+  });
+
+  it("without inventories, inventory days are zero and the cycle is DSO − DPO", () => {
+    const noStock = tbSmallSl.filter((b) => !b.pgc3.startsWith("30")).map((b) => (b.account === "57200001" ? { ...b, debit: b.debit + 50_000 } : b));
+    const { data } = buildStatement(noStock, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" });
+    const k = byKey(computeKpis(data));
+    expect(k.dio.value).toBe(0);
+    expect(k.dio.note).toBe("Sin existencias en balance");
+    expect(k.ccc.value).toBe(k.dso.value! - k.dpo.value!);
   });
 });

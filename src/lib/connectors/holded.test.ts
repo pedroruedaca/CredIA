@@ -119,6 +119,7 @@ describe("runHoldedSync", () => {
     expect(r.periods.map((p) => p.period.kind)).toEqual(["closed_fy", "ytd"]);
     expect(r.periods[0].statement.incomeStatement.ebitda).toBe(110_000);
     expect(r.periods[1].statement.balanceSheet.imbalance).toBe(0);
-    expect(r.periods.every((p) => p.kpis.length === 14)).toBe(true);
+    const { UNIT } = await import("../kpis/engine.ts");
+    expect(r.periods.every((p) => p.kpis.length === Object.keys(UNIT).length)).toBe(true); // every KPI, once
   });
 });

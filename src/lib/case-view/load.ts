@@ -11,6 +11,7 @@ import type { CheckRow, SourceDoc } from "./present.ts";
 
 const KPI_UNIT: Record<string, Kpi["unit"]> = {
   revenue: "EUR", ebitda: "EUR", workingCapital: "EUR", financialDebt: "EUR", netDebt: "EUR", ebitdaMargin: "%", dso: "days", dpo: "days",
+  grossMargin: "%", netMargin: "%", roa: "%", roe: "%", dio: "days", ccc: "days",
 };
 
 export interface CaseViewData {

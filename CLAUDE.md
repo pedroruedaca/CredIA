@@ -157,7 +157,8 @@ debt, equity, working capital; fixed sentence order, source notes always said; `
 `moduleKey` identifies a module in its layout, the first copy's key is its id; full width shows 5 tiles, half width 3,
 `maxKpiTiles`; opened from a case, the designer marks tiles that case has no data for «Sin datos en este caso», still
 selectable) `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
-debt/equity, working capital, financial debt, and one per bank KPI, from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
+debt/equity, working capital, financial debt, gross margin (+net), net margin, ROE (+ROA), EBIT coverage, debt/EBITDA,
+liabilities/equity, cash conversion cycle (+DIO), asset turnover, and one per bank KPI, from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
 (base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
 applied in the case view and the PDF.
 Phase 2: `dashboard_layouts` (0018; one `scope = 'team'` row per lender, read by members, written by owners and
@@ -203,7 +204,9 @@ expected category). **Not yet checked against real exports from Spanish banks: a
 
 ## KPIs (`src/lib/kpis/engine.ts`, pure functions)
 EBITDA, revenue, EBITDA margin, current ratio, quick ratio, working capital, financial debt,
-net debt, net debt/EBITDA, debt/equity, interest coverage, DSCR, DSO, DPO. Flows annualised by
+net debt, net debt/EBITDA, debt/equity, interest coverage, DSCR, DSO, DPO; also coverage with EBIT, gross financial
+debt/EBITDA, total liabilities/equity, gross margin (revenue − 60/61), net margin, ROA, ROE (closing balances), DIO,
+cash conversion cycle (DSO + DIO − DPO from the rounded days) and asset turnover (`UNIT` lists them all). Flows annualised by
 `months`. DSO/DPO gross-up VAT via `vatRate` (default 0.21). Each KPI returns `value`, `formula`,
 and `inputs` so the UI can show its derivation. Division by zero/negative denominators → `null` + reason.
 
