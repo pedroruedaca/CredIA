@@ -54,7 +54,8 @@ export function describeSource(ref: string, docs: SourceDoc[]): SourceLabel {
   const m = /^doc:([^:]+)(?::(.*))?$/.exec(ref);
   if (!m) return { label: ref, docId: null, page: null };
   const doc = docs.find((d) => d.id === m[1]) ?? null;
-  const base = doc ? `${KIND_SHORT[doc.kind] ?? "Documento"}${doc.kind === "cirbe" && doc.issued_on ? ` ${formatDate(doc.issued_on)}` : ""}` : "Documento";
+  const kindLabel = doc?.kind === "norma43" && /\.(pdf|csv|xlsx|txt)$/i.test(doc.original_filename ?? "") && !/:line:/.test(ref) ? "Extracto bancario" : doc ? KIND_SHORT[doc.kind] : undefined;
+  const base = doc ? `${kindLabel ?? "Documento"}${doc.kind === "cirbe" && doc.issued_on ? ` ${formatDate(doc.issued_on)}` : ""}` : "Documento";
   const rest = m[2] ?? "";
   const page = /(?:^|:)page:(\d+)/.exec(rest);
   const row = /(?:^|:)row:(\d+)/.exec(rest);

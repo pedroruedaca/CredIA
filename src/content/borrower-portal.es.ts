@@ -22,8 +22,8 @@ export const ITEM_COPY: Record<RequirementKind, ItemCopy> = {
     ],
   },
   norma43: {
-    title: "Movimientos bancarios (Norma 43)",
-    description: "Últimos 12 meses de cada cuenta de la empresa. Sirve para verificar tus cobros y pagos.",
+    title: "Movimientos bancarios",
+    description: "Últimos 12 meses de cada cuenta de la empresa, mejor en Norma 43; también valen en Excel, CSV o PDF. Sirve para verificar tus cobros y pagos.",
     steps: [],
   },
   modelo200: {

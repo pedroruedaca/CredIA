@@ -28,8 +28,8 @@ const PDF_ONLY: UploadRule = { extensions: ["pdf"], multiple: false, acceptLabel
 export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
   // Legacy .xls is not accepted: we only read .xlsx (exceljs) and CSV. See LEGACY_XLS_MESSAGE.
   trial_balance: { extensions: ["xlsx", "csv"], multiple: true, acceptLabel: ".xlsx o .csv" },
-  // PDF statements are the fallback when the bank does not export Norma 43.
-  norma43: { extensions: ["n43", "q43", "txt", "aeb", "pdf"], multiple: true, acceptLabel: ".n43, .txt o PDF" },
+  // Norma 43 first; movements exported as Excel/CSV and PDF statements when the bank does not export it.
+  norma43: { extensions: ["n43", "q43", "txt", "aeb", "xlsx", "csv", "pdf"], multiple: true, acceptLabel: "Norma 43, Excel, CSV o PDF" },
   modelo200: PDF_ONLY,
   // One return per quarter (or per month for monthly filers).
   modelo303: { extensions: ["pdf"], multiple: true, acceptLabel: "PDF · uno por trimestre · hasta 20 MB" },

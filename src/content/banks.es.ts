@@ -38,4 +38,4 @@ export const BANKS: BankGuide[] = [
 ];
 
 /** When the bank cannot export Norma 43. */
-export const N43_FALLBACK = "¿Tu banco no exporta Norma 43? Sube los extractos en PDF de los últimos 12 meses y los leemos igual.";
+export const N43_FALLBACK = "¿Tu banco no exporta Norma 43? Descarga los movimientos de los últimos 12 meses en Excel o CSV, o los extractos en PDF, y súbelos aquí.";

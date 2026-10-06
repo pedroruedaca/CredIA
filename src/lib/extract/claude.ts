@@ -10,7 +10,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import * as z from "zod/v4";
 import { fallbackParams, modelFor } from "../llm/model.ts";
 import { ColumnMappingSchema, type ColumnMapping, type SheetData } from "../parsers/trial-balance.ts";
-import { EXTRACT_INSTRUCTIONS, WIRE_FOR, type ExtractKind } from "./schemas.ts";
+import { BANK_STATEMENT_INSTRUCTIONS, BankStatementWire, EXTRACT_INSTRUCTIONS, WIRE_FOR, type ExtractKind } from "./schemas.ts";
 
 export type CallResult<T> =
   | { ok: true; value: T; model: string }
@@ -71,6 +71,51 @@ export async function extractPdf(kind: ExtractKind, pdf: Uint8Array): Promise<Ca
       ...fallbackParams(model),
     }),
   );
+}
+
+/** Pages read per call: a long statement is read window by window so no answer is cut short. */
+export const STATEMENT_WINDOW = 4;
+/** Longest statement read in one go (pages); longer ones are left for review. */
+export const STATEMENT_MAX_PAGES = 120;
+
+/**
+ * Reads a bank statement PDF in windows of STATEMENT_WINDOW pages: each call gets the whole document (cached after the
+ * first call) and returns the accounts and the movements printed on its pages. Merging and the checks that it adds up
+ * are pure (src/lib/bank/pdf-statement.ts).
+ */
+export async function extractBankStatement(pdf: Uint8Array, pages: number): Promise<CallResult<{ window: [number, number]; wire: BankStatementWire }[]>> {
+  const c = getClient();
+  if (!c) return { ok: false, reason: "not_configured" };
+  const model = modelFor("extraction");
+  const data = Buffer.from(pdf).toString("base64");
+  const out: { window: [number, number]; wire: BankStatementWire }[] = [];
+  for (let from = 1; from <= Math.max(pages, 1); from += STATEMENT_WINDOW) {
+    const to = Math.min(from + STATEMENT_WINDOW - 1, Math.max(pages, 1));
+    const r = await callParse(model, () =>
+      c.beta.messages.parse({
+        model,
+        max_tokens: 16000,
+        system: SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "document", source: { type: "base64", media_type: "application/pdf", data }, cache_control: { type: "ephemeral" } },
+              {
+                type: "text",
+                text: `${BANK_STATEMENT_INSTRUCTIONS}\nThe document has ${pages} pages. Read ONLY pages ${from} to ${to} (1-based PDF pages): list the accounts with any opening or closing balance printed on those pages, and every movement printed on those pages, in the order printed. Page numbers are 1-based PDF pages.`,
+              },
+            ],
+          },
+        ],
+        output_config: { format: betaZodOutputFormat(BankStatementWire) },
+        ...fallbackParams(model),
+      }),
+    );
+    if (!r.ok) return r;
+    out.push({ window: [from, to], wire: r.value });
+  }
+  return { ok: true, value: out, model };
 }
 
 const MappingWire = z.object({

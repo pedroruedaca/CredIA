@@ -58,7 +58,7 @@ export const ASSISTANT_COPY = {
 /** Tip bubble for the current step: static text from the docs guide, no model call. */
 export const STEP_TIP: Record<RequirementKind | "enviar", string> = {
   trial_balance: "Si usas Holded, conectarlo es lo más rápido: no tienes que exportar nada. Si no, cualquier programa de contabilidad exporta el sumas y saldos a Excel.",
-  norma43: "Si tu banco online no exporta Norma 43, sube los PDF de los últimos 12 meses: los leemos igual.",
+  norma43: "Si tu banco online no exporta Norma 43, descarga los movimientos en Excel o CSV, o los extractos en PDF de los últimos 12 meses: también los leemos.",
   modelo200: "Si lo presentó tu gestoría, pídele el PDF de la declaración presentada: lo tendrá a mano.",
   modelo303: "Sube un PDF por trimestre (o por mes, si declaras mensualmente). Tu gestoría tendrá los justificantes de presentación.",
   cuentas_anuales: "Tu gestoría suele tener el PDF de las cuentas que depositó en el Registro Mercantil.",

@@ -274,6 +274,46 @@ export const Modelo303Wire = z.object({
 });
 export type Modelo303Wire = z.infer<typeof Modelo303Wire>;
 
+/**
+ * A bank statement PDF (extracto), read a few pages at a time (see extractBankStatement): the accounts it covers and
+ * every movement printed on the requested pages, with its running balance when the statement prints one. Amounts are
+ * signed by the reader (abono +, cargo −); src/lib/bank/pdf-statement.ts checks that everything adds up.
+ */
+export const BankStatementWire = z.object({
+  ...common,
+  accounts: z
+    .array(
+      z.object({
+        iban: z.string().describe("IBAN as printed (ES + 22 digits, spaces allowed). \"\" if not printed."),
+        holder: z.string().describe("Account holder (titular) as printed. \"\" if not printed."),
+        bank_name: z.string().describe("Bank name as printed. \"\" if not printed."),
+        currency: z.string().describe("ISO currency code of the account, e.g. EUR."),
+        period_start: z.string().describe("First day of the period the statement covers, YYYY-MM-DD. \"\" if not printed."),
+        period_end: z.string().describe("Last day of the period, YYYY-MM-DD. \"\" if not printed."),
+        opening_balance: z.number().nullable().describe("Saldo anterior / saldo inicial printed for the period, signed. null if not on the requested pages."),
+        closing_balance: z.number().nullable().describe("Saldo final / saldo a fecha printed at the end of the period, signed. null if not on the requested pages."),
+      }),
+    )
+    .describe("Every account the statement covers, as printed on the requested pages."),
+  movements: z
+    .array(
+      z.object({
+        iban: z.string().describe("IBAN of the account the movement belongs to, as in accounts. \"\" when the statement has a single account."),
+        page: z.number().int().describe("1-based PDF page where the movement is printed."),
+        date: z.string().describe("Fecha de operación (or the only date printed), YYYY-MM-DD."),
+        value_date: z.string().describe("Fecha valor, YYYY-MM-DD. \"\" if not printed."),
+        description: z.string().describe("The movement's concept: every text line of the movement joined with spaces, as printed."),
+        amount: z.number().describe("Signed amount: positive for abonos/ingresos (money in), negative for cargos/adeudos (money out)."),
+        balance: z.number().nullable().describe("Running balance (saldo) printed on the movement's line, signed. null if the statement prints none."),
+      }),
+    )
+    .describe("Every movement printed on the requested pages, in the order printed. Skip headers, subtotals and carried-forward lines (suma y sigue)."),
+});
+export type BankStatementWire = z.infer<typeof BankStatementWire>;
+
+export const BANK_STATEMENT_INSTRUCTIONS =
+  "This should be a Spanish bank account statement (extracto de cuenta / movimientos) from a bank's online banking or branch. Copy each movement exactly as printed, with its date, concept and amount signed by direction (abono/haber/ingreso positive, cargo/debe/adeudo negative), and the running balance when the statement prints one. Do not add, merge, compute or reorder movements; do not invent balances.";
+
 export type ExtractKind = "modelo200" | "modelo303" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report";
 
 export const WIRE_FOR = {

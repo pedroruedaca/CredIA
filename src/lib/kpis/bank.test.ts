@@ -113,3 +113,16 @@ describe("computeBankKpis", () => {
     expect(k.overdraftDays.value).toBe(0);
   });
 });
+
+describe("statements without running balances", () => {
+  it("count their movements but give no balance figures", () => {
+    const set = computeBankKpis([{ ...accounts[0], balancesKnown: false }, accounts[1]])!;
+    const k = byKey(set);
+    for (const key of ["minBalance", "averageDailyBalance", "currentToAverage", "daysCashOnHand", "overdraftDays"]) {
+      expect(k[key].value, key).toBeNull();
+      expect(k[key].note).toMatch(/^Sin saldos: 2100 0418 \*\*\*\*1332/);
+    }
+    expect(k.debtServiceBurden.value).toBe(3); // flows unchanged
+    expect(k.operatingCashFlow.value).not.toBeNull();
+  });
+});
