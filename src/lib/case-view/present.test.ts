@@ -58,14 +58,22 @@ describe("cirbeNetDebtToEbitda", () => {
 describe("kpiTiles", () => {
   it("builds the five header metrics with YTD comparison and the CIRBE variant", async () => {
     const { computeKpis } = await import("../kpis/engine.ts");
-    const { kpiTiles } = await import("./present.ts");
+    const { kpiTiles, pickTiles } = await import("./present.ts");
     const closed = buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data;
     const ytd = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-08-31" }).data;
     const tiles = kpiTiles({ statement: closed, kpis: computeKpis(closed) }, { statement: ytd, kpis: computeKpis(ytd) }, 245_000);
     // The default row first, then the tiles the «Indicadores» settings can add.
     expect(tiles.slice(0, 5).map((t) => t.label)).toEqual(["DSCR", "Cobertura int.", "DFN / EBITDA", "Liquidez", "DSO / DPO"]);
-    expect(tiles.slice(5).map((t) => t.id)).toEqual(["revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt"]);
-    const { pickTiles } = await import("./present.ts");
+    expect(tiles.slice(5).map((t) => t.id)).toEqual([
+      "revenue", "ebitda", "debtToEquity", "workingCapital", "financialDebt",
+      "grossMargin", "netMargin", "roe", "ebitCoverage", "debtToEbitda", "liabilitiesToEquity", "ccc", "assetTurnover",
+    ]);
+    const [gross, roe, ccc] = pickTiles(tiles, ["grossMargin", "roe", "ccc"]);
+    expect(gross.sub).toBe("neto 7,1 %");
+    expect(roe.sub).toBe("ROA 13,7 %");
+    expect(ccc.value).toBe(36);
+    expect(ccc.sub).toBe("DIO 33d");
+    expect(ccc.details.map((d) => d.kpi.key)).toEqual(["ccc", "ccc", "dso", "dso", "dio", "dio", "dpo", "dpo"]); // closed and YTD
     expect(pickTiles(tiles, ["dsoDpo", "revenue", "nope"]).map((t) => t.id)).toEqual(["dsoDpo", "revenue"]);
     expect(tiles.find((t) => t.id === "ebitda")!.sub).toMatch(/^margen /);
     expect(tiles[2].value).toBe(0.65);

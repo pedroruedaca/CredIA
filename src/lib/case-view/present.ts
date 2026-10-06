@@ -137,7 +137,7 @@ export interface KpiTile {
 
 const fx = (v: number | null | undefined, unit: Kpi["unit"]) => {
   if (v === null || v === undefined) return "—";
-  const d = unit === "x" ? 2 : 0;
+  const d = unit === "x" ? 2 : unit === "%" && !Number.isInteger(v) ? 1 : 0;
   const n = v.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: "always" } as unknown as Intl.NumberFormatOptions);
   return unit === "x" ? `${n}x` : unit === "days" ? `${n}d` : unit === "%" ? `${n} %` : `${n} €`;
 };
@@ -254,6 +254,18 @@ function accountingTiles(closed: { kpis: Kpi[]; statement: CanonicalStatement } 
     simple("debtToEquity", "debtToEquity", "Deuda / patrimonio", "x"),
     simple("workingCapital", "workingCapital", "Fondo de maniobra", "EUR"),
     simple("financialDebt", "financialDebt", "Deuda financiera", "EUR"),
+    { ...simple("grossMargin", "grossMargin", "Margen bruto", "%"), sub: b.netMargin?.value != null ? `neto ${fx(b.netMargin.value, "%")}` : ytdSub("grossMargin"), details: [...det("grossMargin"), ...det("netMargin")] },
+    simple("netMargin", "netMargin", "Margen neto", "%"),
+    { ...simple("roe", "roe", "ROE", "%"), sub: b.roa?.value != null ? `ROA ${fx(b.roa.value, "%")}` : ytdSub("roe"), details: [...det("roe"), ...det("roa")] },
+    simple("ebitCoverage", "ebitCoverage", "Cobertura EBIT", "x"),
+    simple("debtToEbitda", "debtToEbitda", "Deuda / EBITDA", "x"),
+    simple("liabilitiesToEquity", "liabilitiesToEquity", "Pasivo / patrimonio", "x"),
+    {
+      ...simple("ccc", "ccc", "Ciclo de caja", "days"),
+      sub: b.dio?.value != null ? `DIO ${b.dio.value}d` : ytdSub("ccc"),
+      details: [...det("ccc"), ...det("dso"), ...det("dio"), ...det("dpo")],
+    },
+    simple("assetTurnover", "assetTurnover", "Rotación del activo", "x"),
   );
   return tiles;
 }
