@@ -135,7 +135,7 @@ export function CaseView({
           </div>
         )}
 
-        {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
+        {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} tilesWithData={pkg.tiles.map((t) => t.id)} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
       </div>
 
       <EvidencePanel caseId={kase.id} views={pkg.open} selected={check} canEdit={canEdit} />
@@ -159,7 +159,7 @@ const SOURCE_TEXT = (info: CaseLayoutInfo) =>
   })[info.source];
 
 /** The editor from a case: save for this case (default), its template, or the whole team; and the "go back to…" links. */
-function CaseLayoutEditor({ caseId, layout, info }: { caseId: string; layout: Layout; info: CaseLayoutInfo | null }) {
+function CaseLayoutEditor({ caseId, layout, info, tilesWithData }: { caseId: string; layout: Layout; info: CaseLayoutInfo | null; tilesWithData: string[] }) {
   const i: CaseLayoutInfo = info ?? { source: "default", template: null, caseHasLayout: false, teamHasLayout: false };
   const targets: SaveOption[] = [
     { target: { kind: "case", id: caseId }, label: "Solo este caso", hint: "Los demás casos no cambian." },
@@ -180,6 +180,7 @@ function CaseLayoutEditor({ caseId, layout, info }: { caseId: string; layout: La
       intro={`Ordena, ensancha o quita módulos. ${SOURCE_TEXT(i)}`}
       targets={targets}
       resets={resets}
+      tilesWithData={tilesWithData}
     />
   );
 }

@@ -47,6 +47,10 @@ test("personalise the case view for the team, then restore it", async ({ page })
   await tiles.getByRole("button", { name: "Ajustes de Indicadores 2" }).click();
   await expect(page.getByText("Indicadores que se muestran, en orden (máximo 3 a media anchura)")).toBeVisible();
   await expect(page.getByRole("list", { name: "Indicadores elegidos" }).locator("li")).toHaveCount(3);
+  // This case has no files yet: the KPIs are still offered, marked as having no data here.
+  await expect(page.getByRole("group", { name: "De los extractos bancarios" })).toContainText("sin datos en este caso");
+  await expect(page.getByRole("button", { name: "Añadir Días de caja (sin datos en este caso)" })).toBeVisible();
+  await expect(page.getByText("Ninguno tiene datos en este caso")).toBeVisible();
   await tiles.getByRole("button", { name: "Quitar Indicadores 2" }).click();
   await expect(tiles).not.toContainText("Indicadores 2");
 
