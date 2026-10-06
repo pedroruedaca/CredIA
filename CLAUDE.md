@@ -160,7 +160,8 @@ selectable) `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra t
 debt/equity, working capital, financial debt, gross margin (+net), net margin, ROE (+ROA), EBIT coverage, debt/EBITDA,
 liabilities/equity, cash conversion cycle (+DIO), asset turnover, and one per bank KPI, from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
 (base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
-applied in the case view and the PDF.
+applied in the case view and the PDF. Every tile explains itself (`src/content/kpi-explain.es.ts`, one plain-language line
+per `KpiTileId`, descriptive only): at the top of its popover and as the tooltip of its button in the designer.
 Phase 2: `dashboard_layouts` (0018; one `scope = 'team'` row per lender, read by members, written by owners and
 analysts via `is_lender_editor`, never viewers; `tests/integration/layouts.test.ts`). `loadTeamLayout`
 (`src/lib/case-view/layout-store.ts`) → `normalizeLayout`. Editor: `?personalizar=1` on the case page
