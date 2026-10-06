@@ -210,6 +210,17 @@ cash conversion cycle (DSO + DIO − DPO from the rounded days) and asset turnov
 `months`. DSO/DPO gross-up VAT via `vatRate` (default 0.21). Each KPI returns `value`, `formula`,
 and `inputs` so the UI can show its derivation. Division by zero/negative denominators → `null` + reason.
 
+**Adjusted gross margin** (`src/lib/kpis/cost-of-sales.ts`, pure): the accounting gross margin takes cost of sales as
+60/61 only, and the PGC does not separate direct from indirect costs, so the analyst defines cost of sales per case
+(`case_cost_definitions`, 0021; members read, owners/analysts write): selectors `line:<expense line>`, PGC prefixes
+(`640`, `62100000`; ledger statements) or `label:<model line>` (annual accounts), from a preset (Comercio = 60/61,
+Industria + personal/621/622/624/628, Servicios + personal/623). Computed when the case is read (`load.ts`, no
+reprocess), shown as the analyst's (or template's) criterion next to the accounting figure: tiles «Margen bruto»
+(sub: ajustado) and «Margen bruto ajustado» (sub: contable); the JSON export lists every account taken with its
+source_ref. Editor `/casos/[id]/coste-de-ventas` (`CostOfSalesEditor`, actions `src/app/casos/cost-actions.ts`, audit
+`cost_of_sales.saved/reset`), linked from both margin tiles. Templates carry a default (`case_templates.cost_of_sales`,
+lines and 3-digit groups) copied into each new case (`source = 'template'`).
+
 **Bank KPIs** (`src/lib/kpis/bank.ts`, pure, `computeBankKpis`): read from the classified Norma 43 movements, all of a
 case's files together, over the last 12 months up to the latest day covered (end-of-day balances combined across
 accounts; consecutive files of one account joined; an account not covering the window keeps its opening/closing balance

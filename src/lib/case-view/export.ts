@@ -4,6 +4,7 @@
  */
 import ExcelJS from "exceljs";
 import { CHECK_NAME, DISCLAIMER, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
+import { applyCostOfSales } from "../kpis/cost-of-sales.ts";
 import { checkSlugs } from "./evidence.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
@@ -71,6 +72,21 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
     kpis: Object.fromEntries(
       statements.map((s) => [s.period.kind, (s.period.kind === "closed_fy" ? d.kpis.closed : d.kpis.ytd).map((k) => ({ key: k.key, label: KPI_LABEL[k.key] ?? k.key, value: k.value, unit: k.unit, formula: k.formula, inputs: k.inputs, note: k.note ?? null }))]),
     ),
+    cost_of_sales: d.costOfSales
+      ? {
+          note: "Coste de ventas definido por el analista para el margen bruto ajustado; el margen bruto contable (aprovisionamientos 60/61) se mantiene.",
+          criterion: d.costOfSales.source,
+          preset: d.costOfSales.definition.preset,
+          selectors: d.costOfSales.definition.selectors,
+          updated_at: d.costOfSales.updatedAt,
+          periods: Object.fromEntries(
+            statements.map((s) => {
+              const r = applyCostOfSales(s, d.costOfSales!.definition);
+              return [s.period.kind, { total: r.total, items: r.items.map((i) => ({ line: i.line, account: i.account, amount: i.amount, source_ref: i.sourceRef })), unmatched: r.unmatched }];
+            }),
+          ),
+        }
+      : null,
     bank_kpis: d.bank
       ? {
           period: d.bank.period,

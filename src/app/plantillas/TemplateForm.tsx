@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Name, description, default product, documents and panel of a template. The panel is the team's standard one or the
+ * Name, description, default product, documents, default cost of sales and panel of a template. The panel is the team's standard one or the
  * template's own: choosing «personalizado» opens the panel designer right after saving (the first time).
  */
 import Link from "next/link";
 import { LayoutDashboard, LayoutTemplate } from "lucide-react";
 import { useActionState, useState } from "react";
 import { cx } from "@/components/ui/cx";
+import { CostOfSalesTemplateField } from "@/components/CostOfSalesTemplateField";
 import { RequirementsPicker } from "@/components/RequirementsPicker";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Input";
@@ -42,6 +43,7 @@ export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false }: { id
           </Field>
         </section>
         <RequirementsPicker values={values} error={errors.requirements} legend="Documentos que pide" />
+        <CostOfSalesTemplateField values={values} />
 
         <fieldset className="flex flex-col gap-3">
           <legend className="heading-section mb-1">Panel del caso</legend>

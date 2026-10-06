@@ -20,6 +20,11 @@ describe("exports", () => {
     expect(c.source_refs.length).toBeGreaterThan(0);
     expect(JSON.stringify(j)).not.toMatch(/\b(score|scoring|rating|aprobad[oa]|recomendamos)\b/i);
     expect(exportFilename(sample, "json", "2026-09-29")).toBe("credia-Distribuciones-Ejemplo-S-L-2026-09-29.json");
+    // The analyst's cost of sales, with every account it takes and its source.
+    expect(j.cost_of_sales).toMatchObject({ criterion: "analyst", preset: "services" });
+    expect(j.cost_of_sales!.periods.closed_fy.total).toBe(785_000);
+    expect(j.cost_of_sales!.periods.closed_fy.items.every((i) => i.source_ref.length > 0)).toBe(true);
+    expect(j.kpis.closed_fy.find((k) => k.key === "adjustedGrossMargin")).toMatchObject({ value: 21.5, label: "Margen bruto ajustado (criterio del analista)" });
     // Bank KPIs travel with their window and the files behind them.
     expect(j.bank_kpis?.sources).toEqual(["doc:n1"]);
     expect(j.bank_kpis?.period).toMatchObject({ start: "2026-01-01", end: "2026-03-31" });

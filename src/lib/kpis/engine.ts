@@ -4,6 +4,7 @@
  */
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { BankKpiKey } from "./bank.ts";
+import type { CostKpiKey } from "./cost-of-sales.ts";
 
 export type KpiKey =
   | "revenue" | "ebitda" | "ebitdaMargin" | "currentRatio" | "quickRatio" | "workingCapital"
@@ -15,7 +16,7 @@ export type KpiKey =
 
 export interface Kpi {
   /** Accounting KPIs (this file) or bank KPIs read from the bank movements (bank.ts). */
-  key: KpiKey | BankKpiKey;
+  key: KpiKey | BankKpiKey | CostKpiKey;
   value: number | null;
   unit: "EUR" | "x" | "%" | "days" | "count";
   formula: string;

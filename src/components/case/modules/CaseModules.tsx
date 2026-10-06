@@ -46,11 +46,11 @@ function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
   );
 }
 
-function KpisModule({ pkg, settings, width }: ModuleProps) {
+function KpisModule({ data, pkg, settings, width, canEdit }: ModuleProps) {
   // Tiles exist only with data behind them: books tiles with a statement, bank tiles with bank files.
   const tiles = pickTiles(pkg.tiles, settings.tiles);
   if (tiles.length === 0) return null;
-  return <KpiRow tiles={tiles} half={width === "half"} />;
+  return <KpiRow tiles={tiles} half={width === "half"} costHref={canEdit ? `/casos/${data.kase.id}/coste-de-ventas` : undefined} />;
 }
 
 function ReviewModule({ pkg, check, hasFinancials, settings }: ModuleProps) {

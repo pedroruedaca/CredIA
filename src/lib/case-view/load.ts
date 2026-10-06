@@ -4,6 +4,7 @@ import { isLenderProvided } from "../cases/requirements.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
 import type { BankKpiSet } from "../kpis/bank.ts";
+import { adjustedGrossMarginKpi, normalizeCostDefinition, type CostOfSalesDefinition } from "../kpis/cost-of-sales.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { AnnualAccountsExtraction, CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
@@ -36,6 +37,10 @@ export interface CaseViewData {
   kpis: { closed: Kpi[]; ytd: Kpi[] };
   /** KPIs read from the bank movements (Norma 43), null without bank files. */
   bank: BankKpiSet | null;
+  /** The analyst's cost of sales (adjusted gross margin), null when not defined. */
+  costOfSales: { definition: CostOfSalesDefinition; source: "analyst" | "template"; updatedAt: string | null } | null;
+  /** Names of the expense subaccounts in the ledger (trial balance / Holded), for the cost-of-sales editor and notes. */
+  accountNames: Record<string, string>;
   checks: CheckRow[];
   reviews: Record<string, { status: "open" | "reviewed" | "clarification_requested"; note: string | null; at: string }>;
   documents: (SourceDoc & { status: string; uploaded_at: string; attention_message: string | null; summary: Record<string, unknown> | null })[];
@@ -81,7 +86,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -111,6 +116,9 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       .limit(10),
     // On its own: before migration 0020 the column does not exist and the case view goes on without bank KPIs.
     db.from("cases").select("bank_kpis").eq("id", caseId).maybeSingle(),
+    // Before migration 0021 the table does not exist: no definition, no adjusted margin.
+    db.from("case_cost_definitions").select("preset, selectors, source, updated_at").eq("case_id", caseId).maybeSingle(),
+    db.from("ledger_balances").select("account, account_name").eq("case_id", caseId).like("pgc3", "6%").not("account_name", "is", null).limit(2000),
   ]);
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
@@ -134,8 +142,20 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
   type StmtRow = { period_kind: "closed_fy" | "ytd"; statement: CanonicalStatement; source: string | null; kpis: { key: Kpi["key"]; value: number | null; formula: string; inputs: Record<string, number>; note: string | null }[] };
   const rows = (stmts.data ?? []) as StmtRow[];
   const pick = (k: StmtRow["period_kind"]) => rows.find((r) => r.period_kind === k) ?? null;
+  const accountNames: Record<string, string> = {};
+  for (const r of (ledgerNames.data ?? []) as { account: string; account_name: string }[]) accountNames[r.account] ??= r.account_name;
+  const cd = costDef.data as { preset: string; selectors: unknown; source: "analyst" | "template"; updated_at: string } | null;
+  const definition = cd ? normalizeCostDefinition({ preset: cd.preset, selectors: cd.selectors }) : null;
+  const costOfSales = definition ? { definition, source: cd!.source, updatedAt: cd!.updated_at } : null;
+  // Stored KPIs, plus the adjusted gross margin computed here from the statement and the analyst's definition (it
+  // changes when the analyst saves, without reprocessing the case).
   const toKpis = (r: StmtRow | null): Kpi[] =>
-    (r?.kpis ?? []).map((k) => ({ key: k.key, value: k.value === null ? null : Number(k.value), unit: KPI_UNIT[k.key] ?? "x", formula: k.formula, inputs: k.inputs, note: k.note ?? undefined }));
+    r
+      ? [
+          ...(r.kpis ?? []).map((k) => ({ key: k.key, value: k.value === null ? null : Number(k.value), unit: KPI_UNIT[k.key] ?? "x", formula: k.formula, inputs: k.inputs, note: k.note ?? undefined })),
+          adjustedGrossMarginKpi(r.statement, costOfSales?.definition ?? null, costOfSales ? { source: costOfSales.source, at: costOfSales.updatedAt } : undefined, accountNames),
+        ]
+      : [];
 
   const latestReview: CaseViewData["reviews"] = {};
   for (const r of reviews.data ?? []) if (!latestReview[r.check_key]) latestReview[r.check_key] = { status: r.status, note: r.note, at: r.at };
@@ -182,6 +202,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     statements: { closed: pick("closed_fy")?.statement ?? null, ytd: pick("ytd")?.statement ?? null, closedSource: pick("closed_fy")?.source ?? null, ytdSource: pick("ytd")?.source ?? null },
     kpis: { closed: toKpis(pick("closed_fy")), ytd: toKpis(pick("ytd")) },
     bank: ((bankKpis.data as { bank_kpis?: BankKpiSet | null } | null)?.bank_kpis ?? null),
+    costOfSales,
+    accountNames,
     checks: (checks.data ?? []) as CheckRow[],
     reviews: latestReview,
     documents: (docs.data ?? []).map(({ extractions, ...d }) => ({

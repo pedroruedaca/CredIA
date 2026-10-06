@@ -17,8 +17,15 @@ describe("process templates", () => {
           { kind: "tgss_cert", level: "optional", maxAgeDays: 60 },
         ],
         panel: "team",
+        costOfSales: null,
       },
     });
+  });
+
+  it("reads the default cost of sales", () => {
+    const base = { name: "Servicios profesionales", req_cirbe: "required" };
+    expect(parseTemplateForm({ ...base, cos_preset: "services" })).toMatchObject({ ok: true, data: { costOfSales: { preset: "services" } } });
+    expect(parseTemplateForm({ ...base, cos_preset: "custom", "cos:line:cogs": "on", "cos:642": "on" })).toMatchObject({ ok: true, data: { costOfSales: { preset: "custom", selectors: ["line:cogs", "642"] } } });
   });
 
   it("reads the panel choice: the team's standard panel unless «custom»", () => {

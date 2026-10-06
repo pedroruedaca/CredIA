@@ -28,6 +28,7 @@ const CASE_ROWS: Record<string, Record<string, unknown>> = {
   support_requests: { actor: "borrower", message: "ayuda" },
   check_reviews: { check_key: "x", status: "reviewed" },
   case_borme_matches: { status: "confirmed", registry_sheet: "V-123456", company_name: "EMPRESA A SL" },
+  case_cost_definitions: { preset: "trading", selectors: ["line:cogs"] },
 };
 
 /** Per-row values that must be unique or refer to the acting user. */
