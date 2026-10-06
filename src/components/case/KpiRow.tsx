@@ -6,6 +6,7 @@ import { cx } from "@/components/ui/cx";
 import { Figure } from "@/components/ui/Figure";
 import { Popover } from "@/components/ui/Popover";
 import { VALUE_LABEL } from "@/content/case-view.es";
+import { KPI_TILE_EXPLAIN } from "@/content/kpi-explain.es";
 import { formatEvidenceValue } from "@/lib/case-view/evidence";
 import { formatCompactEur } from "@/lib/format";
 import type { KpiTile } from "@/lib/case-view/present";
@@ -59,6 +60,17 @@ export function KpiRow({ tiles, half = false, costHref }: { tiles: KpiTile[]; ha
           )}
         >
           <div className="flex flex-col gap-4">
+            {KPI_TILE_EXPLAIN[t.id as keyof typeof KPI_TILE_EXPLAIN] && (
+              <div className="flex flex-col gap-1">
+                <p className="text-[15px] font-medium">{t.label}</p>
+                <p className="text-[13px] leading-relaxed text-ink-2">{KPI_TILE_EXPLAIN[t.id as keyof typeof KPI_TILE_EXPLAIN]}</p>
+              </div>
+            )}
+            {costHref && COST_TILES.has(t.id) && (
+              <Link href={costHref} className="-mt-2 w-fit text-[13px] font-medium">
+                {t.details.some((d) => d.kpi.key === "adjustedGrossMargin" && d.kpi.value !== null) ? "Cambiar el coste de ventas" : "Definir el coste de ventas"}
+              </Link>
+            )}
             {t.details.length === 0 && <p className="text-ink-2">Sin datos para calcular este indicador.</p>}
             {t.details.map(({ period, kpi }, j) => (
               <div key={j} className="flex flex-col gap-2">
@@ -80,11 +92,6 @@ export function KpiRow({ tiles, half = false, costHref }: { tiles: KpiTile[]; ha
                 {kpi.note && <p className="text-xs text-muted">{kpi.note}</p>}
               </div>
             ))}
-            {costHref && COST_TILES.has(t.id) && (
-              <Link href={costHref} className="text-[13px] font-medium">
-                {t.details.some((d) => d.kpi.key === "adjustedGrossMargin" && d.kpi.value !== null) ? "Cambiar el coste de ventas" : "Definir el coste de ventas"}
-              </Link>
-            )}
           </div>
         </Popover>
       ))}

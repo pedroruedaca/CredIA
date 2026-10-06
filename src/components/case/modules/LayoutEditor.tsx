@@ -44,6 +44,7 @@ import {
   type SummaryFactId,
 } from "@/lib/case-view/modules";
 import { KPI_TILE_GROUP_LABEL, KPI_TILE_LABEL, PERIOD_CHOICE_LABEL, SUMMARY_FACT_LABEL } from "@/content/case-view.es";
+import { KPI_TILE_EXPLAIN } from "@/content/kpi-explain.es";
 
 const SETTINGS_HINT: Partial<Record<ModuleId, string>> = {
   summary: "Elige qué cifras dice la frase.",
@@ -431,8 +432,8 @@ function TilesSetting({ tiles, max, withData, onChange }: { tiles: KpiTileId[]; 
           </span>
           <div className="flex flex-wrap gap-2">
             {g.rest.map((t) => (
+              <Tooltip key={t} label={KPI_TILE_LABEL[t]} hint={KPI_TILE_EXPLAIN[t]}>
               <button
-                key={t}
                 type="button"
                 disabled={tiles.length >= max}
                 onClick={() => onChange([...tiles, t])}
@@ -444,6 +445,7 @@ function TilesSetting({ tiles, max, withData, onChange }: { tiles: KpiTileId[]; 
               >
                 <Plus size={14} strokeWidth={2} aria-hidden /> {KPI_TILE_LABEL[t]}
               </button>
+              </Tooltip>
             ))}
           </div>
         </div>
