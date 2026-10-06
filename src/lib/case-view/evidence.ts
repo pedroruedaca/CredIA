@@ -36,7 +36,11 @@ export interface EvidenceView {
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const PLAIN = new Set(["acts", "changes", "account", "overlap_months", "months_with_payments", "accounts", "age_days", "max_age_days", "fiscal_year", "months"]);
+const PLAIN = new Set([
+  "acts", "changes", "account", "overlap_months", "months_with_payments", "accounts", "age_days", "max_age_days", "fiscal_year", "months",
+  // bank KPI inputs that are counts
+  "days", "recentDays", "fullMonths", "burnMonths", "receiptCount", "monthsWithPayroll", "returnedReceiptCount", "returnedDebitCount",
+]);
 
 /** Evidence values as the lender reads them: money in €, ratios, dates, counts. */
 export function formatEvidenceValue(key: string, v: number | string | null | undefined): string {

@@ -76,4 +76,18 @@ describe("kpiTiles", () => {
     expect(tiles.every((t) => t.details.length > 0)).toBe(true);
     expect(kpiTiles(null, null, null)).toEqual([]);
   });
+
+  it("adds one tile per bank KPI after the books tiles, also without statements", async () => {
+    const { kpiTiles, pickTiles } = await import("./present.ts");
+    const { caseViewSample } = await import("../__fixtures__/case-view-sample.ts");
+    const bank = caseViewSample.bank!;
+    const tiles = kpiTiles(null, null, null, bank);
+    expect(tiles).toHaveLength(16);
+    const [low, days] = pickTiles(tiles, ["minBalance", "daysCashOnHand"]);
+    expect(low.sub).toMatch(/^el \d+ \w+ 2026$/);
+    expect(days.unit).toBe("days");
+    expect(days.details[0].period).toMatch(/^Extractos 1 ene 2026 – 31 mar 2026$/);
+    expect(pickTiles(tiles, ["inflowOutflowRatio"])[0].sub).toBe("últimos 90 días");
+    expect(pickTiles(tiles, ["receiptsPerMonth"])[0].sub).toBe("90 días");
+  });
 });

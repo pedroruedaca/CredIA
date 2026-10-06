@@ -1,10 +1,19 @@
-/** A processed case for view/export tests and previews: the hand-checked TB, a CIRBE 85 k€ above the books, one review. */
+/**
+ * A processed case for view/export tests and previews: the hand-checked TB, a CIRBE 85 k€ above the books, one review,
+ * and bank KPIs from the two-bank Norma 43 fixture.
+ */
+import { classifyAccounts } from "../bank/classify.ts";
 import { checkCirbeVsBooks } from "../checks/engine.ts";
 import type { CaseViewData } from "../case-view/load.ts";
+import { computeBankKpis } from "../kpis/bank.ts";
 import { computeKpis } from "../kpis/engine.ts";
+import { parseNorma43 } from "../parsers/norma43.ts";
+import { n43BankA, n43BankB, TWO_BANKS_COMPANY } from "./n43-two-banks.ts";
 import { buildStatement } from "../pgc/mapping.ts";
 import type { CirbeExtraction } from "../schema/canonical.ts";
 import { tbSmallSl } from "./tb-small-sl.ts";
+
+const bankAccounts = classifyAccounts([n43BankA, n43BankB].flatMap((f) => parseNorma43(f, { docId: "n1" }).data.map((a) => ({ ...a, docId: "n1" }))), { companyName: TWO_BANKS_COMPANY });
 
 const closed = buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data;
 const ytd = buildStatement(tbSmallSl, { kind: "ytd", start: "2026-01-01", end: "2026-08-31" }).data;
@@ -22,6 +31,7 @@ export const caseViewSample: CaseViewData = {
   },
   statements: { closed, ytd, closedSource: "upload", ytdSource: "upload" },
   kpis: { closed: computeKpis(closed), ytd: computeKpis(ytd) },
+  bank: computeBankKpis(bankAccounts),
   checks,
   reviews: { cirbe_vs_books_debt: { status: "reviewed", note: "Préstamo ICO confirmado por la empresa.", at: "2026-09-02T09:00:00Z" } },
   documents: [

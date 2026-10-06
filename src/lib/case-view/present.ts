@@ -1,9 +1,10 @@
 /** Pure presentation helpers for the lender case view and the PDF. */
 import { pdfUrl } from "../borme/sumario.ts";
 import { formatDate } from "../format.ts";
+import type { BankKpiSet } from "../kpis/bank.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
-import type { KpiTileId } from "./modules.ts";
+import { BANK_KPI_TILE_IDS, type KpiTileId } from "./modules.ts";
 
 // ------------------------------------------------------------------------------------------------ sources
 
@@ -143,10 +144,55 @@ const fx = (v: number | null | undefined, unit: Kpi["unit"]) => {
 const arrow = (a: number | null | undefined, b: number | null | undefined) => (a == null || b == null || a === b ? "" : b > a ? " ↑" : " ↓");
 
 /**
- * The five metrics of the case header. Base period: closed year when present, else YTD (then no comparison).
+ * Every tile the «Indicadores» module can show: from the books (the default five first) and, when there are bank
+ * files, from the bank movements. Books base period: closed year when present, else YTD (then no comparison).
  * DFN/EBITDA uses CIRBE drawn debt when a CIRBE is available and shows the books figure alongside.
  */
-export function kpiTiles(closed: { kpis: Kpi[]; statement: CanonicalStatement } | null, ytd: { kpis: Kpi[]; statement: CanonicalStatement } | null, cirbeDrawn: number | null): KpiTile[] {
+export function kpiTiles(
+  closed: { kpis: Kpi[]; statement: CanonicalStatement } | null,
+  ytd: { kpis: Kpi[]; statement: CanonicalStatement } | null,
+  cirbeDrawn: number | null,
+  bank: BankKpiSet | null = null,
+): KpiTile[] {
+  return [...accountingTiles(closed, ytd, cirbeDrawn), ...bankTiles(bank)];
+}
+
+/** Short tile labels for the bank KPIs (the designer's catalogue uses the longer KPI_TILE_LABEL). */
+const BANK_TILE_LABEL: Record<(typeof BANK_KPI_TILE_IDS)[number], string> = {
+  minBalance: "Saldo mínimo",
+  averageDailyBalance: "Saldo medio diario",
+  currentToAverage: "Saldo actual / medio",
+  daysCashOnHand: "Días de caja",
+  operatingCashFlow: "Flujo operativo / mes",
+  netBurn: "Consumo neto / mes",
+  inflowOutflowRatio: "Entradas / salidas",
+  inflowVolatility: "Volatilidad cobros",
+  receiptsPerMonth: "Cobros / mes",
+  debtServiceBurden: "Carga de deuda",
+  payrollRegularity: "Regularidad nóminas",
+  returnedItems: "Devoluciones",
+  overdraftDays: "Días en descubierto",
+  returnedReceiptsRatio: "Recibos devueltos",
+  publicInflowShare: "Devoluciones públicas",
+  internalTransferShare: "Traspasos propios",
+};
+
+/** One tile per bank KPI; the line under the figure says the window (and the low's date for the minimum balance). */
+export function bankTiles(bank: BankKpiSet | null): KpiTile[] {
+  if (!bank) return [];
+  const period = `Extractos ${formatDate(bank.period.start)} – ${formatDate(bank.period.end)}`;
+  const months = Math.round(bank.period.days / (365 / 12));
+  const window = months >= 12 ? "últimos 12 meses" : `${bank.period.days} días`;
+  return BANK_KPI_TILE_IDS.flatMap((id) => {
+    const kpi = bank.kpis.find((k) => k.key === id);
+    if (!kpi) return [];
+    const low = id === "minBalance" ? /Mínimo el ([^.]+)/.exec(kpi.note ?? "")?.[1] : null;
+    const sub = low ? `el ${low}` : id === "currentToAverage" || id === "inflowOutflowRatio" ? "últimos 90 días" : window;
+    return [{ id, label: BANK_TILE_LABEL[id], value: kpi.value, unit: kpi.unit, secondary: null, sub, details: [{ period, kpi }] }];
+  });
+}
+
+function accountingTiles(closed: { kpis: Kpi[]; statement: CanonicalStatement } | null, ytd: { kpis: Kpi[]; statement: CanonicalStatement } | null, cirbeDrawn: number | null): KpiTile[] {
   const base = closed ?? ytd;
   if (!base) return [];
   const b = kpiMap(base.kpis);

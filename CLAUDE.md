@@ -154,7 +154,7 @@ widths printed full width, `analyst_documents` / `annual_accounts` print nothing
 appendix. **Module settings** (`LayoutModule.settings`, `MODULE_SETTINGS`, `normalizeSettings`, `moduleSettings`):
 «Resumen» `facts` (≥ 1 of `SUMMARY_FACT_IDS`: revenue, EBITDA, CIRBE vs books by default; net income, YTD sales, net
 debt, equity, working capital; fixed sentence order, source notes always said; `summaryView`), «Indicadores» `tiles` (1–5 of `KPI_TILE_IDS`, default the original five; extra tiles revenue, EBITDA+margin,
-debt/equity, working capital, financial debt from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
+debt/equity, working capital, financial debt, and one per bank KPI, from `kpiTiles` + `pickTiles`), «Cuenta de resultados»/«Balance» `period`
 (base | closed | ytd → `periodView`), «Para revisar» `showPassed`. Edited in the designer («Ajustes» on the tile),
 applied in the case view and the PDF.
 Phase 2: `dashboard_layouts` (0018; one `scope = 'team'` row per lender, read by members, written by owners and
@@ -203,6 +203,17 @@ EBITDA, revenue, EBITDA margin, current ratio, quick ratio, working capital, fin
 net debt, net debt/EBITDA, debt/equity, interest coverage, DSCR, DSO, DPO. Flows annualised by
 `months`. DSO/DPO gross-up VAT via `vatRate` (default 0.21). Each KPI returns `value`, `formula`,
 and `inputs` so the UI can show its derivation. Division by zero/negative denominators → `null` + reason.
+
+**Bank KPIs** (`src/lib/kpis/bank.ts`, pure, `computeBankKpis`): read from the classified Norma 43 movements, all of a
+case's files together, over the last 12 months up to the latest day covered (end-of-day balances combined across
+accounts; consecutive files of one account joined; an account not covering the window keeps its opening/closing balance
+there, said in `coverageNote`). Minimum and average daily balance, current vs 90-day average, days of cash, operating
+cash flow per month, net burn in negative months, inflows/outflows (90 days, no own transfers), volatility of monthly
+receipts, receipts per month, debt service burden, payroll regularity, returned items, overdraft days, returned
+receipts ratio, public refunds share, own-transfer share. Computed in `recompute`, stored in `cases.bank_kpis` (0020,
+`{ period, accounts, sources, coverageNote, kpis }`), shown as «Indicadores» tiles (`BANK_KPI_TILE_IDS`, grouped «De
+los extractos bancarios» in the designer; a tile without data is not drawn), and in the JSON/Excel exports. Not yet
+built (need counterparties or more history): customer concentration, recurring revenue mix, fixed vs variable costs.
 
 ## Cross-checks (`checks` table; severity info|warn|high)
 TB revenue vs N43 customer receipts (±25%; excluded inflows listed by type) · N43 loan/advance drawdowns vs declared debt (`n43_financing_inflows`) · TB financial debt vs CIRBE · closed-year TB vs Modelo 200 (revenue,

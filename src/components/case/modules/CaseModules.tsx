@@ -46,9 +46,10 @@ function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
   );
 }
 
-function KpisModule({ pkg, hasFinancials, settings }: ModuleProps) {
+function KpisModule({ pkg, settings }: ModuleProps) {
+  // Tiles exist only with data behind them: books tiles with a statement, bank tiles with bank files.
   const tiles = pickTiles(pkg.tiles, settings.tiles);
-  if (!hasFinancials || tiles.length === 0) return null;
+  if (tiles.length === 0) return null;
   return <KpiRow tiles={tiles} />;
 }
 
