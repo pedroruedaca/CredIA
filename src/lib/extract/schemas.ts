@@ -286,6 +286,7 @@ export const BankStatementWire = z.object({
       z.object({
         iban: z.string().describe("IBAN as printed (ES + 22 digits, spaces allowed). \"\" if not printed."),
         holder: z.string().describe("Account holder (titular) as printed. \"\" if not printed."),
+        holder_id: z.string().describe("NIF/CIF, DNI or NIE printed as the account holder's (titular's) ID, as printed. Not the ID of an authorised user or anyone else. \"\" if not printed."),
         bank_name: z.string().describe("Bank name as printed. \"\" if not printed."),
         currency: z.string().describe("ISO currency code of the account, e.g. EUR."),
         period_start: z.string().describe("First day of the period the statement covers, YYYY-MM-DD. \"\" if not printed."),

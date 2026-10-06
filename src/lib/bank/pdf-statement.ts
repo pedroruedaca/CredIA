@@ -9,6 +9,7 @@ import { cleanNif } from "../extract/assess.ts";
 import type { BankStatementWire } from "../extract/schemas.ts";
 import type { N43Account } from "../parsers/norma43.ts";
 import type { Warning } from "../types.ts";
+import { personalAccountMessage, personalId } from "./holder.ts";
 import { addsUp, parseDate, parseIban, reconcileRows, reconciliationWarnings, toN43Account, type StatementRow } from "./statement.ts";
 
 export interface PdfStatementResult {
@@ -38,6 +39,9 @@ export function statementFromPdf(windows: Window[], ctx: { docId: string; fileNa
   if (windows.some((w) => !w.wire.legible)) {
     return { status: "needs_review", attention: `No se lee bien «${name}». Sube el PDF descargado de la banca online, no una foto o un escaneo. ${better}`, accounts: [], warnings: [] };
   }
+  // A person's account (DNI/NIE as the holder's ID): never part of a company's package.
+  const person = windows.flatMap((w) => [w.wire.company_nif, ...w.wire.accounts.map((a) => a.holder_id)]).map(personalId).find(Boolean);
+  if (person) return fail(personalAccountMessage(name), [{ code: "bank_personal_account", message: "Holder ID is a DNI/NIE" }]);
   const expected = cleanNif(ctx.caseCif);
   const nif = windows.map((w) => cleanNif(w.wire.company_nif)).find((n) => n && isValidCif(n)) ?? null;
   if (nif && expected && nif !== expected) {

@@ -39,7 +39,8 @@ export default async function globalSetup() {
   const ws = wb.addWorksheet("Sumas");
   a3Rows.forEach((r) => ws.addRow(r));
   writeFileSync("e2e/.files/sumas-y-saldos-2025.xlsx", Buffer.from(await wb.xlsx.writeBuffer()));
-  writeFileSync("e2e/.files/movimientos.n43", n43Sample, "latin1");
+  // Held by the e2e company (same width: Norma 43 records are fixed-width), so the account counts as the company's.
+  writeFileSync("e2e/.files/movimientos.n43", n43Sample.replaceAll("DISTRIBUCIONES EJEMPLO", "DISTRIBUCIONES E2E    "), "latin1");
   // A minimal, valid one-page PDF: enough for the upload checks (header and end marker). It is not read (no API key).
   writeFileSync(
     "e2e/.files/cirbe.pdf",

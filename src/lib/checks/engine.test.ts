@@ -227,3 +227,26 @@ describe("overdrafts and statements without balances", () => {
     expect(checkOverdrafts([acct]).status).toBe("not_applicable"); // 0 − 500 would read as an overdraft
   });
 });
+
+describe("bank accounts held by someone else", () => {
+  it("are left out until the lender confirms them, and only those uploaded before the confirmation", async () => {
+    const { bankHolderCheck } = await import("./engine.ts");
+    const acct = (name: string, masked: string) => ({ bank: "", branch: "", accountMasked: masked, currency: "978", start: "2026-01-01", end: "2026-03-31", name, openingBalance: 0, closingBalance: 0, totals: null, transactions: [] });
+    const bank = [
+      { docId: "a", uploadedAt: "2026-10-01T10:00:00Z", account: acct("COMERCIAL DISTRIBUCIONES LEV", "2100 0418 ****1332") },
+      { docId: "b", uploadedAt: "2026-10-01T10:00:00Z", account: acct("JUAN GARCIA LOPEZ", "0049 1500 ****7891") },
+    ];
+    const company = "Comercial Distribuciones Levante, S.L.";
+    const held = bankHolderCheck(bank, company, null);
+    expect(held.used.map((b) => b.docId)).toEqual(["a"]);
+    expect(held.check).toMatchObject({ key: "bank_holder_mismatch", status: "fail", severity: "warn", evidence: { values: { "0049 1500 ****7891": "JUAN GARCIA LOPEZ" }, sources: ["doc:b"] } });
+    expect(held.check!.message).toMatch(/^Una cuenta está a nombre de otro titular y no se usa/);
+    const accepted = bankHolderCheck(bank, company, "2026-10-02T09:00:00Z");
+    expect(accepted.used).toHaveLength(2);
+    expect(accepted.check!.message).toMatch(/confirmadas como de la empresa/);
+    expect(bankHolderCheck(bank, company, "2026-09-30T09:00:00Z").used).toHaveLength(1); // uploaded after the review: held again
+    expect(bankHolderCheck(bank, null, null)).toEqual({ used: bank, check: null }); // nothing to compare with
+    const two = bankHolderCheck([...bank, { ...bank[1], docId: "c", account: acct("MARIA PEREZ", "0182 2200 ****7781") }], company, null);
+    expect(two.check!.message).toMatch(/^2 cuentas están a nombre de otro titular y no se usan .* Si son de la empresa, marca esta alerta como revisada y se incluirán\.$/);
+  });
+});
