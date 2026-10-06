@@ -408,8 +408,11 @@ function TilesSetting({ tiles, max, withData, onChange }: { tiles: KpiTileId[]; 
         {tiles.map((t, i) => (
           <li key={t} className="flex min-h-11 items-center gap-1">
             <span className="w-6 font-mono text-[13px] text-muted">{i + 1}</span>
-            <span className="flex grow flex-col text-[15px]">
-              {KPI_TILE_LABEL[t]}
+            <span className="flex grow flex-col items-start text-[15px]">
+              {/* What the KPI measures, on hover or keyboard focus (as on the «Añadir» buttons). */}
+              <Tooltip label={KPI_TILE_LABEL[t]} hint={KPI_TILE_EXPLAIN[t]}>
+                <span tabIndex={0} className="cursor-help rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent">{KPI_TILE_LABEL[t]}</span>
+              </Tooltip>
               {noData(t) && <span className="text-[13px] text-muted">{NO_DATA}</span>}
             </span>
             <button type="button" className={iconButton} onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Subir ${KPI_TILE_LABEL[t]}`}>
