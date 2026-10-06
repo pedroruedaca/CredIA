@@ -10,12 +10,15 @@
 import "server-only";
 import { WARNING_SEVERITY } from "../connectors/holded-sync.ts";
 import { assessExtraction, type Canonical } from "../extract/assess.ts";
-import { extractPdf, mapTrialBalanceColumns } from "../extract/claude.ts";
+import { extractBankStatement, extractPdf, mapTrialBalanceColumns, STATEMENT_MAX_PAGES } from "../extract/claude.ts";
 import { modelFor } from "../llm/model.ts";
 import type { ExtractKind } from "../extract/schemas.ts";
 import { classifyAccounts } from "../bank/classify.ts";
 import { computeBankKpis } from "../kpis/bank.ts";
 import { computeKpis } from "../kpis/engine.ts";
+import { getDocumentProxy } from "unpdf";
+import { statementFromPdf } from "../bank/pdf-statement.ts";
+import { parseBankSheets } from "../parsers/bank-sheet.ts";
 import { parseNorma43, type N43Account } from "../parsers/norma43.ts";
 import { readSpreadsheet, decodeText } from "../parsers/spreadsheet.ts";
 import { parseTrialBalance, type TrialBalanceParse } from "../parsers/trial-balance.ts";
@@ -158,8 +161,9 @@ async function processDocuments(db: AdminClient, kase: CaseRow, now: () => Date)
     .order("uploaded_at", { ascending: true });
   if (!docs?.length) return;
 
-  const { data: done } = await db.from("extractions").select("document_id").in("document_id", docs.map((d) => d.id));
-  const hasExtraction = new Set((done ?? []).map((e) => e.document_id));
+  // A PDF bank statement recorded as pending before statements were read (n43:pdf@0) still has to be read.
+  const { data: done } = await db.from("extractions").select("document_id, parser").in("document_id", docs.map((d) => d.id));
+  const hasExtraction = new Set((done ?? []).filter((e) => e.parser !== "n43:pdf@0").map((e) => e.document_id));
   const staleBefore = new Date(now().getTime() - STALE_PARSING_MS).toISOString();
   const pending = (docs as DocRow[]).filter((d) =>
     d.status === "uploaded" ? !hasExtraction.has(d.id) : !d.processing_started_at || d.processing_started_at < staleBefore,
@@ -194,6 +198,67 @@ async function processDocuments(db: AdminClient, kase: CaseRow, now: () => Date)
     if (outcome.issuedOn) update.issued_on = outcome.issuedOn;
     await db.from("documents").update(update).eq("id", doc.id);
   }
+}
+
+const statementSummary = (accounts: N43Account[]) => {
+  const starts = accounts.map((a) => a.start).filter(Boolean).sort();
+  const ends = accounts.map((a) => a.end).filter(Boolean).sort();
+  return { period: { start: starts[0] ?? null, end: ends[ends.length - 1] ?? null }, accounts: accounts.length };
+};
+
+/** Bank movements exported as Excel or CSV: deterministic, used only if they add up. */
+async function readSheetStatement(bytes: Uint8Array, ext: string, doc: DocRow, name: string): Promise<Outcome> {
+  let sheets;
+  try {
+    sheets = await readSpreadsheet(bytes, ext);
+  } catch {
+    return { status: "failed", attention: `No hemos podido abrir «${name}». Comprueba que se abre en Excel y vuelve a descargarlo.`, extraction: { parser: "bank:sheet@1", status: "failed", output: {}, warnings: [] } };
+  }
+  const r = parseBankSheets(sheets, { docId: doc.id, fileName: name });
+  if (!r.data) {
+    return {
+      status: "failed",
+      attention: `No reconocemos los movimientos de «${name}». Descarga los movimientos de la cuenta con sus columnas de fecha, concepto e importe (o cargo y abono), y saldo; o mejor, el fichero Norma 43.`,
+      extraction: { parser: "bank:sheet@1", status: "failed", output: {}, warnings: r.warnings },
+    };
+  }
+  const status = r.data.needsReview ? "needs_review" : "parsed";
+  return {
+    status,
+    attention: r.data.needsReview ? `Los movimientos de «${name}» no cuadran con sus saldos, así que no los usamos. Comprueba que el fichero tenga todos los movimientos del periodo, sin filtros.` : null,
+    extraction: { parser: "bank:sheet@1", status, output: { accounts: r.data.accounts }, warnings: r.warnings, summary: statementSummary(r.data.accounts) },
+  };
+}
+
+/** A PDF bank statement, read by Claude a few pages at a time and used only if it adds up. */
+async function readPdfStatement(bytes: Uint8Array, kase: CaseRow, doc: DocRow, name: string): Promise<Outcome> {
+  let pages = 0;
+  try {
+    pages = (await getDocumentProxy(new Uint8Array(bytes))).numPages;
+  } catch {
+    return { status: "failed", attention: `No hemos podido abrir «${name}». Descarga de nuevo el extracto en PDF o sube el fichero Norma 43.`, extraction: { parser: "bank:pdf@1", status: "failed", output: {}, warnings: [] } };
+  }
+  if (pages > STATEMENT_MAX_PAGES) {
+    return {
+      status: "needs_review",
+      attention: `«${name}» tiene ${pages} páginas, demasiadas para leerlo de una vez. Sube los extractos por trimestres o, mejor, el fichero Norma 43.`,
+      extraction: { parser: "bank:pdf@1", status: "needs_review", output: { pages }, warnings: [] },
+    };
+  }
+  const call = await extractBankStatement(bytes, pages);
+  if (!call.ok) {
+    if (call.reason === "api_error" || call.reason === "not_configured") {
+      console.error("[pipeline] bank statement PDF not read:", call.reason === "not_configured" ? "ANTHROPIC_API_KEY is not set" : `Claude API error (${call.detail ?? "no detail"})`);
+      return { status: "uploaded" };
+    }
+    return { status: "needs_review", attention: null, extraction: { parser: "bank:pdf@1", status: "needs_review", output: { reason: call.reason }, warnings: [{ code: `extract_${call.reason}`, message: call.detail ?? call.reason }] } };
+  }
+  const r = statementFromPdf(call.value, { docId: doc.id, fileName: name, caseCif: kase.borrower_cif, companyName: kase.borrower_name ?? kase.borrower_cif });
+  return {
+    status: r.status,
+    attention: r.attention,
+    extraction: { parser: `bank:pdf@1:${call.model}`, status: r.status, output: { accounts: r.accounts, pages }, warnings: r.warnings, summary: statementSummary(r.accounts) },
+  };
 }
 
 const extOf = (path: string) => (/\.([a-z0-9]{1,5})$/i.exec(path)?.[1] ?? "").toLowerCase();
@@ -246,16 +311,19 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
   }
 
   if (doc.kind === "norma43") {
-    if (ext === "pdf") {
-      // PDF statements are accepted as a fallback but not read automatically yet.
-      return {
-        status: "uploaded",
-        extraction: { parser: "n43:pdf@0", status: "pending", output: {}, warnings: [{ code: "n43_pdf_pending", message: `Extracto en PDF «${name}» recibido; aún no se lee automáticamente.` }] },
-      };
-    }
+    // Norma 43 first (exact, self-checking); Excel/CSV exports and PDF statements are read into the same accounts and
+    // used only if they add up (src/lib/bank/statement.ts).
+    if (ext === "pdf") return readPdfStatement(bytes, kase, doc, name);
+    if (ext === "xls") return failed("bank:sheet@1", `«${name}» está en el formato antiguo de Excel (.xls). Ábrelo y guárdalo como .xlsx o .csv, o descarga el Norma 43 de la banca online.`);
+    if (ext === "xlsx" || ext === "csv") return readSheetStatement(bytes, ext, doc, name);
     const r = parseNorma43(decodeText(bytes), { docId: doc.id });
     if (r.data.length === 0) {
-      return failed("n43@1", `«${name}» no es un fichero Norma 43. Descárgalo de la banca online eligiendo el formato Norma 43 / Cuaderno 43, o sube los extractos en PDF.`, r.warnings);
+      // A .txt can also be a delimited export.
+      if (ext === "txt") {
+        const sheet = await readSheetStatement(bytes, "csv", doc, name);
+        if (sheet.status !== "failed") return sheet;
+      }
+      return failed("n43@1", `«${name}» no es un fichero Norma 43. Descárgalo de la banca online eligiendo el formato Norma 43 / Cuaderno 43, o sube los movimientos en Excel, CSV o PDF.`, r.warnings);
     }
     const starts = r.data.map((a) => a.start).sort();
     const ends = r.data.map((a) => a.end).sort();
@@ -378,7 +446,7 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   for (const d of parsed) addWarnings(d.warnings, d.id, `«${d.fileName}»: `);
   const latest = (kind: string) => parsed.filter((d) => d.kind === kind).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))[0] ?? null;
 
-  // Pending PDF bank statements are worth telling the lender about.
+  // PDF bank statements recorded as pending before they were read (re-read on this run; the notice covers the gap).
   const { data: pendingPdf } = await db.from("documents").select("id, original_filename, extractions(parser)").eq("case_id", kase.id).eq("kind", "norma43").eq("status", "uploaded");
   for (const d of pendingPdf ?? []) {
     if ((d.extractions as { parser: string }[] | null)?.some((e) => e.parser === "n43:pdf@0")) {

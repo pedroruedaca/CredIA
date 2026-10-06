@@ -247,9 +247,12 @@ export function checkCertificate(kind: "aeat_cert" | "tgss_cert", cert: Certific
 export function checkOverdrafts(accounts: N43Account[]): CheckResult {
   const key = "n43_overdrawn";
   if (accounts.length === 0) return na(key, "Sin extractos bancarios.");
-  const overdrawn = accounts.map((a) => ({ a, min: minRunningBalance(a) })).filter((x) => x.min.balance < 0);
+  // Exports without running balances cannot say when an account was overdrawn.
+  const known = accounts.filter((a) => a.balancesKnown !== false);
+  if (known.length === 0) return na(key, "Los extractos no traen saldos.");
+  const overdrawn = known.map((a) => ({ a, min: minRunningBalance(a) })).filter((x) => x.min.balance < 0);
   if (overdrawn.length === 0) {
-    return { key, status: "pass", severity: "info", message: "Ninguna cuenta bancaria queda en descubierto en el periodo.", evidence: { values: { accounts: accounts.length }, sources: [] } };
+    return { key, status: "pass", severity: "info", message: "Ninguna cuenta bancaria queda en descubierto en el periodo.", evidence: { values: { accounts: known.length }, sources: [] } };
   }
   return {
     key,

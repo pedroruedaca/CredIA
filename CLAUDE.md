@@ -30,6 +30,8 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 | Sumas y saldos (xlsx/csv) | Deterministic, per-software template (A3, Sage, Contasol, Holded, Odoo) | LLM only for header/column detection |
 | **Holded API (borrower-supplied key)** | `src/lib/connectors/holded.ts` | Produces the same `LedgerBalance[]` as a trial balance upload |
 | Norma 43 | Deterministic fixed-width parser + rule classifier (`src/lib/bank/classify.ts`) | LLM later, only for unclassified movements |
+| Bank movements as Excel/CSV | Deterministic header detection (`src/lib/parsers/bank-sheet.ts`) | Same accounts as Norma 43; used only if they add up |
+| Bank statement PDF | Claude structured output → Zod (`BankStatementWire`), page windows | Same accounts as Norma 43; used only if they add up |
 | Modelo 200 PDF | Claude structured output → Zod (`Modelo200Wire`) | Verification anchor for closed year; its balance + P&L pages build the closed year when nothing better exists |
 | Modelo 303 PDFs (IVA) | Claude structured output → Zod (`Modelo303Wire`) | Last 4 quarters due (or 12 monthly returns); requested with the Modelo 200 as «Documentos fiscales»; revenue-only periods |
 | Cuentas anuales PDF (official model) | Claude structured output → Zod (`AnnualAccountsWire`) | Full balance + P&L, current and prior year; closed-year statement when there is no TB/Holded |
@@ -193,7 +195,17 @@ transfer), **text** (Spanish banking phrases, ordered rules), **code** (AEB comm
 (`other_inflow` / `other_outflow`). `recompute` classifies all of a case's bank files together (rule changes reach old
 files; pairs across files). Inflows that are not sales — `internal_transfer`, `financing`, `trade_finance`, `equity`,
 `refund`, `investment_income`, `reversal` — never count as receipts (`inflowBreakdown`); unclassified inflows count but
-are reported. Fixture `__fixtures__/n43-two-banks.ts` (two banks, hand-written concept shapes, every movement's
+are reported. **Other formats** (document kind `norma43` too): Excel/CSV exports (`parseBankSheets`: header row by
+Spanish column names — fecha, concepto, importe or cargo/abono, saldo —, IBAN and holder from the lines above) and PDF
+statements (`extractBankStatement` reads 4-page windows with the document cached; `statementFromPdf` merges them, checks
+type and NIF). Both become `N43Account`s through `src/lib/bank/statement.ts` and must **add up**: rows put in date order
+(newest-first detected from the running balances), opening = printed or first balance − its movement, every running
+balance and the closing balance must follow; otherwise the document is `needs_review` and nothing from it is used.
+Exports without balances give flows only (`balancesKnown: false`: balance KPIs null, overdraft check skips them).
+Source refs `doc:<id>:row:<n>` / `sheet:<s>:row:<n>` / `page:<n>`. PDFs recorded as pending before (parser
+`n43:pdf@0`) are read on the case's next run. Fixtures `__fixtures__/bank-statements.ts` (hand-written shapes).
+**Not yet checked against real exports or PDFs from Spanish banks, nor the PDF path against the live API.**
+Fixture `__fixtures__/n43-two-banks.ts` (two banks, hand-written concept shapes, every movement's
 expected category). **Not yet checked against real exports from Spanish banks: add their concept shapes as tests.**
 
 ## PGC normalisation

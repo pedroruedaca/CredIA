@@ -219,3 +219,11 @@ describe("checkModelo303Quarters", () => {
     expect(checkModelo303Quarters([], TODAY).status).toBe("not_applicable");
   });
 });
+
+describe("overdrafts and statements without balances", () => {
+  it("leaves out accounts whose balances are unknown", async () => {
+    const { checkOverdrafts } = await import("./engine.ts");
+    const acct = { bank: "", branch: "", accountMasked: "x.csv", currency: "978", start: "2026-01-01", end: "2026-01-31", name: "", openingBalance: 0, closingBalance: null, totals: null, balancesKnown: false, transactions: [{ bookingDate: "2026-01-02", valueDate: "2026-01-02", amount: -500, commonConcept: "", ownConcept: "", document: "", reference1: "", reference2: "", description: "PAGO", category: "operating_payment" as const, sourceRef: "doc:x:row:2" }] };
+    expect(checkOverdrafts([acct]).status).toBe("not_applicable"); // 0 − 500 would read as an overdraft
+  });
+});

@@ -42,6 +42,11 @@ export interface N43Account {
   closingBalance: number | null; // from record 33
   totals: { debits: number; credits: number; debitCount: number; creditCount: number } | null;
   transactions: N43Transaction[];
+  /**
+   * false for a statement without running balances (some Excel/CSV exports): its movements count, but its balances
+   * are unknown (opening 0 is a placeholder). Norma 43 always carries balances.
+   */
+  balancesKnown?: boolean;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;

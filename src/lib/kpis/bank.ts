@@ -47,7 +47,12 @@ export interface BankKpiAccount {
   transactions: BankKpiMovement[];
   /** Document the file came from (provenance). */
   docId?: string;
+  /** false: an Excel/CSV export without running balances (its movements count, its balances are unknown). */
+  balancesKnown?: boolean;
 }
+
+/** KPIs that need the daily balance: none of them when an account's balances are unknown. */
+const BALANCE_KPIS = new Set<BankKpiKey>(["minBalance", "averageDailyBalance", "currentToAverage", "daysCashOnHand", "overdraftDays"]);
 
 export interface BankKpiSet {
   period: { start: string; end: string; days: number; fullMonths: number };
@@ -325,5 +330,10 @@ export function computeBankKpis(accounts: BankKpiAccount[]): BankKpiSet | null {
   add("publicInflowShare", inflows > 0 ? r((publicIn / inflows) * 100, 1) : null, { publicRefunds: r(publicIn), bankInflows: r(inflows) }, "Devoluciones de IVA, otros impuestos y Seguridad Social: no son ventas y no se repiten cada mes");
   add("internalTransferShare", grossInflows > 0 ? r((internalIn / grossInflows) * 100, 1) : null, { internalTransfers: r(internalIn), totalInflows: r(grossInflows) }, "Dinero de la propia empresa que llega desde otra de sus cuentas");
 
-  return { period: { start: isoOf(start), end: isoOf(end), days, fullMonths: fm.length }, accounts: accts.length, sources, coverageNote, kpis };
+  // An account without balances (opening 0 as a placeholder) would make every balance figure wrong: leave them out.
+  const unknown = [...new Set(accounts.filter((a) => a.balancesKnown === false).map((a) => a.accountMasked))];
+  const result = unknown.length
+    ? kpis.map((k) => (BALANCE_KPIS.has(k.key as BankKpiKey) ? { ...k, value: null, inputs: {}, note: `Sin saldos: ${unknown.join(", ")} no trae saldo en el extracto, así que no se puede calcular el saldo diario` } : k))
+    : kpis;
+  return { period: { start: isoOf(start), end: isoOf(end), days, fullMonths: fm.length }, accounts: accts.length, sources, coverageNote, kpis: result };
 }
