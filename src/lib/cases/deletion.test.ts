@@ -13,7 +13,7 @@ describe("deleting a case", () => {
   });
 
   it("removes every file under the case's own folders and the paths its rows name, never another case's", () => {
-    expect(casePrefixes(CASE)).toEqual([`cases/${CASE}`, `raw/holded/${CASE}`]);
+    expect(casePrefixes(CASE)).toEqual([`cases/${CASE}`, `raw/holded/${CASE}`, `exports/${CASE}`]);
     const listed = [`cases/${CASE}/norma43/a.n43`, `raw/holded/${CASE}/s1.json`, `cases/${CASE}/cirbe/b.pdf`];
     const named = [`cases/${CASE}/cirbe/b.pdf`, `cases/${CASE}/memo/m.pdf`, null, `cases/${OTHER}/cirbe/x.pdf`, `cases/${CASE}x/evil.pdf`];
     expect(filesToRemove(CASE, listed, named)).toEqual([

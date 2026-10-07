@@ -8,35 +8,14 @@
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { casePrefixes, confirmsDeletion, filesToRemove } from "@/lib/cases/deletion";
 import { caseRef } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
+import { CASE_BUCKET as BUCKET, listAll } from "@/lib/storage/list";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type DeleteCaseResult = { ok: false; message: string };
-
-const BUCKET = "case-files";
-
-/** Every object under a prefix (folders walked, a few levels deep: `cases/<id>/<kind>/<file>`). */
-async function listAll(admin: SupabaseClient, prefix: string, depth = 3): Promise<string[] | null> {
-  const out: string[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000, offset });
-    if (error) return null;
-    for (const entry of data ?? []) {
-      const path = `${prefix}/${entry.name}`;
-      if (entry.id) out.push(path);
-      else if (depth > 0) {
-        const nested = await listAll(admin, path, depth - 1);
-        if (nested === null) return null;
-        out.push(...nested);
-      }
-    }
-    if ((data ?? []).length < 1000) return out;
-  }
-}
 
 export async function deleteCase(caseId: string, typedCif: string): Promise<DeleteCaseResult> {
   const lender = await requireLender();

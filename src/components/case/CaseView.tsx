@@ -47,7 +47,7 @@ export function CaseView({
   editing?: boolean;
   /** «Preguntar al caso»: the analyst's own thread and the suggestions for this case (null: no chat). */
   chat?: { history: ChatMessage[]; suggestions: string[] } | null;
-  /** Owners: «Eliminar caso» in «Detalles». */
+  /** Owners: «Eliminar caso» in «Detalles» and «Descargar todo» in the export menu. */
   canDelete?: boolean;
 }) {
   const { kase } = data;
@@ -127,7 +127,7 @@ export function CaseView({
             </p>
             <div className="grow" />
             {canEdit && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "lender").map((r) => r.doc_kind)} />}
-            <ExportMenu caseId={kase.id} />
+            <ExportMenu caseId={kase.id} full={canDelete} />
           </div>
         </header>
 
