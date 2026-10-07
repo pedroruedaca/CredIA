@@ -9,8 +9,11 @@ const EFFORT_MODELS = /^claude-(fable|mythos|opus-(5|4-[5-8])|sonnet-(5|4-6))/;
 
 export type Effort = "low" | "medium" | "high";
 
-export function modelFor(purpose: "assistant" | "extraction"): string {
-  const v = purpose === "assistant" ? process.env.CREDIA_ASSISTANT_MODEL : process.env.CREDIA_EXTRACTION_MODEL;
+export function modelFor(purpose: "assistant" | "analyst" | "extraction"): string {
+  const v =
+    purpose === "assistant" ? process.env.CREDIA_ASSISTANT_MODEL
+    : purpose === "analyst" ? process.env.CREDIA_ANALYST_MODEL
+    : process.env.CREDIA_EXTRACTION_MODEL;
   return v || DEFAULT_MODEL;
 }
 

@@ -171,6 +171,35 @@ analysts via `is_lender_editor`, never viewers; `tests/integration/layouts.test.
 `saveTeamLayout` / `resetTeamLayout` (`src/app/casos/layout-actions.ts`, normalise, audit `layout.saved/reset`).
 Edit operations are pure in `modules.ts` (`moveModule`, `removeModule`, `addModule`, `setModuleWidth`).
 
+## «Preguntar al caso» (analyst chat) and conclusions
+Ad-hoc questions about one case from the case view (`src/lib/analyst-chat/`, 0022). Read-only and descriptive: the
+prompt forbids scores, approve/decline, rates, limits; provider rating/PD/limit only attributed (`PROVIDER_FIGURES_NOTE`).
+- **Tools, not raw data** (`tools.ts`, pure, Zod-validated input; bad input → an error the model corrects): statements
+  (+ accounts), KPIs (closed/YTD/bank, formula + inputs), checks (+ evidence, review), bank movements search and
+  aggregate (`bank_transactions`, loaded on first use), CIRBE positions, BORME (only once the match is confirmed),
+  solvency report, and `compute` (+ − × ÷ over figures a tool returned, by ref; `calc.ts`, no eval). All reads go through
+  the analyst's RLS client (`loadCaseView`), so the chat sees exactly what the case view shows.
+- **Every figure cited** (`refs.ts`): tools register each figure under a stable handle (`r` + 8 base-36, FNV of an id
+  like `kpi:closed_fy:ebitda` or a source_ref) with label, value, source_ref and link; the model writes
+  `[[ref:<handle>]]` after each figure. `validateAnswer` drops handles no tool returned and lists sentences with a figure
+  (thousands/decimals or a %/€ unit; dates, years and bare integers are not figures) not followed by a citation; the chat
+  shows «Sin origen». Follow-ups may reuse earlier answers' citations unless the case was reprocessed since.
+- **Loop** (`run.ts`, client injected; tests use a scripted fake): streamed rounds, all tool results of a round in one
+  user message, ≤ `MAX_ROUNDS` (6), the last with `tool_choice: none`; `modelFor("analyst")` (`CREDIA_ANALYST_MODEL`,
+  default claude-opus-5-5) at effort medium, server-side refusal fallback, cached tools + stable prompt (`prompt.ts`), then
+  a figure-free case snapshot. Route `POST/DELETE /casos/[id]/preguntar` (NDJSON events `protocol.ts`: delta, status,
+  done, error); 60 questions/hour per analyst; audit `case.question_asked` (tools, counts; never the text).
+- **Threads are private** (`analyst_messages`: RLS same lender and `user_id = auth.uid()`; viewers may ask). UI
+  `AnalystChat` (assistant bar at the bottom of the case view, suggestions from `chatSuggestions`), `CitedText`
+  (numbered chips with tooltip and link, numbered sources).
+- **Conclusions** (`case_conclusions`, members read, owners/analysts write): «Guardar como conclusión» on an answer,
+  editable with `[n]` markers (`toEditable`/`fromEditable`); `saveConclusion` reads the answer back from the analyst's
+  thread (citations never come from the browser) and refuses text with an uncited figure (`prepareConclusion`). Not a
+  module: `ConclusionsSection` after the modules, always in the PDF (after the modules, before the statements appendix),
+  Excel sheet «Conclusiones» and JSON `analyst_conclusions` (text with `[n]`, sources with source_ref). Audit
+  `conclusion.saved/removed`.
+- Not yet: checked against the live API (golden questions over the fixtures), portfolio questions across cases.
+
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
 maxAgeDays}]`) and optionally its own case-view layout (`case_templates`, 0019; members read, owners/analysts write).
