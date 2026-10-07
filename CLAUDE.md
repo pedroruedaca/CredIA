@@ -318,8 +318,8 @@ closing-entries suspicion · bank accounts held by someone other than the compan
 - Imports inside `src/lib` use explicit `.ts` extensions (`allowImportingTsExtensions`); app code may use `@/`.
 
 ## Data protection
-- **Hosting:** Vercel functions pinned to `fra1` (`vercel.json`); the Supabase project's region must be in the EU too
-  (check it in the dashboard). Claude API calls (PDF extraction, the analyst chat) go to Anthropic in the US.
+- **Hosting:** Vercel functions pinned to `dub1` (`vercel.json`), next to the Supabase project (`eu-west-1`,
+  Ireland); keep them together if either moves. Claude API calls (PDF extraction, the analyst chat) go to Anthropic in the US.
 - **Deleting a case** (`deleteCase`, `src/app/casos/[id]/delete-action.ts`; pure rules `src/lib/cases/deletion.ts`):
   owners only, confirmed with the company's CIF, from «Detalles». Files first (everything under `cases/<id>/` and
   `raw/holded/<id>/` plus paths rows name, never another case's), then the case row through the owner's session (RLS);
@@ -327,7 +327,7 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   `case_id` null, case id in `detail`).
 - **Privacy notice** `/privacidad` (public; copy `src/content/data-protection.es.ts`, linked from the portal's privacy
   note): lender = controller, credIA = processor, subprocessors, retention, rights. Bracketed placeholders (credIA's
-  legal identity, privacy email, retention period, hosting region) stay until reviewed by a data-protection adviser.
+  legal identity, privacy email, retention period) stay until reviewed by a data-protection adviser.
 - **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
   `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
   nonces for Next's inline scripts).

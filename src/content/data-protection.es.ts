@@ -2,7 +2,7 @@
  * Data protection copy: the privacy notice the company sees (/privacidad, linked from the portal) and «Eliminar caso».
  *
  * The notice describes how the product actually works. Bracketed placeholders (`[…]`) are facts only the business can
- * fill in (credIA's legal identity, contact, retention period, hosting region); they stay until a data-protection
+ * fill in (credIA's legal identity, contact, retention period); they stay until a data-protection
  * adviser has reviewed the text. Do not invent them.
  */
 
@@ -38,7 +38,7 @@ export const PRIVACY_NOTICE = {
         "Para prestar el servicio, credIA utiliza estos proveedores, con contratos de encargo del tratamiento:",
       ],
       list: [
-        "Supabase: base de datos y almacenamiento de archivos ([REGIÓN DE ALOJAMIENTO]).",
+        "Supabase: base de datos y almacenamiento de archivos (Unión Europea, Irlanda).",
         "Vercel: alojamiento de la aplicación (Unión Europea).",
         "Anthropic (Estados Unidos): lectura automática de los PDF y asistente de análisis del prestamista. Recibe el contenido de los documentos para procesarlo, no lo usa para entrenar sus modelos y la transferencia se ampara en las cláusulas contractuales tipo de la Comisión Europea.",
         "Resend: envío de los correos con el enlace.",
