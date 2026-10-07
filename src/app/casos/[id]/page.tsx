@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { CaseView } from "@/components/case/CaseView";
+import { chatSuggestions } from "@/lib/analyst-chat/conversation";
+import { loadThread } from "@/lib/analyst-chat/server";
 import { loadCaseView } from "@/lib/case-view/load";
+import { buildPackage } from "@/lib/case-view/package";
 import { loadCaseLayout } from "@/lib/case-view/layout-store";
 import { requireLender } from "@/lib/lender";
 import { logCaseRead } from "@/lib/lender-audit";
@@ -35,11 +38,16 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const admin = createAdminClient();
   const stuck = (await stuckCases(admin, [id])).length > 0;
   if (stuck) after(() => processCase(admin, id));
+  const thread = await loadThread(db, id, lender.userId);
+  const chat = {
+    history: thread.map((m) => ({ id: m.role === "assistant" ? m.id : null, role: m.role, content: m.content, citations: m.citations })),
+    suggestions: chatSuggestions(data, buildPackage(data)),
+  };
   const busy = stuck || data.kase.status === "processing" || data.documents.some((d) => d.status === "parsing" || (d.status === "uploaded" && !d.summary));
   return (
     <>
       <AutoRefresh active={busy && !editing} />
-      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} />
+      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} chat={chat} />
     </>
   );
 }

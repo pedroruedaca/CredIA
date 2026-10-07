@@ -3,6 +3,8 @@
  * (Balance, PyG, KPIs, Alertas, Trazabilidad). No scores, no recommendations; the disclaimer travels with the data.
  */
 import ExcelJS from "exceljs";
+import { CONCLUSIONS_COPY } from "../../content/analyst-chat.es.ts";
+import { footnoted } from "../analyst-chat/refs.ts";
 import { CHECK_NAME, DISCLAIMER, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
 import { applyCostOfSales } from "../kpis/cost-of-sales.ts";
 import { checkSlugs } from "./evidence.ts";
@@ -109,6 +111,15 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
       review: review ? { status: review.status, note: review.note, at: review.at } : null,
     })),
     cirbe: d.cirbe ? { as_of: d.cirbe.asOf, positions: d.cirbe.positions.map((p) => ({ ...p, source_ref: d.cirbeDocId ? `doc:${d.cirbeDocId}:page:${p.page}` : null })) } : null,
+    analyst_conclusions: d.conclusions.length
+      ? {
+          note: CONCLUSIONS_COPY.exportNote,
+          items: d.conclusions.map((c) => {
+            const f = footnoted(c.text, c.citations);
+            return { id: c.id, text: f.text, question: c.question, created_at: c.createdAt, sources: f.notes.map((n) => ({ n: n.n, label: n.label, source_ref: n.sourceRef })) };
+          }),
+        }
+      : null,
     documents: d.documents.map((doc) => ({ id: doc.id, kind: doc.kind, filename: doc.original_filename, status: doc.status, uploaded_at: doc.uploaded_at, issued_on: doc.issued_on ?? null })),
     holded: d.holded ? { status: d.holded.status, last_sync_at: d.holded.lastSyncAt, entries: d.holded.entries } : null,
   };
@@ -188,6 +199,18 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   }
   for (const v of pkg.passed) alerts.addRow([v.name, "Correcta", "", v.message, v.rule ?? "", "", ""]);
   [34, 10, 10, 80, 50, 16, 40].forEach((w, i) => (alerts.getColumn(i + 1).width = w));
+
+  if (d.conclusions.length) {
+    const ws = wb.addWorksheet("Conclusiones");
+    title(ws, CONCLUSIONS_COPY.title, `${CONCLUSIONS_COPY.exportNote} ${sub}`);
+    header(ws, ["Conclusión", "Pregunta", "Fecha", "Fuentes"]);
+    for (const c of d.conclusions) {
+      const f = footnoted(c.text, c.citations);
+      const row = ws.addRow([f.text, c.question ?? "", c.createdAt.slice(0, 10), f.notes.map((n) => `[${n.n}] ${n.label}${n.sourceRef ? ` (${n.sourceRef})` : ""}`).join("\n")]);
+      row.alignment = { wrapText: true, vertical: "top" };
+    }
+    [80, 40, 12, 70].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  }
 
   const trace = wb.addWorksheet("Trazabilidad");
   title(trace, "Trazabilidad", `Cada importe con su origen (source_ref). ${sub}`);

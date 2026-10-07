@@ -55,5 +55,6 @@ export const caseViewSample: CaseViewData = {
   solvency: null,
   annualAccounts: null,
   registeredName: "Talleres Demo Levante, S.L.",
+  conclusions: [],
 };
 

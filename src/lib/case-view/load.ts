@@ -8,6 +8,7 @@ import { adjustedGrossMarginKpi, normalizeCostDefinition, type CostOfSalesDefini
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { AnnualAccountsExtraction, CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
+import { parseCitations, type Citation } from "../analyst-chat/refs.ts";
 import type { CheckRow, SourceDoc } from "./present.ts";
 
 const KPI_UNIT: Record<string, Kpi["unit"]> = {
@@ -74,6 +75,17 @@ export interface CaseViewData {
   } | null;
   /** Company name as entered for the case (null when only the CIF is known). */
   registeredName: string | null;
+  /** The analysts' conclusions kept from «Preguntar al caso», oldest first (case view, PDF, exports). */
+  conclusions: Conclusion[];
+}
+
+export interface Conclusion {
+  id: string;
+  text: string;
+  citations: Citation[];
+  question: string | null;
+  createdBy: string | null;
+  createdAt: string;
 }
 
 export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<CaseViewData | null> {
@@ -86,7 +98,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -119,6 +131,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     // Before migration 0021 the table does not exist: no definition, no adjusted margin.
     db.from("case_cost_definitions").select("preset, selectors, source, updated_at").eq("case_id", caseId).maybeSingle(),
     db.from("ledger_balances").select("account, account_name").eq("case_id", caseId).like("pgc3", "6%").not("account_name", "is", null).limit(2000),
+    // Before migration 0022 the table does not exist: no conclusions.
+    db.from("case_conclusions").select("id, text, citations, question, created_by, created_at").eq("case_id", caseId).order("created_at").limit(200),
   ]);
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
@@ -230,5 +244,13 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
         }
       : null,
     registeredName: c.borrower_name,
+    conclusions: (conclusionRows.data ?? []).map((r) => ({
+      id: r.id as string,
+      text: r.text as string,
+      citations: parseCitations(r.citations),
+      question: (r.question as string | null) ?? null,
+      createdBy: (r.created_by as string | null) ?? null,
+      createdAt: r.created_at as string,
+    })),
   };
 }

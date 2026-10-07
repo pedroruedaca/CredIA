@@ -5,13 +5,16 @@
  */
 import Link from "next/link";
 import { Eye, LayoutDashboard } from "lucide-react";
+import { AnalystChat, type ChatMessage } from "@/components/case/AnalystChat";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
+import { ConclusionsSection } from "@/components/case/ConclusionsSection";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
 import { Pill } from "@/components/ui/Pill";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { cx } from "@/components/ui/cx";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
@@ -29,6 +32,7 @@ export function CaseView({
   layout = DEFAULT_LAYOUT,
   layoutInfo = null,
   editing = false,
+  chat = null,
 }: {
   data: CaseViewData;
   check: string | null;
@@ -40,6 +44,8 @@ export function CaseView({
   layoutInfo?: CaseLayoutInfo | null;
   /** "Personalizar" mode: the layout editor instead of the modules. */
   editing?: boolean;
+  /** «Preguntar al caso»: the analyst's own thread and the suggestions for this case (null: no chat). */
+  chat?: { history: ChatMessage[]; suggestions: string[] } | null;
 }) {
   const { kase } = data;
   const pkg = buildPackage(data);
@@ -71,7 +77,7 @@ export function CaseView({
   ];
 
   return (
-    <main className="w-full max-w-[880px] px-4 py-10 sm:px-14">
+    <main className={cx("w-full max-w-[880px] px-4 py-10 sm:px-14", chat && !editing && "pb-32")}>
       <div className="flex flex-col gap-10">
         <header className="flex flex-col gap-3.5">
           <div className="flex flex-wrap items-center gap-2.5 text-[13px] text-muted">
@@ -136,9 +142,12 @@ export function CaseView({
         )}
 
         {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} tilesWithData={pkg.tiles.map((t) => t.id)} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
+
+        {!editing && <ConclusionsSection caseId={kase.id} conclusions={data.conclusions} canEdit={canEdit} />}
       </div>
 
       <EvidencePanel caseId={kase.id} views={pkg.open} selected={check} canEdit={canEdit} />
+      {chat && !editing && <AnalystChat caseId={kase.id} history={chat.history} suggestions={chat.suggestions} canSave={canEdit} />}
     </main>
   );
 }

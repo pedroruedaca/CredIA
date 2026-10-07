@@ -29,12 +29,16 @@ const CASE_ROWS: Record<string, Record<string, unknown>> = {
   check_reviews: { check_key: "x", status: "reviewed" },
   case_borme_matches: { status: "confirmed", registry_sheet: "V-123456", company_name: "EMPRESA A SL" },
   case_cost_definitions: { preset: "trading", selectors: ["line:cogs"] },
+  analyst_messages: { role: "user", content: "¿EBITDA?" },
+  case_conclusions: { text: "Conclusión" },
 };
 
 /** Per-row values that must be unique or refer to the acting user. */
 const unique = (table: string, userId: string): Record<string, unknown> =>
   table === "check_reviews" ? { user_id: userId }
   : table === "case_borme_matches" ? { decided_by: userId }
+  : table === "analyst_messages" ? { user_id: userId }
+  : table === "case_conclusions" ? { created_by: userId }
   : table === "delegate_links" ? { token_hash: `h-${crypto.randomUUID()}` }
   : table === "documents" ? { storage_path: `rls/${crypto.randomUUID()}.csv`, sha256: crypto.randomUUID() }
   : {};

@@ -5,7 +5,9 @@
 import path from "node:path";
 import { Fragment } from "react";
 import { Document, Font, Page, Path, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { CONCLUSIONS_COPY } from "../../content/analyst-chat.es.ts";
 import { CHECK_PASS_LABEL, DISCLAIMER, REVIEW_LABEL } from "../../content/case-view.es.ts";
+import { footnoted } from "../analyst-chat/refs.ts";
 import { INCIDENT_REGISTRY_LABEL, INCIDENT_STATUS_LABEL, JUDICIAL_TYPE_LABEL, PROVIDER_FIGURES_NOTE, SOLVENCY_PROVIDER_LABEL } from "../../content/solvency.es.ts";
 import { productLabel } from "../../content/products.es.ts";
 import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } from "../format.ts";
@@ -390,6 +392,28 @@ function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Req
   };
 }
 
+/** The analysts' conclusions: not a module, always printed after the modules (like the statements appendix). */
+function Conclusions({ d }: { d: CaseViewData }) {
+  if (!d.conclusions.length) return null;
+  return (
+    <View>
+      <Text style={s.h2}>{CONCLUSIONS_COPY.title}</Text>
+      {d.conclusions.map((c) => {
+        const f = footnoted(c.text, c.citations);
+        return (
+          <View key={c.id} style={{ marginBottom: 10 }} wrap={false}>
+            {c.question && <Text style={[s.muted, { fontSize: 8.5, marginBottom: 2 }]}>{CONCLUSIONS_COPY.question}: {c.question}</Text>}
+            <Text style={{ fontSize: 10, lineHeight: 1.45 }}>{f.text}</Text>
+            {f.notes.map((n) => <Text key={n.h} style={[s.muted, { fontSize: 7.5 }]}>[{n.n}] {n.label}</Text>)}
+            <Text style={[s.muted, { fontSize: 7.5, marginTop: 2 }]}>{formatDate(c.createdAt)}</Text>
+          </View>
+        );
+      })}
+      <Text style={[s.muted, { fontSize: 7.5 }]}>{CONCLUSIONS_COPY.exportNote}</Text>
+    </View>
+  );
+}
+
 function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePackage; generatedAt: string; layout: Layout }) {
   const mods = pdfModules(d, pkg);
   const { kase } = d;
@@ -416,6 +440,8 @@ function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePa
           const content = mods[m.id](moduleSettings(m));
           return content ? <Fragment key={moduleKey(m)}>{content}</Fragment> : null;
         })}
+
+        <Conclusions d={d} />
 
         {statements.length > 0 && (
           <View break>

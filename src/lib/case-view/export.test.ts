@@ -136,6 +136,44 @@ describe("exports", () => {
     expect(await pdf()).toContain(flat(summaryText(pkg.summary)));
   }, 30_000);
 
+  it("the analyst's conclusions travel with their sources in every export, whatever the layout", async () => {
+    const withConclusions = {
+      ...sample,
+      conclusions: [
+        {
+          id: "0a0a0a0a-1111-4222-8333-944455556666",
+          text: "La deuda CIRBE es de **245.000 €** [[ref:raaaaaaaa]], 85.000 € más que en libros [[ref:rbbbbbbbb]].",
+          citations: [
+            { h: "raaaaaaaa", label: "CIRBE 2025-12-31 · total dispuesto", sourceRef: "doc:c1:page:2", href: null },
+            { h: "rbbbbbbbb", label: "Verificación · Deuda CIRBE frente a libros", sourceRef: null, href: null },
+          ],
+          question: "¿Cuánta deuda declara la CIRBE?",
+          createdBy: null,
+          createdAt: "2026-10-01T10:00:00Z",
+        },
+      ],
+    };
+    const p = buildPackage(withConclusions);
+    const j = packageJson(withConclusions, p, at);
+    expect(j.analyst_conclusions!.items[0]).toMatchObject({
+      text: "La deuda CIRBE es de 245.000 € [1], 85.000 € más que en libros [2].",
+      question: "¿Cuánta deuda declara la CIRBE?",
+      sources: [{ n: 1, label: "CIRBE 2025-12-31 · total dispuesto", source_ref: "doc:c1:page:2" }, { n: 2, source_ref: null }],
+    });
+    expect(packageJson(sample, pkg, at).analyst_conclusions).toBeNull();
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await packageXlsx(withConclusions, p, at)) as unknown as ArrayBuffer);
+    expect(wb.getWorksheet("Conclusiones")!.getCell("A5").value).toBe("La deuda CIRBE es de 245.000 € [1], 85.000 € más que en libros [2].");
+
+    const { pdfText } = await import("../borme/fetch.ts");
+    // A layout with only «Para revisar» still prints the conclusions.
+    const text = await pdfText(new Uint8Array(await packagePdf(withConclusions, p, at, { version: 1, modules: [{ id: "review", width: "full" }] })));
+    expect(text).toContain("Conclusiones del analista");
+    expect(text).toContain("CIRBE 2025-12-31 · total dispuesto");
+    expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).not.toContain("Conclusiones del analista");
+  }, 30_000);
+
   it("PDF renders", async () => {
     const buf = await packagePdf(sample, pkg, at);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
