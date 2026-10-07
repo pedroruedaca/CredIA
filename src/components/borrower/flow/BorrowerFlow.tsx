@@ -13,6 +13,7 @@ import { nextStep, REVIEW, stepNumber, type StepId } from "@/lib/borrower/steps"
 import { initials } from "@/lib/initials";
 import { DelegateDialog } from "../DelegateDialog";
 import { WithdrawConsent } from "../Consent";
+import { PRIVACY_LINK } from "@/content/data-protection.es";
 import { holdedText } from "@/lib/borrower/holded-text";
 import { SubmitBar } from "../SubmitBar";
 import { MobileSteps } from "./MobileSteps";
@@ -58,6 +59,7 @@ function PrivacyNote({ lenderName, holded, token, canWithdraw }: { lenderName: s
         <Lock size={16} strokeWidth={1.8} aria-hidden /> Solo lo ve {lenderName}
       </div>
       <p>Para analizar esta solicitud. Holded: {holdedText(holded).toLowerCase()}</p>
+      <a href="/privacidad" target="_blank" rel="noopener" className="self-start text-[13px]">{PRIVACY_LINK}</a>
       {canWithdraw && <WithdrawConsent token={token} lenderName={lenderName} />}
     </div>
   );

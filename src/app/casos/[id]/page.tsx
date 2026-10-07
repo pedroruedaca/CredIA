@@ -47,7 +47,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   return (
     <>
       <AutoRefresh active={busy && !editing} />
-      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} chat={chat} />
+      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} chat={chat} canDelete={lender.role === "owner"} />
     </>
   );
 }

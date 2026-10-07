@@ -56,7 +56,7 @@ export async function regenerateBorrowerLink(caseId: string): Promise<Regenerate
     }));
     if (emailSent) {
       await supabase.from("audit_log").insert({
-        lender_id: lender.lenderId, case_id: kase.id, actor: "system", action: "borrower.invited", detail: { to: kase.borrower_email },
+        lender_id: lender.lenderId, case_id: kase.id, actor: lender.userId, action: "borrower.invited", detail: { to: kase.borrower_email },
       });
     }
   }
