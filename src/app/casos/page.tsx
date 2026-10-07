@@ -24,8 +24,9 @@ const FILTER_LABEL: Record<CaseFilter, string> = {
   procesando: "Procesando",
 };
 
-export default async function CasosPage({ searchParams }: { searchParams: Promise<{ filtro?: string | string[] }> }) {
-  const filter = parseFilter((await searchParams).filtro);
+export default async function CasosPage({ searchParams }: { searchParams: Promise<{ filtro?: string | string[]; eliminado?: string }> }) {
+  const params = await searchParams;
+  const filter = parseFilter(params.filtro);
   const lender = await requireLender();
   const canEdit = lender.role !== "viewer";
   const supabase = await createClient();
@@ -52,6 +53,9 @@ export default async function CasosPage({ searchParams }: { searchParams: Promis
         <div className="grow">
           <h1 className="heading-page">Casos</h1>
           <p className="mt-3 text-[17px] text-ink-2">Solicitudes en curso y documentación recibida.</p>
+          {params.eliminado === "1" && (
+            <p role="status" className="mt-3 flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="ok">Eliminado</Pill> El caso y todos sus archivos se han borrado.</p>
+          )}
         </div>
         <ButtonLink href="/casos/nuevo">
           <Plus size={18} strokeWidth={2} aria-hidden /> Nuevo caso

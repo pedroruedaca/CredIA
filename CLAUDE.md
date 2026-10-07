@@ -290,6 +290,12 @@ closing-entries suspicion · bank accounts held by someone other than the compan
 - All parsers return `{ data, warnings }`; never throw on bad business data, throw on programmer errors.
 - Zod-validate every LLM output; on failure retry once, then mark the document `needs_review`.
 - RLS on every table by `lender_id`; borrower access only through signed case tokens via server routes.
+- **Writes by role in the database too (0023):** computed and borrower-side tables (documents, extractions, statements,
+  KPIs, checks, bank movements, CIRBE positions, Holded, links, assistant threads, memos) are read-only for clients
+  (service role writes them); `cases`, `case_requirements`, `check_reviews`, `case_borme_matches`, `support_requests`:
+  members read, owners/analysts write, **only owners delete cases**; `audit_log` is append-only, `actor = auth.uid()`.
+  New tables follow the 0018/0021 pattern (read / insert / update / delete policies), never a `for all` member policy.
+  `tests/integration/role-writes.test.ts`.
 - Tests: `npm test` (Vitest). Every parser and KPI change needs a test with a realistic fixture
   (`src/lib/__fixtures__/`: `tb-small-sl.ts` hand-checked TB; `holded-fake.ts` in-memory Holded API).
 - Integration tests: `npm run test:integration` against a **local** Supabase (`npx supabase start`; refuses any
@@ -310,6 +316,21 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.
 - Lender reads of case data are audit-logged (`logCaseRead`, deduped per 15 min); exports and document opens too.
 - Imports inside `src/lib` use explicit `.ts` extensions (`allowImportingTsExtensions`); app code may use `@/`.
+
+## Data protection
+- **Hosting:** Vercel functions pinned to `dub1` (`vercel.json`), next to the Supabase project (`eu-west-1`,
+  Ireland); keep them together if either moves. Claude API calls (PDF extraction, the analyst chat) go to Anthropic in the US.
+- **Deleting a case** (`deleteCase`, `src/app/casos/[id]/delete-action.ts`; pure rules `src/lib/cases/deletion.ts`):
+  owners only, confirmed with the company's CIF, from «Detalles». Files first (everything under `cases/<id>/` and
+  `raw/holded/<id>/` plus paths rows name, never another case's), then the case row through the owner's session (RLS);
+  every row cascades. If a file cannot be removed nothing else is deleted. One audit row stays (`case.deleted`,
+  `case_id` null, case id in `detail`).
+- **Privacy notice** `/privacidad` (public; copy `src/content/data-protection.es.ts`, linked from the portal's privacy
+  note): lender = controller, credIA = processor, subprocessors, retention, rights. Bracketed placeholders (credIA's
+  legal identity, privacy email, retention period) stay until reviewed by a data-protection adviser.
+- **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
+  `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
+  nonces for Next's inline scripts).
 
 ## Design language v2
 Specs: `design/lender-case-view2.html`, `design/borrower-flow2.html`. Tokens in `src/app/globals.css` (`@theme`);

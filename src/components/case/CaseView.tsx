@@ -33,6 +33,7 @@ export function CaseView({
   layoutInfo = null,
   editing = false,
   chat = null,
+  canDelete = false,
 }: {
   data: CaseViewData;
   check: string | null;
@@ -46,6 +47,8 @@ export function CaseView({
   editing?: boolean;
   /** «Preguntar al caso»: the analyst's own thread and the suggestions for this case (null: no chat). */
   chat?: { history: ChatMessage[]; suggestions: string[] } | null;
+  /** Owners: «Eliminar caso» in «Detalles». */
+  canDelete?: boolean;
 }) {
   const { kase } = data;
   const pkg = buildPackage(data);
@@ -93,6 +96,7 @@ export function CaseView({
               company={company}
               activity={data.activity.map((a) => ({ action: a.action, actor: a.actor, at: a.at, when: relativeTime(a.at, now) }))}
               currentUserId={userId}
+              deletion={canDelete ? { caseId: kase.id, cif: kase.cif, companyName: kase.companyName } : null}
             />
             <Link href={`/casos/${kase.id}/vista-empresa`} className="inline-flex min-h-10 items-center gap-1.5 text-[13px] font-medium">
               <Eye size={15} strokeWidth={1.8} aria-hidden /> Ver como la empresa

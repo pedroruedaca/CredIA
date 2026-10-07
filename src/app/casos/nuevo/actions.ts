@@ -8,6 +8,7 @@ import { templateCostOfSales } from "@/lib/cases/template-store";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type CreateCaseState =
@@ -67,7 +68,9 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     })),
   );
   if (reqErr) {
-    await supabase.from("cases").delete().eq("id", created.id); // keep create all-or-nothing
+    // Keep create all-or-nothing. Only owners may delete cases through their session (0023), so the case this request
+    // just created is removed with the service role.
+    await createAdminClient().from("cases").delete().eq("id", created.id).eq("lender_id", lender.lenderId);
     return { status: "failed", message: "No hemos podido guardar los documentos solicitados. Inténtalo de nuevo.", values };
   }
 
@@ -95,7 +98,7 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     : { sent: false };
   if (sent) {
     await supabase.from("audit_log").insert({
-      lender_id: lender.lenderId, case_id: created.id, actor: "system", action: "borrower.invited", detail: { to: c.borrowerEmail },
+      lender_id: lender.lenderId, case_id: created.id, actor: lender.userId, action: "borrower.invited", detail: { to: c.borrowerEmail },
     });
   }
 

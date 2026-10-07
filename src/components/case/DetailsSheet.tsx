@@ -3,6 +3,7 @@
 /** "Detalles": company data and the case activity (audit log), in a bottom sheet. */
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DeleteCase } from "@/components/case/DeleteCase";
 import { Sheet } from "@/components/ui/Sheet";
 import { ACTOR_LABEL, AUDIT_LABEL } from "@/content/case-view.es";
 
@@ -10,9 +11,11 @@ export interface DetailsProps {
   company: { label: string; value: string; mono?: boolean }[];
   activity: { action: string; actor: string; at: string; when: string }[];
   currentUserId: string;
+  /** Owners only: «Eliminar caso» at the end of the sheet. */
+  deletion?: { caseId: string; cif: string; companyName: string } | null;
 }
 
-export function DetailsSheet({ company, activity, currentUserId }: DetailsProps) {
+export function DetailsSheet({ company, activity, currentUserId, deletion = null }: DetailsProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -47,6 +50,7 @@ export function DetailsSheet({ company, activity, currentUserId }: DetailsProps)
             )}
           </section>
         </div>
+        {deletion && <DeleteCase {...deletion} />}
       </Sheet>
     </>
   );
