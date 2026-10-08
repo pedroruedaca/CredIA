@@ -64,6 +64,8 @@ export async function updateRetention(input: { retentionMonths: unknown; autoClo
   return { ok: true, message: "Guardado." };
 }
 
+const CANNOT_INVITE = (email: string) => `No hemos podido añadir ${email} al equipo. Prueba con otro correo o escríbenos si necesitas ayuda.`;
+
 const InviteInput = z.object({ email: z.string().trim().toLowerCase().email("Escribe un correo válido.").max(254), role: z.enum(ROLES as [Role, ...Role[]]) });
 
 export async function inviteMember(input: z.input<typeof InviteInput>): Promise<Result> {
@@ -74,11 +76,12 @@ export async function inviteMember(input: z.input<typeof InviteInput>): Promise<
   const { email, role } = p.data;
 
   const user = await findOrCreateUser(email);
-  if ("error" in user) return { ok: false, message: user.error };
+  if ("error" in user) return { ok: false, message: CANNOT_INVITE(email) };
   const admin = createAdminClient();
   const { data: existing } = await admin.from("lender_members").select("lender_id").eq("user_id", user.userId);
   if (existing?.some((m) => m.lender_id === lender.lenderId)) return { ok: false, message: `${email} ya forma parte del equipo.` };
-  if (existing?.length) return { ok: false, message: `${email} ya pertenece a otra entidad en credIA. Usa otro correo.` };
+  // Same answer whatever the reason, so a lender cannot find out which addresses another lender uses.
+  if (existing?.length) return { ok: false, message: CANNOT_INVITE(email) };
 
   const { error } = await admin.from("lender_members").insert({ lender_id: lender.lenderId, user_id: user.userId, role });
   if (error) return { ok: false, message: "No hemos podido añadirlo al equipo." };

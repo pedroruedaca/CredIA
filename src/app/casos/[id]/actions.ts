@@ -6,6 +6,8 @@ import { after } from "next/server";
 import { z } from "zod";
 import { findCandidates } from "@/lib/borme/case";
 import { fetchSheetActs, STALE_FETCH_MS } from "@/lib/borme/ondemand";
+import { caseHasRoom } from "@/lib/borrower/limits";
+import { caseUsage } from "@/lib/borrower/rate";
 import { checkDeclaredFile, cleanFilename, CONTENT_TYPES, contentMatchesExtension, MAX_UPLOAD_BYTES, parseUploadPath, uploadPath } from "@/lib/borrower/upload-rules";
 import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind } from "@/lib/cases/requirements";
 import { requireLender } from "@/lib/lender";
@@ -231,7 +233,10 @@ export async function prepareLenderUpload(input: z.input<typeof PrepareInput>): 
   if (kase.status === "archived") return { ok: false, message: "El caso está archivado." };
   const check = checkDeclaredFile(kind, filename, size);
   if (!check.ok) return { ok: false, message: check.message };
-  const { data, error } = await createAdminClient().storage.from("case-files").createSignedUploadUrl(uploadPath(caseId, kind, randomUUID(), check.ext));
+  const admin = createAdminClient();
+  const room = caseHasRoom(await caseUsage(admin, caseId), size);
+  if (!room.ok) return { ok: false, message: room.message };
+  const { data, error } = await admin.storage.from("case-files").createSignedUploadUrl(uploadPath(caseId, kind, randomUUID(), check.ext));
   if (error || !data) return { ok: false, message: "No hemos podido preparar la subida. Inténtalo de nuevo." };
   return { ok: true, path: data.path, token: data.token };
 }

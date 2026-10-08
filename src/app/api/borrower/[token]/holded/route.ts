@@ -11,6 +11,8 @@
 import { after, NextResponse } from "next/server";
 import { processCase } from "@/lib/pipeline/process-case";
 import { audit, borrowerRoute } from "@/lib/borrower/access";
+import { RATE_LIMITED_MESSAGE } from "@/lib/borrower/limits";
+import { withinRateLimit } from "@/lib/borrower/rate";
 import { HoldedClient, HoldedError, verifyHoldedKey } from "@/lib/connectors/holded";
 import { runHoldedSync, WARNING_SEVERITY } from "@/lib/connectors/holded-sync";
 import { seal } from "@/lib/crypto/token";
@@ -27,6 +29,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
     return NextResponse.json({ error: "Falta la clave de API o el consentimiento." }, { status: 400 });
   }
   const mode = body.mode === "refresh" ? "refresh" : "one_time";
+  if (!(await withinRateLimit(db, "holded", access))) return NextResponse.json({ error: RATE_LIMITED_MESSAGE.holded }, { status: 429 });
 
   // 1. The case behind the magic link (company or gestoría link, validated by borrowerRoute).
   const { data: kase } = await db

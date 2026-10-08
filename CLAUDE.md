@@ -363,6 +363,13 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   note): lender = controller, credIA = processor, subprocessors, retention (the real periods: lender's period after
   closing, default 12 months; Holded raw ledgers at closing; chats at 90 days), rights. Bracketed placeholders (credIA's
   legal identity, privacy email) stay until reviewed by a data-protection adviser.
+- **Limits on the company's links** (`src/lib/borrower/limits.ts` pure, `rate.ts` DB; 0027): a case holds at most 200
+  documents and 250 MB (company and analyst uploads; each document is read by Claude at most once, so this caps Claude
+  spend); upload URLs 40/hour per link holder and 200/day per case, Holded connections 10/hour, gestoría invitations
+  10/day (`hit_rate_limit`, fixed window, table `rate_limits`, service role only, fails open and logs). Uploads never
+  registered as documents are removed from open cases after an hour by the daily cron (`sweepOrphanUploads`).
+  `support_requests`: lender sessions update `status` only. Emailed links use `resolveBaseUrl` (NEXT_PUBLIC_APP_URL, then
+  Vercel's own domains; the request host only in development).
 - **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
   `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
   nonces for Next's inline scripts).

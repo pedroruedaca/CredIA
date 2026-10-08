@@ -2,13 +2,14 @@
  * GET /api/cron/borme — daily BORME import (Vercel Cron, see vercel.json). Imports today's Section A and catches up
  * on any weekday of the last 10 days not yet imported (or that failed). Then cases whose confirmed company has new
  * acts in those days are flagged in the Bandeja and reprocessed (notifyNewActs), and index days older than the
- * retention window are pruned, and «Descargar todo» zips older than an hour removed, cases idle for their lender's auto-close period closed, and closed cases past their retention period announced (14 days ahead) or deleted, and chat messages older than 90 days removed. Last, with the time left, cases stuck in processing are run again. Vercel sends `Authorization: Bearer $CRON_SECRET`.
+ * retention window are pruned, and «Descargar todo» zips older than an hour removed, cases idle for their lender's auto-close period closed, and closed cases past their retention period announced (14 days ahead) or deleted, chat messages older than 90 days removed, abandoned uploads removed and old rate-limit counters pruned. Last, with the time left, cases stuck in processing are run again. Vercel sends `Authorization: Bearer $CRON_SECRET`.
  */
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ingestDay, pruneIndex, watchedSheets, weekdays } from "@/lib/borme/ingest";
 import { notifyNewActs } from "@/lib/borme/watch";
 import { closeInactiveCases } from "@/lib/cases/close-store";
+import { sweepOrphanUploads } from "@/lib/cases/orphan-uploads";
 import { deleteOldChats, runRetentionPurge } from "@/lib/cases/purge";
 import { getNotifier } from "@/lib/notify";
 import { sweepExports } from "@/lib/cases/export-sweep";
@@ -53,7 +54,10 @@ export async function GET(req: Request) {
   const purge = await runRetentionPurge(db, getNotifier(), { budgetMs: Math.max(0, 200_000 - (Date.now() - started)) }).catch(() => null);
   // Chat messages older than 90 days (company assistant and analyst chat).
   const chats = await deleteOldChats(db).catch(() => null);
+  // Uploads never registered as documents, and rate-limit counters older than two days.
+  const orphansRemoved = await sweepOrphanUploads(db).catch(() => 0);
+  await db.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 2 * 86_400_000).toISOString());
   const stuck = await stuckCases(db);
   const rerun = await runStuck(db, stuck, Math.max(0, 240_000 - (Date.now() - started)));
-  return NextResponse.json({ ok: true, results, notified, prunedBefore, exportsRemoved, closed: closed.length, purge: purge && { warned: purge.warned, emailed: purge.emailed, purged: purge.purged.length, failed: purge.failed.length }, chats, stuck: stuck.length, rerun: rerun.length });
+  return NextResponse.json({ ok: true, results, notified, prunedBefore, exportsRemoved, closed: closed.length, purge: purge && { warned: purge.warned, emailed: purge.emailed, purged: purge.purged.length, failed: purge.failed.length }, chats, orphansRemoved, stuck: stuck.length, rerun: rerun.length });
 }

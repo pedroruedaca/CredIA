@@ -25,11 +25,11 @@ hardening work (§2–§3).
 | 2.3 | Transfers to Anthropic (US): whole bank statements, including employees' names and salaries | Medium (GDPR) | Open |
 | 2.4 | Processor paperwork: Art. 28 contract with lenders, RoPA, DPIA, notice placeholders | Medium (GDPR) | Open |
 | 3.1 | No Content-Security-Policy, and the Supabase session cookie is readable by JS | Medium | Open |
-| 3.2 | Borrower endpoints have no rate or volume limits (uploads trigger paid LLM extraction) | Medium | Open |
+| 3.2 | Borrower endpoints have no rate or volume limits (uploads trigger paid LLM extraction) | Medium | **Fixed** (0027): per-case document and byte caps, per-link and per-case upload rates, Holded and invitation rates, daily sweep of abandoned uploads |
 | 3.3 | Magic-link token in the URL path: ends up in access logs and browser history for 30 days | Low | Open |
-| 3.4 | `appBaseUrl()` falls back to the request `Host` when `NEXT_PUBLIC_APP_URL` is unset | Low | Open |
-| 3.5 | Team invite reveals whether an email address belongs to another lender | Low | Open |
-| 3.6 | Editors can rewrite borrower-authored rows (`support_requests.message`) | Low | Open |
+| 3.4 | `appBaseUrl()` falls back to the request `Host` when `NEXT_PUBLIC_APP_URL` is unset | Low | **Fixed**: never the request host outside development (`resolveBaseUrl`) |
+| 3.5 | Team invite reveals whether an email address belongs to another lender | Low | **Fixed**: one neutral message |
+| 3.6 | Editors can rewrite borrower-authored rows (`support_requests.message`) | Low | **Fixed** (0027): status only |
 | 3.7 | Prompt injection from borrower documents into extraction and the analyst chat | Low | Mitigated, monitor |
 | 3.8 | Minor hardening (Holded body not Zod-validated, GCM tag length, `is_lender_*` callable by anon) | Info | Open |
 
