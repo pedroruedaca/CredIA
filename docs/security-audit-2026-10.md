@@ -24,7 +24,7 @@ hardening work (§2–§3).
 | 2.2 | No retention period is enforced, and the notice still says `[PLAZO DE CONSERVACIÓN]` | Medium (GDPR) | **Fixed** in #11: closing, retention period, purge with notice, chats at 90 days, real periods in the notice; raw-data removal at 90 days left for after the pilot |
 | 2.3 | Transfers to Anthropic (US): whole bank statements, including employees' names and salaries | Medium (GDPR) | Open |
 | 2.4 | Processor paperwork: Art. 28 contract with lenders, RoPA, DPIA, notice placeholders | Medium (GDPR) | Open |
-| 3.1 | No Content-Security-Policy, and the Supabase session cookie is readable by JS | Medium | Open |
+| 3.1 | No Content-Security-Policy, and the Supabase session cookie is readable by JS | Medium | **Fixed (CSP)**: nonce-based policy on every page; the session cookie stays readable (needed by `@supabase/ssr`) |
 | 3.2 | Borrower endpoints have no rate or volume limits (uploads trigger paid LLM extraction) | Medium | **Fixed** (0027): per-case document and byte caps, per-link and per-case upload rates, Holded and invitation rates, daily sweep of abandoned uploads |
 | 3.3 | Magic-link token in the URL path: ends up in access logs and browser history for 30 days | Low | **Fixed**: token in the URL fragment, swapped for HttpOnly cookies scoped to the link's paths; URLs carry a handle |
 | 3.4 | `appBaseUrl()` falls back to the request `Host` when `NEXT_PUBLIC_APP_URL` is unset | Low | **Fixed**: never the request host outside development (`resolveBaseUrl`) |
@@ -137,6 +137,17 @@ citation links are restricted to `https?://` or app paths. So nothing exploitabl
 of defence. **Recommendation:** add a nonce-based CSP in `middleware.ts` (`script-src 'nonce-…' 'strict-dynamic'`,
 `object-src 'none'`, `base-uri 'none'`, `connect-src` to self, Supabase and the Storage host). Start in report-only
 mode.
+
+**Fixed (CSP).** The middleware sets `Content-Security-Policy` on every page with a fresh 128-bit nonce
+(`src/lib/csp.ts`): `script-src 'self' 'nonce-…' 'strict-dynamic'` (no inline script, no `eval` outside the dev server),
+`connect-src 'self'` + the Supabase origin (Storage is on the same origin), `object-src 'none'`, `frame-src 'none'`,
+`frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `default-src 'self'`. Styles keep `'unsafe-inline'`
+(React `style` props; a style nonce would switch it off); style injection cannot run code. Next adds the nonce to its own
+scripts; the root layout renders per request (`connection()`) so no page is prerendered without one. Enforced rather
+than report-only: the app has no third-party scripts, and `e2e/csp.spec.ts` loads every kind of page, lender and
+company side, checking that each script carries the nonce and the browser reports no violation (dev server and a
+production build, `E2E_PROD=1`). The session cookie stays readable by JavaScript: `@supabase/ssr` needs it; the CSP is
+what now stands between an injection and that cookie.
 
 ### 3.2 No limits on borrower endpoints (Medium, cost and availability)
 Anyone holding a link (the company, or up to 5 gestoría delegates) can upload an unlimited number of 20 MB files. Each

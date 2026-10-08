@@ -9,10 +9,10 @@ const tokenHeaders = [
 ];
 
 // Every page: no framing by other sites (clickjacking), no MIME sniffing, HTTPS only, no device APIs, no full URLs in
-// Referer to other sites. A full Content-Security-Policy needs nonces for Next's inline scripts; not yet.
+// Referer to other sites. The Content-Security-Policy (with `frame-ancestors 'none'`) is set per request by the
+// middleware, with the nonce for that page's scripts (`src/lib/csp.ts`).
 const baseHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
-  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

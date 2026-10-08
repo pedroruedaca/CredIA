@@ -375,9 +375,14 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   `credia_link` HttpOnly cookies on `/s/<handle>` and `/api/borrower/<handle>` (`linkHandle`, until the link expires) and
   the portal lives at `/s/<handle>`. Routes resolve the link with `borrowerRoute(segment)` → `linkToken` (cookie whose
   token gives back the handle; a raw token segment still accepted). Old `/s/<token>` links: middleware → `/s#<token>`.
-- **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
-  `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
-  nonces for Next's inline scripts).
+- **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY`, nosniff, HSTS, `Permissions-Policy`; lender
+  pages `private, no-store` + noindex; token pages `no-referrer`.
+- **Content-Security-Policy** (`src/lib/csp.ts`, set in `middleware.ts` on every page with a fresh nonce, on the response
+  and on the forwarded request so Next nonces its own scripts): scripts only with the nonce + `strict-dynamic` (no
+  inline script, no eval outside `next dev`), `connect-src` self + the Supabase origin, no frames/objects, `form-action`
+  self; inline styles allowed. The root layout calls `connection()`: no page may be prerendered (it would have no nonce).
+  Never add `dangerouslySetInnerHTML` scripts, third-party script tags or external hosts without changing `csp.ts` and
+  `e2e/csp.spec.ts` (checks every page type; `E2E_PROD=1 npx playwright test e2e/csp.spec.ts` against a production build).
 
 ## Design language v2
 Specs: `design/lender-case-view2.html`, `design/borrower-flow2.html`. Tokens in `src/app/globals.css` (`@theme`);
