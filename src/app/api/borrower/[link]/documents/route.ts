@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/documents — step 2 of an upload.
+ * POST /api/borrower/:link/documents — step 2 of an upload.
  * Reads the object the browser just uploaded, checks size and content against the extension, hashes it
  * (SHA-256) and records the `documents` row. Rejected files are deleted from Storage.
  */
@@ -24,8 +24,8 @@ const body = z.object({
   issuedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
 

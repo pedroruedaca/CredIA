@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/holded
+ * POST /api/borrower/:link/holded
  * Borrower (magic link, no Supabase session) submits a Holded API key.
  *
  * one_time (default): key is held in memory for this request only and never stored.
@@ -20,8 +20,8 @@ import { seal } from "@/lib/crypto/token";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
   const body = (await req.json().catch(() => null)) as { apiKey?: string; consent?: boolean; mode?: "one_time" | "refresh" } | null;

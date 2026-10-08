@@ -21,7 +21,8 @@ import { FilePills, StepContent } from "./StepContent";
 import { StepTimeline } from "./StepTimeline";
 
 export interface BorrowerFlowProps {
-  token: string;
+  /** The link's handle (`/s/<handle>`, `/api/borrower/<handle>/…`); the token itself stays in an HttpOnly cookie. */
+  link: string;
   readOnly?: boolean;
   actor: "borrower" | "delegate";
   lenderName: string;
@@ -52,7 +53,7 @@ function CoBrand({ lenderName, brandColor }: { lenderName: string; brandColor: s
   );
 }
 
-function PrivacyNote({ lenderName, holded, token, canWithdraw }: { lenderName: string; holded: ChecklistHolded[]; token: string; canWithdraw: boolean }) {
+function PrivacyNote({ lenderName, holded, link, canWithdraw }: { lenderName: string; holded: ChecklistHolded[]; link: string; canWithdraw: boolean }) {
   return (
     <div className="flex flex-col gap-2 text-[13px] leading-normal text-ink-2">
       <div className="flex items-center gap-2 font-medium text-ink">
@@ -60,7 +61,7 @@ function PrivacyNote({ lenderName, holded, token, canWithdraw }: { lenderName: s
       </div>
       <p>Para analizar esta solicitud. Holded: {holdedText(holded).toLowerCase()}</p>
       <a href="/privacidad" target="_blank" rel="noopener" className="self-start text-[13px]">{PRIVACY_LINK}</a>
-      {canWithdraw && <WithdrawConsent token={token} lenderName={lenderName} />}
+      {canWithdraw && <WithdrawConsent link={link} lenderName={lenderName} />}
     </div>
   );
 }
@@ -108,7 +109,7 @@ function ReviewStep({ p }: { p: BorrowerFlowProps }) {
       </ul>
       {!p.readOnly && (
         <SubmitBar
-          token={p.token}
+          link={p.link}
           allRequiredDone={checklist.allRequiredDone}
           missingCount={checklist.missing.length}
           submittedAt={p.submittedAt}
@@ -145,13 +146,13 @@ function CurrentStep({ p }: { p: BorrowerFlowProps }) {
           </p>
         )}
       </div>
-      <StepContent item={item} token={p.token} lenderName={p.lenderName} today={p.today} readOnly={!!p.readOnly} />
+      <StepContent item={item} link={p.link} lenderName={p.lenderName} today={p.today} readOnly={!!p.readOnly} />
       <FilePills files={item.files} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <ButtonLink href={`?paso=${next}`}>
           {next === REVIEW ? "Continuar a revisar y enviar" : "Continuar"}
         </ButtonLink>
-        {p.actor === "borrower" && !p.readOnly && <DelegateDialog token={p.token} lenderName={p.lenderName} inline />}
+        {p.actor === "borrower" && !p.readOnly && <DelegateDialog link={p.link} lenderName={p.lenderName} inline />}
       </div>
     </>
   );
@@ -159,7 +160,7 @@ function CurrentStep({ p }: { p: BorrowerFlowProps }) {
 
 export function BorrowerFlow(p: BorrowerFlowProps) {
   const canWithdraw = p.actor === "borrower" && !p.readOnly;
-  const privacy = <PrivacyNote lenderName={p.lenderName} holded={p.holded} token={p.token} canWithdraw={canWithdraw} />;
+  const privacy = <PrivacyNote lenderName={p.lenderName} holded={p.holded} link={p.link} canWithdraw={canWithdraw} />;
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Desktop: left column */}

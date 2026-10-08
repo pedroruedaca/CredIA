@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/uploads — step 1 of an upload.
+ * POST /api/borrower/:link/uploads — step 1 of an upload.
  * Validates the declared file, checks the case's room and the upload rate limits (src/lib/borrower/limits.ts), and
  * returns a signed upload URL for Supabase Storage, so large files go
  * straight from the browser to Storage (serverless request bodies are capped well below 20 MB).
@@ -22,8 +22,8 @@ const body = z.object({
   size: z.number().int(),
 });
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
 

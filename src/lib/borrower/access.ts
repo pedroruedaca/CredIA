@@ -6,6 +6,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { hashToken, isPlausibleToken, linkState } from "../magic-link.ts";
 import { createAdminClient } from "../supabase/admin.ts";
+import { linkToken } from "./link-session.ts";
 
 export type AdminClient = ReturnType<typeof createAdminClient>;
 export type BorrowerActor = "borrower" | "delegate";
@@ -85,12 +86,14 @@ export async function audit(db: AdminClient, access: BorrowerAccess, action: str
 export const jsonError = (error: string, status: number) => NextResponse.json({ error }, { status });
 
 /**
- * Common preamble for borrower API routes: resolves the token and refuses once consent is withdrawn.
- * Returns either the access or the response to send.
+ * Common preamble for borrower API routes: resolves the link (`segment` is the URL's handle, read with its cookie) and
+ * refuses once consent is withdrawn. Returns either the access or the response to send.
  */
 export async function borrowerRoute(
-  token: string,
+  segment: string,
 ): Promise<{ db: AdminClient; access: BorrowerAccess; response?: undefined } | { response: NextResponse }> {
+  const token = await linkToken(segment);
+  if (!token) return { response: jsonError("Este enlace no es válido o ha caducado.", 404) };
   const db = createAdminClient();
   const res = await resolveBorrowerAccess(db, token);
   if (!res.ok) return { response: jsonError("Este enlace no es válido o ha caducado.", 404) };

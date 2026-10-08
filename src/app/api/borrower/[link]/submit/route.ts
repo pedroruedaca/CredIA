@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/submit — "Enviar documentación".
+ * POST /api/borrower/:link/submit — "Enviar documentación".
  * Recomputes the checklist server-side; only when every required item is done does the case move to
  * `processing`. Idempotent: a case already submitted returns ok.
  */
@@ -12,8 +12,8 @@ import { getNotifier } from "@/lib/notify";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-export async function POST(_req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(_req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
 

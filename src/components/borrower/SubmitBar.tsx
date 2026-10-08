@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 
 interface Props {
-  token: string;
+  link: string;
   allRequiredDone: boolean;
   missingCount: number;
   submittedAt: string | null;
@@ -15,7 +15,7 @@ interface Props {
   lenderName: string;
 }
 
-export function SubmitBar({ token, allRequiredDone, missingCount, submittedAt, submittedLabel, lenderName }: Props) {
+export function SubmitBar({ link, allRequiredDone, missingCount, submittedAt, submittedLabel, lenderName }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export function SubmitBar({ token, allRequiredDone, missingCount, submittedAt, s
   async function submit() {
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/borrower/${encodeURIComponent(token)}/submit`, { method: "POST" }).catch(() => null);
+    const res = await fetch(`/api/borrower/${encodeURIComponent(link)}/submit`, { method: "POST" }).catch(() => null);
     const json = res ? await res.json().catch(() => ({})) : {};
     setBusy(false);
     if (!res?.ok) return setError(json.error ?? "No hemos podido enviar la documentación. Inténtalo de nuevo.");

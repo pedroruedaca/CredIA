@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/delegate — "Enviar esta petición a mi gestoría".
+ * POST /api/borrower/:link/delegate — "Enviar esta petición a mi gestoría".
  * Creates a separate magic link scoped to the same case (hash stored, never the token), emails it (stub)
  * and returns it so the borrower can also forward it themselves. Only the company's own link can delegate.
  */
@@ -18,8 +18,8 @@ const MAX_ACTIVE_DELEGATES = 5;
 
 const body = z.object({ email: z.string().trim().toLowerCase().email() });
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
   if (access.actor !== "borrower") return jsonError("Solo la empresa puede enviar la petición a otra persona.", 403);

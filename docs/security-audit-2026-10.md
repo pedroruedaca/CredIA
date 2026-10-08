@@ -26,7 +26,7 @@ hardening work (§2–§3).
 | 2.4 | Processor paperwork: Art. 28 contract with lenders, RoPA, DPIA, notice placeholders | Medium (GDPR) | Open |
 | 3.1 | No Content-Security-Policy, and the Supabase session cookie is readable by JS | Medium | Open |
 | 3.2 | Borrower endpoints have no rate or volume limits (uploads trigger paid LLM extraction) | Medium | **Fixed** (0027): per-case document and byte caps, per-link and per-case upload rates, Holded and invitation rates, daily sweep of abandoned uploads |
-| 3.3 | Magic-link token in the URL path: ends up in access logs and browser history for 30 days | Low | Open |
+| 3.3 | Magic-link token in the URL path: ends up in access logs and browser history for 30 days | Low | **Fixed**: token in the URL fragment, swapped for HttpOnly cookies scoped to the link's paths; URLs carry a handle |
 | 3.4 | `appBaseUrl()` falls back to the request `Host` when `NEXT_PUBLIC_APP_URL` is unset | Low | **Fixed**: never the request host outside development (`resolveBaseUrl`) |
 | 3.5 | Team invite reveals whether an email address belongs to another lender | Low | **Fixed**: one neutral message |
 | 3.6 | Editors can rewrite borrower-authored rows (`support_requests.message`) | Low | **Fixed** (0027): status only |
@@ -151,6 +151,16 @@ hour). **Recommendation:**
 any proxy logs. `no-referrer` and `no-store` are already set, which is good. **Recommendation:** on first visit,
 exchange the token for an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/s` and `/api/borrower`, then redirect to
 a token-less URL. Also keep log retention short.
+
+**Fixed.** Emailed links are `/s#<token>`: the fragment never reaches the server. The landing page removes it from the
+address bar and history at once, posts it to `POST /api/borrower/session` (valid links only), which sets two
+`credia_link` cookies (`HttpOnly`, `SameSite=Lax`, `Secure` in production, until the link expires) scoped to
+`/s/<handle>` and `/api/borrower/<handle>`, and moves to `/s/<handle>`. The handle is 16 base64url characters of a hash
+of the token: public, granting nothing without the cookie. `Lax` rather than `Strict` because the link is opened from an
+email (a cross-site navigation, where `Strict` cookies are withheld); every borrower API is a POST, which `Lax` does not
+send cross-site. Links emailed before are redirected by the middleware from `/s/<token>` to `/s#<token>` (that one
+request still logs the token, as before); API calls carrying a raw token keep working for portal pages opened before
+the change. A gestoría holding several links gets one cookie pair per link.
 
 ### 3.4 Host-header fallback for emailed links (Low)
 `appBaseUrl()` uses `x-forwarded-host`/`host` when `NEXT_PUBLIC_APP_URL` is unset. Vercel only routes assigned domains,

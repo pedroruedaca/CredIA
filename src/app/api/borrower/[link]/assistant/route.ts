@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/assistant — documentation assistant (borrower chat), streamed as plain text.
+ * POST /api/borrower/:link/assistant — documentation assistant (borrower chat), streamed as plain text.
  *
  * Grounding is rebuilt server-side on every request from the checklist only (see src/lib/assistant/prompt.ts):
  * no financial data is ever passed to the model. Rate-limited per link holder (30 questions per rolling hour).
@@ -25,8 +25,8 @@ const body = z.object({ message: z.string().trim().min(1).max(1000) });
 
 let client: Anthropic | null = null;
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
 

@@ -17,7 +17,7 @@ type State =
   | { kind: "done"; hint?: string }
   | { kind: "error"; message: string };
 
-export function ConnectHolded({ token, allowRefresh = false }: { token: string; allowRefresh?: boolean }) {
+export function ConnectHolded({ link, allowRefresh = false }: { link: string; allowRefresh?: boolean }) {
   const router = useRouter();
   const [apiKey, setApiKey] = useState("");
   const [consent, setConsent] = useState(false);
@@ -27,7 +27,7 @@ export function ConnectHolded({ token, allowRefresh = false }: { token: string; 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setState({ kind: "submitting" });
-    const res = await fetch(`/api/borrower/${encodeURIComponent(token)}/holded`, {
+    const res = await fetch(`/api/borrower/${encodeURIComponent(link)}/holded`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ apiKey, consent, mode: refresh ? "refresh" : "one_time" }),

@@ -31,32 +31,56 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   await page.getByRole("button", { name: "Crear caso" }).click();
   await expect(page.getByRole("heading", { name: /Caso creado/ })).toBeVisible();
   const url = await page.getByLabel("Enlace para la empresa").inputValue();
-  expect(url).toMatch(/\/s\/[A-Za-z0-9_-]{43}$/);
+  // The token travels in the fragment: never sent to the server in a URL.
+  expect(url).toMatch(/\/s#[A-Za-z0-9_-]{43}$/);
+  const token = new URL(url).hash.slice(1);
 
   // --- Company: fresh browser (no lender session), uploads both files and submits
   const company = await browser.newContext({ storageState: { cookies: [], origins: [] }, locale: "es-ES" });
   const c = await company.newPage();
-  await c.goto(new URL(url).pathname);
+  const requested: string[] = [];
+  c.on("request", (r) => requested.push(r.url()));
+  await c.goto(`/s#${token}`);
+  // Swapped for an HttpOnly cookie: the address bar shows the link's handle, not the token.
+  await c.waitForURL(/\/s\/[A-Za-z0-9_-]{16}$/);
+  const portal = new URL(c.url()).pathname;
   await expect(c.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(c.getByRole("heading", { name: "Abre el enlace desde tu correo" })).toHaveCount(0);
   await expect(c.getByRole("main")).not.toContainText("CIRBE");
+  const handle = portal.slice("/s/".length);
+  const linkCookies = (await company.cookies()).filter((k) => k.name === "credia_link");
+  expect(linkCookies.map((k) => k.path).sort()).toEqual([`/api/borrower/${handle}`, portal]);
+  for (const k of linkCookies) expect(k).toMatchObject({ value: token, httpOnly: true, sameSite: "Lax" });
 
-  await c.goto(`${new URL(url).pathname}?paso=trial_balance`);
+  // A link emailed before (/s/<token>) still opens, through the same exchange.
+  await c.goto(`/s/${token}?paso=trial_balance`);
+  await c.waitForURL(new RegExp(`${portal}\\?paso=trial_balance$`));
+  // The portal address alone, in a browser that never opened the link, opens nothing.
+  const other = await browser.newContext({ storageState: { cookies: [], origins: [] }, locale: "es-ES" });
+  const o = await other.newPage();
+  await o.goto(portal);
+  await expect(o.getByRole("heading", { name: "Abre el enlace desde tu correo" })).toBeVisible();
+  await other.close();
+
+  await c.goto(`${portal}?paso=trial_balance`);
   await c.getByRole("button", { name: /Subir sumas y saldos/ }).click();
   await c.locator('input[type="file"]').setInputFiles("e2e/.files/sumas-y-saldos-2025.xlsx");
   await uploaded(c, "sumas-y-saldos-2025.xlsx");
 
-  await c.goto(`${new URL(url).pathname}?paso=norma43`);
+  await c.goto(`${portal}?paso=norma43`);
   await c.locator('input[type="file"]').setInputFiles("e2e/.files/movimientos.n43");
   await uploaded(c, "movimientos.n43");
 
   // Processing runs in the background after each upload; the review step lists both as ready.
-  await c.goto(`${new URL(url).pathname}?paso=enviar`);
+  await c.goto(`${portal}?paso=enviar`);
   await expect(async () => {
     await c.reload();
     await expect(c.getByRole("button", { name: "Enviar documentación" })).toBeEnabled({ timeout: 2_000 });
   }).toPass({ timeout: 90_000 });
   await c.getByRole("button", { name: "Enviar documentación" }).click();
   await expect(c.getByText(/Documentación enviada/)).toBeVisible();
+  // Only the legacy /s/<token> visit above put the token in a URL the server saw.
+  expect(requested.filter((u) => u.includes(token) && !u.includes(`/s/${token}?`))).toEqual([]);
   await company.close();
 
   // --- Lender: the case shows the package

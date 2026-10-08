@@ -55,7 +55,7 @@ export function FilePills({ files }: { files: ChecklistFile[] }) {
   );
 }
 
-function RevokeHolded({ token }: { token: string }) {
+function RevokeHolded({ link }: { link: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -67,7 +67,7 @@ function RevokeHolded({ token }: { token: string }) {
         onClick={async () => {
           if (!window.confirm("¿Revocar el acceso a Holded? Borraremos la clave guardada. Los datos ya importados se mantienen.")) return;
           setBusy(true);
-          const res = await fetch(`/api/borrower/${encodeURIComponent(token)}/holded/revoke`, { method: "POST" }).catch(() => null);
+          const res = await fetch(`/api/borrower/${encodeURIComponent(link)}/holded/revoke`, { method: "POST" }).catch(() => null);
           setBusy(false);
           if (!res?.ok) return setError(true);
           router.refresh();
@@ -82,7 +82,7 @@ function RevokeHolded({ token }: { token: string }) {
 }
 
 /** Accounting: two large tiles, "Conectar Holded" and "Subir sumas y saldos"; the chosen one opens below. */
-function AccountingStep({ item, token, today }: { item: ChecklistItem; token: string; today: string }) {
+function AccountingStep({ item, link, today }: { item: ChecklistItem; link: string; today: string }) {
   const connected = item.holded?.status === "synced";
   const [mode, setMode] = useState<"holded" | "upload" | null>(connected ? "holded" : item.files.length ? "upload" : null);
   const canRevoke = connected && item.holded?.mode === "refresh" && !item.holded.revoked_at;
@@ -112,22 +112,22 @@ function AccountingStep({ item, token, today }: { item: ChecklistItem; token: st
       {mode === "holded" && (connected ? (
         <p className="flex flex-wrap items-center gap-3 text-[15px] text-ink-2">
           {item.summary ?? "Conectado con Holded."}
-          {canRevoke && <RevokeHolded token={token} />}
+          {canRevoke && <RevokeHolded link={link} />}
         </p>
       ) : (
-        <ConnectHolded token={token} />
+        <ConnectHolded link={link} />
       ))}
       {mode === "upload" && (
         <div className="flex flex-col gap-4">
           <Steps steps={ITEM_COPY.trial_balance.steps} />
-          <UploadDropzone token={token} kind="trial_balance" today={today} />
+          <UploadDropzone link={link} kind="trial_balance" today={today} />
         </div>
       )}
     </div>
   );
 }
 
-function Norma43Step({ token, today }: { token: string; today: string }) {
+function Norma43Step({ link, today }: { link: string; today: string }) {
   const [bankId, setBankId] = useState(BANKS[0].id);
   const bank = BANKS.find((b) => b.id === bankId)!;
   return (
@@ -143,23 +143,23 @@ function Norma43Step({ token, today }: { token: string; today: string }) {
         </div>
       </div>
       <Steps steps={bank.steps} />
-      <UploadDropzone token={token} kind="norma43" bank={bankId} today={today} />
+      <UploadDropzone link={link} kind="norma43" bank={bankId} today={today} />
       <p className="text-sm text-muted">{N43_FALLBACK}</p>
     </div>
   );
 }
 
-export function StepContent({ item, token, lenderName, today, readOnly }: { item: ChecklistItem; token: string; lenderName: string; today: string; readOnly: boolean }) {
+export function StepContent({ item, link, lenderName, today, readOnly }: { item: ChecklistItem; link: string; lenderName: string; today: string; readOnly: boolean }) {
   if (readOnly) {
     return <p className="text-[15px] text-muted">Aquí la empresa ve las instrucciones y el recuadro para subir el documento.</p>;
   }
-  if (item.kind === "trial_balance") return <AccountingStep item={item} token={token} today={today} />;
-  if (item.kind === "norma43") return <Norma43Step token={token} today={today} />;
+  if (item.kind === "trial_balance") return <AccountingStep item={item} link={link} today={today} />;
+  if (item.kind === "norma43") return <Norma43Step link={link} today={today} />;
   return (
     <div className="flex flex-col gap-5">
       <Steps steps={ITEM_COPY[item.kind].steps} />
       {item.maxAgeDays && <p className="text-[15px] text-ink-2">{lenderName} necesita que sea {freshnessWindow(item.maxAgeDays)}.</p>}
-      <UploadDropzone token={token} kind={item.kind} needsIssueDate={item.maxAgeDays !== null} today={today} />
+      <UploadDropzone link={link} kind={item.kind} needsIssueDate={item.maxAgeDays !== null} today={today} />
     </div>
   );
 }

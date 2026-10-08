@@ -95,7 +95,7 @@ export default async function VistaEmpresaPage({ params, searchParams }: { param
         </div>
       </div>
       <BorrowerFlow
-        token=""
+        link=""
         readOnly
         actor="borrower"
         lenderName={portal.kase.lenderName}

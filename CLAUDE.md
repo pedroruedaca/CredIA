@@ -51,7 +51,7 @@ selectable permissions. Required scopes (read-only):
 - `accounting:daily-ledger.read` → `GET /api/v2/ledger-entries` (required `start_date`, `end_date`; cursor pagination `cursor`/`has_more`; `limit` ≤ 200; optional `account`)
 - Optional later: treasury read → `GET /api/v2/treasury/accounts`, `/{id}/bank-movements` (verify scope name)
 
-Implementation (built — `src/lib/connectors/holded.ts`, `holded-sync.ts`, route `src/app/api/borrower/[token]/holded/route.ts`,
+Implementation (built — `src/lib/connectors/holded.ts`, `holded-sync.ts`, route `src/app/api/borrower/[link]/holded/route.ts`,
 UI `src/components/ConnectHolded.tsx`):
 1. **Trial balance is computed from ledger lines**, summed by account — not from the chart-of-accounts
    balance field (its period semantics are unverified). The chart is used for account names and an
@@ -370,6 +370,11 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   registered as documents are removed from open cases after an hour by the daily cron (`sweepOrphanUploads`).
   `support_requests`: lender sessions update `status` only. Emailed links use `resolveBaseUrl` (NEXT_PUBLIC_APP_URL, then
   Vercel's own domains; the request host only in development).
+- **Company links never carry the token to the server** (`borrowerLink`, `src/lib/borrower/link-session.ts`): emailed as
+  `/s#<token>`; the landing page (`OpenLink`) drops the fragment from history, `POST /api/borrower/session` sets
+  `credia_link` HttpOnly cookies on `/s/<handle>` and `/api/borrower/<handle>` (`linkHandle`, until the link expires) and
+  the portal lives at `/s/<handle>`. Routes resolve the link with `borrowerRoute(segment)` → `linkToken` (cookie whose
+  token gives back the handle; a raw token segment still accepted). Old `/s/<token>` links: middleware → `/s#<token>`.
 - **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
   `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
   nonces for Next's inline scripts).

@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/support — "Hablar con una persona".
+ * POST /api/borrower/:link/support — "Hablar con una persona".
  * Records a support request and notifies the lender, who follows up with the company by email.
  * One open request per link holder per day is enough: repeats return ok without notifying again.
  */
@@ -14,8 +14,8 @@ export const runtime = "nodejs";
 const body = z.object({ message: z.string().trim().max(2000).optional() });
 const DEDUPE_MS = 24 * 60 * 60 * 1000;
 
-export async function POST(req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
 
