@@ -306,8 +306,9 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   case-scoped table needs RLS by `lender_id`, a lender-match trigger (see `0008_lender_match_everywhere.sql`) and a
   row in `CASE_ROWS`**. `links.test.ts` covers magic-link expiry/replacement/revocation and read auditing.
 - Migrations: applied to the live project by `.github/workflows/supabase-migrations.yml` (`supabase db push` on push
-  to main touching `supabase/migrations/`; secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`; also runnable by
-  hand from the Actions tab). By hand only with `supabase db push`, never through the Supabase MCP tool (it records
+  to main touching `supabase/migrations/`; one secret, `SUPABASE_DB_URL` = the session pooler connection string with
+  the password (no access token, nothing to expire; the direct host is IPv6-only); also runnable by hand from the Actions
+  tab). By hand only with `supabase db push`, never through the Supabase MCP tool (it records
   them under timestamp versions and the history drifts). Code and migration go live together: Vercel may serve new code
   a minute before the migration finishes, so keep migrations compatible with the code before them where you can.
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
