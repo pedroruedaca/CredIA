@@ -13,7 +13,7 @@ import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
-import { retentionEndsOn } from "@/lib/cases/closing";
+import { scheduledDeletion } from "@/lib/cases/closing";
 import { Pill } from "@/components/ui/Pill";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cx } from "@/components/ui/cx";
@@ -24,7 +24,7 @@ import { buildPackage } from "@/lib/case-view/package";
 import { DEFAULT_LAYOUT, type Layout, type LayoutSource } from "@/lib/case-view/modules";
 import { CaseModules } from "@/components/case/modules/CaseModules";
 import { LayoutEditor, type SaveOption } from "@/components/case/modules/LayoutEditor";
-import { caseRef, formatDate, formatFigure, relativeTime } from "@/lib/format";
+import { caseRef, formatDate, formatDay, formatFigure, relativeTime } from "@/lib/format";
 
 export function CaseView({
   data,
@@ -59,6 +59,10 @@ export function CaseView({
   const hasFinancials = pkg.basePeriod !== null;
   const closed = kase.status === "archived";
   const { closing } = data;
+  const deletion =
+    closed && closing.closedAt && closing.retentionMonths
+      ? scheduledDeletion({ closedAt: closing.closedAt, retentionMonths: closing.retentionMonths, warnedAt: closing.purgeWarnedAt, warnedFor: closing.purgeWarnedFor })
+      : null;
   
 
   const company = [
@@ -142,7 +146,8 @@ export function CaseView({
             {closedLine({
               closedOn: formatDate(closing.closedAt),
               reason: closing.reason,
-              keepUntil: closing.closedAt && closing.retentionMonths ? formatDate(retentionEndsOn(closing.closedAt, closing.retentionMonths)) : null,
+              deleteOn: deletion ? formatDay(deletion.date) : null,
+              announced: deletion?.announced ?? false,
               months: closing.retentionMonths,
             })}
           </p>

@@ -21,9 +21,10 @@ export const CLOSE_CASE_COPY = {
   effects: [
     "El enlace de la empresa y los de su gestoría dejan de funcionar.",
     "Si la empresa dejó guardada su clave de Holded, se borra.",
-    "El equipo sigue viendo el caso y puede exportarlo o reabrirlo.",
+    "El equipo sigue viendo el caso y puede exportarlo o reabrirlo hasta que se elimine.",
   ],
-  retention: (months: number) => `Tu entidad conserva los casos cerrados ${monthsText(months)}. Puedes cambiarlo en Ajustes.`,
+  retention: (months: number) =>
+    `Tu entidad conserva los casos cerrados ${monthsText(months)}; después se eliminan para siempre, con aviso 14 días antes. Puedes cambiar el plazo en Ajustes.`,
   confirm: "Cerrar caso",
   closing: "Cerrando…",
   failed: "No hemos podido cerrar el caso. Inténtalo de nuevo.",
@@ -36,10 +37,14 @@ export const REOPEN_CASE_COPY = {
 } as const;
 
 /** Line under the header of a closed case. */
-export const closedLine = (o: { closedOn: string; reason: ClosedReason | null; keepUntil: string | null; months: number | null }) =>
+export const closedLine = (o: { closedOn: string; reason: ClosedReason | null; deleteOn: string | null; announced: boolean; months: number | null }) =>
   [
     `Cerrado el ${o.closedOn}${o.reason ? ` · ${CLOSE_REASON_LABEL[o.reason]}` : ""}.`,
-    o.keepUntil && o.months ? `Plazo de conservación de tu entidad: hasta el ${o.keepUntil} (${monthsText(o.months)} desde el cierre).` : null,
+    o.deleteOn && o.announced
+      ? `Se eliminará el ${o.deleteOn}, con todos sus documentos y datos. Si necesitas una copia, descárgala antes («Exportar paquete» → «Descargar todo»).`
+      : o.deleteOn && o.months
+        ? `Se eliminará el ${o.deleteOn} (${monthsText(o.months)} desde el cierre, plazo de tu entidad); avisaremos 14 días antes.`
+        : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -57,7 +62,7 @@ export const RETENTION_COPY = {
   intro:
     "Tu entidad decide cuánto tiempo se guardan los casos cerrados: es la responsable de los datos. Si alguna norma te obliga a conservarlos más tiempo (por ejemplo, la de prevención del blanqueo cuando financias a la empresa), elige un plazo mayor.",
   retentionLabel: "Conservar los casos cerrados",
-  retentionHint: "Desde la fecha de cierre. Cada caso cerrado muestra hasta cuándo.",
+  retentionHint: "Desde el cierre. Después, el caso y sus archivos se eliminan para siempre; avisamos a los administradores 14 días antes.",
   autoCloseLabel: "Cerrar los casos sin actividad",
   autoCloseHint: "Cuenta desde la última acción de una persona (tu equipo, la empresa o su gestoría).",
   never: "Nunca",

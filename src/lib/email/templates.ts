@@ -172,3 +172,35 @@ export function lenderNoticeEmail(n: { event: LenderEventKind; companyName: stri
     text: text([copy.subject(company) + ".", n.message ? `Mensaje de la empresa: ${n.message}` : null, n.caseUrl ?? "Entra en credIA para verlo."]),
   };
 }
+
+/**
+ * Retention purge warning, to the lender's owners: closed cases that will be deleted on the given dates (one email per
+ * lender and day, listing them). Says what goes and how to keep a copy or stop it.
+ */
+export function purgeNoticeEmail(n: { cases: { companyName: string; purgeOn: string; caseUrl: string | null }[]; retentionLink: string | null }): Email {
+  const count = n.cases.length;
+  const subject = count === 1 ? `${n.cases[0].companyName || "Un caso cerrado"}: se eliminará el ${n.cases[0].purgeOn}` : `${count} casos cerrados se eliminarán pronto`;
+  const item = (c: (typeof n.cases)[number]) =>
+    `<b style="color:#111315">${esc(c.companyName || "Caso cerrado")}</b>: ${esc(c.purgeOn)}${c.caseUrl ? ` · <a href="${esc(c.caseUrl)}" style="color:#0E5A61">abrir</a>` : ""}`;
+  return {
+    subject: oneLine(subject),
+    html: layout({
+      preheader: oneLine(subject),
+      heading: oneLine(subject),
+      paragraphs: [
+        "Ha terminado el plazo de conservación que tu entidad fijó para estos casos cerrados. En la fecha indicada se eliminarán para siempre, con sus documentos y todos sus datos:",
+        n.cases.map(item).join("<br>"),
+        "Si necesitas conservar una copia (por ejemplo, porque has financiado a la empresa), descárgala antes desde el caso: «Exportar paquete» → «Descargar todo». Si el caso sigue abierto para ti, reábrelo. También puedes alargar el plazo en Ajustes → Conservación de datos.",
+      ],
+      button: n.retentionLink ? { label: "Ver el plazo en Ajustes", url: n.retentionLink } : undefined,
+      footer: "Aviso automático de credIA, 14 días antes de eliminar.",
+    }),
+    text: text([
+      subject + ".",
+      "Ha terminado el plazo de conservación que tu entidad fijó para estos casos cerrados. En la fecha indicada se eliminarán para siempre, con sus documentos y todos sus datos:",
+      n.cases.map((c) => `- ${c.companyName || "Caso cerrado"}: ${c.purgeOn}${c.caseUrl ? ` (${c.caseUrl})` : ""}`).join("\n"),
+      "Para conservar una copia, descárgala antes desde el caso (Exportar paquete → Descargar todo). Si el caso sigue abierto para ti, reábrelo. También puedes alargar el plazo en Ajustes → Conservación de datos.",
+      n.retentionLink,
+    ]),
+  };
+}

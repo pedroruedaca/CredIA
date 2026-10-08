@@ -40,7 +40,7 @@ export interface CaseViewData {
   /** KPIs read from the bank movements (Norma 43), null without bank files. */
   bank: BankKpiSet | null;
   /** When the case was closed and the lender's retention period (0025); nulls while open or before the migration. */
-  closing: { closedAt: string | null; reason: ClosedReason | null; retentionMonths: number | null };
+  closing: { closedAt: string | null; reason: ClosedReason | null; retentionMonths: number | null; purgeWarnedAt: string | null; purgeWarnedFor: string | null };
   /** The analyst's cost of sales (adjusted gross margin), null when not defined. */
   costOfSales: { definition: CostOfSalesDefinition; source: "analyst" | "template"; updatedAt: string | null } | null;
   /** Names of the expense subaccounts in the ledger (trial balance / Holded), for the cost-of-sales editor and notes. */
@@ -136,8 +136,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     db.from("ledger_balances").select("account, account_name").eq("case_id", caseId).like("pgc3", "6%").not("account_name", "is", null).limit(2000),
     // Before migration 0022 the table does not exist: no conclusions.
     db.from("case_conclusions").select("id, text, citations, question, created_by, created_at").eq("case_id", caseId).order("created_at").limit(200),
-    // Before migration 0025 the columns do not exist: the case shows as open, with no retention period.
-    db.from("cases").select("closed_at, closed_reason, lenders(retention_months)").eq("id", caseId).maybeSingle(),
+    // Before migrations 0025/0026 the columns do not exist: the case shows as open, with no retention period.
+    db.from("cases").select("closed_at, closed_reason, purge_warned_at, purge_warned_for, lenders(retention_months)").eq("id", caseId).maybeSingle(),
   ]);
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
@@ -262,6 +262,12 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
 }
 
 function closingOf(row: unknown): CaseViewData["closing"] {
-  const r = row as { closed_at?: string | null; closed_reason?: ClosedReason | null; lenders?: { retention_months?: number } | null } | null;
-  return { closedAt: r?.closed_at ?? null, reason: r?.closed_reason ?? null, retentionMonths: r?.lenders?.retention_months ?? null };
+  const r = row as { closed_at?: string | null; closed_reason?: ClosedReason | null; purge_warned_at?: string | null; purge_warned_for?: string | null; lenders?: { retention_months?: number } | null } | null;
+  return {
+    closedAt: r?.closed_at ?? null,
+    reason: r?.closed_reason ?? null,
+    retentionMonths: r?.lenders?.retention_months ?? null,
+    purgeWarnedAt: r?.purge_warned_at ?? null,
+    purgeWarnedFor: r?.purge_warned_for ?? null,
+  };
 }

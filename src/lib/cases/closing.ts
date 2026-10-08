@@ -3,8 +3,8 @@
  *
  * A case ends when the analyst closes it («Cerrar caso»: decided, declined or withdrawn) or, when the lender wants,
  * after `auto_close_months` with no activity from a person (reason `inactive`, the daily cron). Closed =
- * `status = 'archived'` + `closed_at`. The lender keeps a closed case for `retention_months` (Ajustes); deleting it
- * when that ends is a later step, so this module only says when the period ends.
+ * `status = 'archived'` + `closed_at`. The lender keeps a closed case for `retention_months` (Ajustes); then the daily
+ * cron deletes it, after announcing the date at least PURGE_NOTICE_DAYS before (`purgeStep`, 0026).
  */
 
 export const CLOSE_REASONS = ["decided", "declined", "withdrawn"] as const;
@@ -32,8 +32,56 @@ export function addMonths(iso: string, months: number): string {
   return new Date(Date.UTC(y, m, Math.min(d.getUTCDate(), lastDay))).toISOString().slice(0, 10);
 }
 
-/** Last day the lender keeps a closed case. */
+/** The day a closed case is due for deletion: its closing date plus the lender's retention period. */
 export const retentionEndsOn = (closedAt: string, retentionMonths: number) => addMonths(closedAt, retentionMonths);
+
+/** Days between the warning (Bandeja + email to owners) and the deletion. */
+export const PURGE_NOTICE_DAYS = 14;
+
+/** `date` (YYYY-MM-DD) plus `days`. */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface PurgeState {
+  closedAt: string;
+  retentionMonths: number;
+  /** When the deletion was announced, and the date announced (0026); null before any warning. */
+  warnedAt: string | null;
+  warnedFor: string | null;
+}
+
+export type PurgeStep = { step: "none" } | { step: "warn"; purgeOn: string } | { step: "purge"; purgeOn: string };
+
+/**
+ * What the daily cron does with a closed case today.
+ * - The announcement counts only if it was made for this closing (after `closedAt`) and is not earlier than the due
+ *   date (the lender may have lengthened the period since). Otherwise the case is warned again once the due date is
+ *   PURGE_NOTICE_DAYS away; the date announced is never sooner than that many days from the warning.
+ * - A valid announcement is kept even if the lender shortened the period since: the date promised stands.
+ * - Deletion happens only on or after the announced date.
+ */
+export function purgeStep(s: PurgeState, now = new Date()): PurgeStep {
+  const today = now.toISOString().slice(0, 10);
+  const due = retentionEndsOn(s.closedAt, s.retentionMonths);
+  const warnedFor = s.warnedFor?.slice(0, 10) ?? null;
+  const forThisClosing = !!s.warnedAt && new Date(s.warnedAt).getTime() >= new Date(s.closedAt).getTime();
+  const announced = forThisClosing && warnedFor && warnedFor >= due ? warnedFor : null;
+  if (announced) return today >= announced ? { step: "purge", purgeOn: announced } : { step: "none" };
+  if (today < addDays(due, -PURGE_NOTICE_DAYS)) return { step: "none" };
+  const earliest = addDays(today, PURGE_NOTICE_DAYS);
+  return { step: "warn", purgeOn: due > earliest ? due : earliest };
+}
+
+/** For display: the deletion date of a closed case, and whether it has already been announced to the lender. */
+export function scheduledDeletion(s: PurgeState): { date: string; announced: boolean } {
+  const due = retentionEndsOn(s.closedAt, s.retentionMonths);
+  const forThisClosing = !!s.warnedAt && new Date(s.warnedAt).getTime() >= new Date(s.closedAt).getTime();
+  const warnedFor = s.warnedFor?.slice(0, 10) ?? null;
+  return forThisClosing && warnedFor && warnedFor >= due ? { date: warnedFor, announced: true } : { date: due, announced: false };
+}
 
 /** The row update that closes a case. */
 export function closeUpdate(reason: ClosedReason, now = new Date()) {

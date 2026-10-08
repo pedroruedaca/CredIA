@@ -7,6 +7,9 @@ export const formatEur = (n: number | string | null | undefined) =>
 
 export const formatDate = (iso: string | null | undefined) => (iso ? dateShort.format(new Date(iso)) : "—");
 
+/** A calendar date (YYYY-MM-DD), read at midday so no time zone moves it to another day. */
+export const formatDay = (date: string | null | undefined) => (date ? formatDate(`${date.slice(0, 10)}T12:00:00Z`) : "—");
+
 /** Short, stable case reference for display, e.g. "CASO-3F2A91C0". */
 export const caseRef = (id: string) => `CASO-${id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 

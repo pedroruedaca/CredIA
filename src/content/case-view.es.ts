@@ -308,6 +308,7 @@ export const AUDIT_LABEL: Record<string, string> = {
   "borme.new_acts": "Nuevos actos en el BORME",
   "case.closed": "Caso cerrado",
   "case.reopened": "Caso reabierto",
+  "case.purge_scheduled": "Eliminación programada",
 };
 
 export const ACTOR_LABEL: Record<string, string> = { borrower: "Empresa", delegate: "Gestoría", system: "Sistema" };

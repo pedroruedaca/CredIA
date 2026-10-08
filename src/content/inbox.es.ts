@@ -7,6 +7,7 @@ export const INBOX_TITLE: Record<InboxKind, (company: string) => string> = {
   consent_withdrawn: (c) => `${c} ha retirado su consentimiento`,
   needs_review: (c) => `Un documento de ${c} necesita revisión`,
   registry: (c) => `Nuevos actos de ${c} en el BORME`,
+  purge: (c) => `El caso de ${c} se eliminará pronto`,
 };
 
 export const INBOX_TONE: Record<InboxKind, "accent" | "info" | "warn" | "high"> = {
@@ -15,6 +16,7 @@ export const INBOX_TONE: Record<InboxKind, "accent" | "info" | "warn" | "high"> 
   consent_withdrawn: "high",
   needs_review: "warn",
   registry: "info",
+  purge: "warn",
 };
 
 export const INBOX_KIND_LABEL: Record<InboxKind, string> = {
@@ -23,6 +25,7 @@ export const INBOX_KIND_LABEL: Record<InboxKind, string> = {
   consent_withdrawn: "Consentimiento",
   needs_review: "Revisión",
   registry: "BORME",
+  purge: "Conservación",
 };
 
 export const ACTOR_LABEL = { borrower: "la empresa", delegate: "su gestoría" } as const;

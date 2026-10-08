@@ -40,7 +40,7 @@ export const caseViewSample: CaseViewData = {
   costOfSales: { definition: costDefinition, source: "analyst", updatedAt: "2026-09-02T09:00:00Z" },
   accountNames: {},
   bank: computeBankKpis(bankAccounts),
-  closing: { closedAt: null, reason: null, retentionMonths: 12 },
+  closing: { closedAt: null, reason: null, retentionMonths: 12, purgeWarnedAt: null, purgeWarnedFor: null },
   checks,
   reviews: { cirbe_vs_books_debt: { status: "reviewed", note: "Préstamo ICO confirmado por la empresa.", at: "2026-09-02T09:00:00Z" } },
   documents: [

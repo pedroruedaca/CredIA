@@ -76,6 +76,22 @@ describe("resendNotifier", () => {
     expect(body.html).toContain("https://cred-ia.vercel.app/casos/c1");
   });
 
+  it("sends the deletion warning to owners only, one email listing the cases", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: "em_3" }), { status: 200 }));
+    const recipients = vi.fn(async () => ["ana@fondo.es"]);
+    const n = resendNotifier("re_k", { appUrl: "https://cred-ia.vercel.app" }, { recipients, fetchImpl });
+    const r = await n.notifyPurgeScheduled({ lenderId: "l1", cases: [{ caseId: "c1", companyName: "Talleres <Demo>", purgeOn: "8 oct 2026" }, { caseId: "c2", companyName: "Otra", purgeOn: "9 oct 2026" }] });
+    expect(r).toMatchObject({ sent: true });
+    expect(recipients).toHaveBeenCalledWith("l1", ["owner"]);
+    const body = JSON.parse((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.subject).toBe("2 casos cerrados se eliminarán pronto");
+    expect(body.html).toContain("Talleres &lt;Demo&gt;</b>: 8 oct 2026");
+    expect(body.html).toContain("https://cred-ia.vercel.app/casos/c2");
+    expect(body.html).toContain("https://cred-ia.vercel.app/ajustes");
+    expect(body.text).toContain("- Otra: 9 oct 2026 (https://cred-ia.vercel.app/casos/c2)");
+  });
+
   it("does not call Resend when the lender has nobody to notify", async () => {
     const fetchImpl = vi.fn();
     const n = resendNotifier("re_k", {}, { recipients: async () => [], fetchImpl: fetchImpl as unknown as typeof fetch });

@@ -310,7 +310,8 @@ closing-entries suspicion · bank accounts held by someone other than the compan
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
   analyst's upload); the team personalises the case view and restores it; a template pre-sets a case's documents and
-  dashboard, with a case-only layout and back. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  dashboard, with a case-only layout and back; a case is closed, found under «Cerrados», its deletion date follows the
+  retention set in Ajustes, and it is reopened. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.
@@ -333,7 +334,16 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   from a person (audit rows not by `system`, `open_case_activity()`, service role only) for the lender's
   `auto_close_months` (default 6, null = never; reason `inactive`). Each lender sets `retention_months` (default 12) in
   Ajustes «Conservación de datos» (owners); the case header shows until when a closed case is kept. Closed cases list
-  under the «Cerrados» filter only. **Not yet:** the purge when the period ends, and the 90-day removal of raw data.
+  under the «Cerrados» filter only.
+- **Retention purge** (0026; `purgeStep` in `closing.ts`, `src/lib/cases/purge.ts`, daily cron): a closed case is due
+  `retention_months` after `closed_at`. 14 days before, the cron announces it (`purge_warned_at`/`purge_warned_for`, audit
+  `case.purge_scheduled` → Bandeja item «se eliminará pronto», one email per lender to its owners listing the cases,
+  `notifyPurgeScheduled`); a late warning announces today + 14, never sooner. On the announced date it deletes the case
+  like «Eliminar caso» (files first via `removeCaseFiles` in `case-files.ts`, then the row; cascade) and leaves one
+  `case.purged` audit row without company name or CIF. An announcement counts only for the current closing and a date
+  not earlier than the due date: reopening cancels it, lengthening the period re-announces, shortening keeps the date
+  promised. ≤ 25 deletions per run within the cron's time left. **Not yet:** removing raw data 90 days after closing
+  (and freezing the case), a «Conservar» hold, the privacy notice's real periods.
 - **«Descargar todo»** (`GET /casos/[id]/exportar/todo`, owners only, last item of «Exportar paquete»; pure layout and
   README `src/lib/cases/full-export.ts`, `assembleZip`): one zip with LEEME.txt, caso.json, paquete.json (the JSON
   export), every original file under `documentos/<tipo>/` with `documentos.json`, Holded raw ledgers, bank movements,

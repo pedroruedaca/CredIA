@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, closeUpdate, inactiveCases, isCloseReason, parseRetentionInput, reopenUpdate, retentionEndsOn } from "./closing.ts";
+import { addDays, addMonths, closeUpdate, inactiveCases, purgeStep, scheduledDeletion, isCloseReason, parseRetentionInput, reopenUpdate, retentionEndsOn } from "./closing.ts";
 
 describe("addMonths / retentionEndsOn", () => {
   it("adds calendar months", () => {
@@ -49,5 +49,58 @@ describe("parseRetentionInput", () => {
     expect(parseRetentionInput({ retentionMonths: "0", autoCloseMonths: "6" }).ok).toBe(false);
     expect(parseRetentionInput({ retentionMonths: "12", autoCloseMonths: "2" }).ok).toBe(false);
     expect(parseRetentionInput({ retentionMonths: "abc", autoCloseMonths: null }).ok).toBe(false);
+  });
+});
+
+describe("purgeStep", () => {
+  const closedAt = "2025-10-08T10:00:00.000Z"; // 12 months → due 2026-10-08
+  const at = (d: string) => new Date(`${d}T09:00:00Z`);
+  const base = { closedAt, retentionMonths: 12, warnedAt: null, warnedFor: null };
+
+  it("does nothing until 14 days before the due date, then announces the due date", () => {
+    expect(purgeStep(base, at("2026-09-23"))).toEqual({ step: "none" });
+    expect(purgeStep(base, at("2026-09-24"))).toEqual({ step: "warn", purgeOn: "2026-10-08" });
+  });
+
+  it("never deletes without 14 days' notice: a late warning announces today + 14", () => {
+    expect(purgeStep(base, at("2027-01-15"))).toEqual({ step: "warn", purgeOn: "2027-01-29" });
+    expect(addDays("2027-01-15", 14)).toBe("2027-01-29");
+  });
+
+  it("deletes on or after the announced date, not before", () => {
+    const warned = { ...base, warnedAt: "2026-09-24T09:00:00.000Z", warnedFor: "2026-10-08" };
+    expect(purgeStep(warned, at("2026-10-07"))).toEqual({ step: "none" });
+    expect(purgeStep(warned, at("2026-10-08"))).toEqual({ step: "purge", purgeOn: "2026-10-08" });
+    expect(purgeStep(warned, at("2026-11-01"))).toEqual({ step: "purge", purgeOn: "2026-10-08" });
+  });
+
+  it("keeps the announced date if the lender shortens the period afterwards", () => {
+    const warned = { ...base, retentionMonths: 6, warnedAt: "2026-09-24T09:00:00.000Z", warnedFor: "2026-10-08" };
+    expect(purgeStep(warned, at("2026-10-01"))).toEqual({ step: "none" });
+    expect(purgeStep(warned, at("2026-10-08"))).toEqual({ step: "purge", purgeOn: "2026-10-08" });
+  });
+
+  it("warns again for the new date if the lender lengthens the period", () => {
+    const warned = { ...base, retentionMonths: 24, warnedAt: "2026-09-24T09:00:00.000Z", warnedFor: "2026-10-08" };
+    expect(purgeStep(warned, at("2026-10-08"))).toEqual({ step: "none" });
+    expect(purgeStep(warned, at("2027-09-24"))).toEqual({ step: "warn", purgeOn: "2027-10-08" });
+  });
+
+  it("an announcement made before the case was reopened and closed again does not count", () => {
+    const reclosed = { closedAt: "2026-09-30T10:00:00.000Z", retentionMonths: 1, warnedAt: "2026-09-24T09:00:00.000Z", warnedFor: "2026-10-08" };
+    expect(purgeStep(reclosed, at("2026-10-08"))).toEqual({ step: "none" }); // not deleted on the old date
+    expect(purgeStep(reclosed, at("2026-10-16"))).toEqual({ step: "warn", purgeOn: "2026-10-30" });
+  });
+
+  it("reads dates as the database returns them", () => {
+    const warned = { closedAt: "2025-10-08T10:00:00+00:00", retentionMonths: 12, warnedAt: "2026-09-24T09:00:00.12+00:00", warnedFor: "2026-10-08" };
+    expect(purgeStep(warned, at("2026-10-08"))).toEqual({ step: "purge", purgeOn: "2026-10-08" });
+  });
+});
+
+describe("scheduledDeletion", () => {
+  it("shows the due date until announced, then the announced date", () => {
+    expect(scheduledDeletion({ closedAt: "2025-10-08T10:00:00Z", retentionMonths: 12, warnedAt: null, warnedFor: null })).toEqual({ date: "2026-10-08", announced: false });
+    expect(scheduledDeletion({ closedAt: "2025-10-08T10:00:00Z", retentionMonths: 12, warnedAt: "2027-01-15T09:00:00Z", warnedFor: "2027-01-29" })).toEqual({ date: "2027-01-29", announced: true });
   });
 });
