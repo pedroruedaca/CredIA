@@ -58,7 +58,7 @@ describe("company link", () => {
   });
 
   it("an archived case's link no longer works", async () => {
-    const c = await newCase({ status: "archived" });
+    const c = await newCase({ status: "archived", closed_at: new Date().toISOString(), closed_reason: "declined" });
     expect(await resolveBorrowerAccess(admin as never, c.token)).toEqual({ ok: false, reason: "expired" });
   });
 
@@ -88,7 +88,7 @@ describe("gestoría (delegate) links", () => {
   });
 
   it("delegate links die with the case: archived, or consent withdrawn by the company", async () => {
-    const archived = await newCase({ status: "archived" });
+    const archived = await newCase({ status: "archived", closed_at: new Date().toISOString(), closed_reason: "declined" });
     expect(await resolveBorrowerAccess(admin as never, await newDelegate(archived.id))).toEqual({ ok: false, reason: "expired" });
     const withdrawn = await newCase({ consent_withdrawn_at: new Date().toISOString() });
     const token = await newDelegate(withdrawn.id);

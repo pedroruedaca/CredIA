@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/app-url";
+import { parseRetentionInput } from "@/lib/cases/closing";
 import { requireLender, type LenderContext } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,6 +43,24 @@ export async function updateLender(input: z.input<typeof LenderInput>): Promise<
   if (error || !data?.length) return { ok: false, message: "No hemos podido guardar los cambios." };
   await audit(lender, "lender.updated", { name: p.data.name, brand_color: p.data.brandColor });
   revalidatePath("/", "layout");
+  return { ok: true, message: "Guardado." };
+}
+
+/** «Conservación de datos»: how long closed cases are kept, and when idle cases close on their own (0025). */
+export async function updateRetention(input: { retentionMonths: unknown; autoCloseMonths: unknown }): Promise<Result> {
+  const lender = await owner();
+  if (!lender) return { ok: false, message: ONLY_OWNERS };
+  const p = parseRetentionInput(input ?? { retentionMonths: null, autoCloseMonths: null });
+  if (!p.ok) return { ok: false, message: p.message };
+  const db = await createClient();
+  const { data, error } = await db
+    .from("lenders")
+    .update({ retention_months: p.retention_months, auto_close_months: p.auto_close_months })
+    .eq("id", lender.lenderId)
+    .select("id");
+  if (error || !data?.length) return { ok: false, message: "No hemos podido guardar los cambios." };
+  await audit(lender, "lender.retention_updated", { retention_months: p.retention_months, auto_close_months: p.auto_close_months });
+  revalidatePath("/ajustes");
   return { ok: true, message: "Guardado." };
 }
 

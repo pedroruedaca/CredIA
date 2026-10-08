@@ -1,6 +1,7 @@
 /** Loads everything the lender case view, exports and PDF show. Server-only; uses the lender's RLS client. */
 import "server-only";
 import { isLenderProvided } from "../cases/requirements.ts";
+import type { ClosedReason } from "../cases/closing.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCaseRegistry, type CaseRegistry } from "../borme/case.ts";
 import type { BankKpiSet } from "../kpis/bank.ts";
@@ -38,6 +39,8 @@ export interface CaseViewData {
   kpis: { closed: Kpi[]; ytd: Kpi[] };
   /** KPIs read from the bank movements (Norma 43), null without bank files. */
   bank: BankKpiSet | null;
+  /** When the case was closed and the lender's retention period (0025); nulls while open or before the migration. */
+  closing: { closedAt: string | null; reason: ClosedReason | null; retentionMonths: number | null };
   /** The analyst's cost of sales (adjusted gross margin), null when not defined. */
   costOfSales: { definition: CostOfSalesDefinition; source: "analyst" | "template"; updatedAt: string | null } | null;
   /** Names of the expense subaccounts in the ledger (trial balance / Holded), for the cost-of-sales editor and notes. */
@@ -98,7 +101,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows, closingRow] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -133,6 +136,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     db.from("ledger_balances").select("account, account_name").eq("case_id", caseId).like("pgc3", "6%").not("account_name", "is", null).limit(2000),
     // Before migration 0022 the table does not exist: no conclusions.
     db.from("case_conclusions").select("id, text, citations, question, created_by, created_at").eq("case_id", caseId).order("created_at").limit(200),
+    // Before migration 0025 the columns do not exist: the case shows as open, with no retention period.
+    db.from("cases").select("closed_at, closed_reason, lenders(retention_months)").eq("id", caseId).maybeSingle(),
   ]);
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
@@ -216,6 +221,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     statements: { closed: pick("closed_fy")?.statement ?? null, ytd: pick("ytd")?.statement ?? null, closedSource: pick("closed_fy")?.source ?? null, ytdSource: pick("ytd")?.source ?? null },
     kpis: { closed: toKpis(pick("closed_fy")), ytd: toKpis(pick("ytd")) },
     bank: ((bankKpis.data as { bank_kpis?: BankKpiSet | null } | null)?.bank_kpis ?? null),
+    closing: closingOf(closingRow.data),
     costOfSales,
     accountNames,
     checks: (checks.data ?? []) as CheckRow[],
@@ -253,4 +259,9 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       createdAt: r.created_at as string,
     })),
   };
+}
+
+function closingOf(row: unknown): CaseViewData["closing"] {
+  const r = row as { closed_at?: string | null; closed_reason?: ClosedReason | null; lenders?: { retention_months?: number } | null } | null;
+  return { closedAt: r?.closed_at ?? null, reason: r?.closed_reason ?? null, retentionMonths: r?.lenders?.retention_months ?? null };
 }

@@ -325,6 +325,15 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   `raw/holded/<id>/` plus paths rows name, never another case's), then the case row through the owner's session (RLS);
   every row cascades. If a file cannot be removed nothing else is deleted. One audit row stays (`case.deleted`,
   `case_id` null, case id in `detail`).
+- **Closing cases and retention** (0025; pure rules `src/lib/cases/closing.ts`, DB `close-store.ts`, actions
+  `src/app/casos/[id]/close-action.ts`, UI `CloseCase.tsx`, copy `src/content/case-closing.es.ts`): «Cerrar caso» (owners
+  and analysts; reason decided / declined / withdrawn) sets `status = 'archived'` + `closed_at`/`closed_reason` (a
+  constraint keeps them together), stops the company's and gestoría links and destroys stored Holded keys; «Reabrir
+  caso» goes back to awaiting_documents (or processing if submitted). The daily cron closes open cases with no activity
+  from a person (audit rows not by `system`, `open_case_activity()`, service role only) for the lender's
+  `auto_close_months` (default 6, null = never; reason `inactive`). Each lender sets `retention_months` (default 12) in
+  Ajustes «Conservación de datos» (owners); the case header shows until when a closed case is kept. Closed cases list
+  under the «Cerrados» filter only. **Not yet:** the purge when the period ends, and the 90-day removal of raw data.
 - **«Descargar todo»** (`GET /casos/[id]/exportar/todo`, owners only, last item of «Exportar paquete»; pure layout and
   README `src/lib/cases/full-export.ts`, `assembleZip`): one zip with LEEME.txt, caso.json, paquete.json (the JSON
   export), every original file under `documentos/<tipo>/` with `documentos.json`, Holded raw ledgers, bank movements,

@@ -22,6 +22,7 @@ const FILTER_LABEL: Record<CaseFilter, string> = {
   atencion: "Requieren tu atención",
   empresa: "Esperando a la empresa",
   procesando: "Procesando",
+  cerrados: "Cerrados",
 };
 
 export default async function CasosPage({ searchParams }: { searchParams: Promise<{ filtro?: string | string[]; eliminado?: string }> }) {
@@ -30,20 +31,23 @@ export default async function CasosPage({ searchParams }: { searchParams: Promis
   const lender = await requireLender();
   const canEdit = lender.role !== "viewer";
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("cases")
-    .select(
-      "id, borrower_cif, borrower_name, status, updated_at, requested_product, requested_amount, requested_term_months, case_requirements(doc_kind, required, source), documents(kind, status), holded_connections(status)",
-    )
-    .neq("status", "archived")
-    .order("updated_at", { ascending: false })
-    .limit(200);
+  const columns =
+    "id, borrower_cif, borrower_name, status, updated_at, requested_product, requested_amount, requested_term_months, case_requirements(doc_kind, required, source), documents(kind, status), holded_connections(status)";
+  const [{ data, error }, closedRows] = await Promise.all([
+    supabase.from("cases").select(columns).neq("status", "archived").order("updated_at", { ascending: false }).limit(200),
+    // Closed cases (0025): only listed under «Cerrados»; otherwise just counted.
+    filter === "cerrados"
+      ? supabase.from("cases").select(columns, { count: "exact" }).eq("status", "archived").order("updated_at", { ascending: false }).limit(200)
+      : supabase.from("cases").select("id", { count: "exact", head: true }).eq("status", "archived"),
+  ]);
   const cases = (data ?? []) as CaseRow[];
+  const closedCases = filter === "cerrados" ? ((closedRows.data ?? []) as unknown as CaseRow[]) : [];
+  const closedCount = closedRows.count ?? 0;
   // Only cases this lender can see (loaded above through RLS) are checked.
   const admin = createAdminClient();
   const stuck = cases.length ? await stuckCases(admin, cases.map((c) => c.id)) : [];
   if (stuck.length) after(() => runStuck(admin, stuck.slice(0, 3), 240_000));
-  const shown = cases.filter((c) => matchesFilter(c, filter));
+  const shown = filter === "cerrados" ? closedCases : cases.filter((c) => matchesFilter(c, filter));
   const busy = stuck.length > 0 || cases.some((c) => c.status === "processing");
 
   return (
@@ -66,7 +70,7 @@ export default async function CasosPage({ searchParams }: { searchParams: Promis
         <p role="alert" className="flex items-center gap-2 text-[15px] text-ink-2">
           <Pill tone="high">Error</Pill> No hemos podido cargar los casos. Recarga la página; si sigue fallando, avísanos.
         </p>
-      ) : cases.length === 0 ? (
+      ) : cases.length === 0 && closedCount === 0 ? (
         <div className="rounded-panel bg-soft px-8 py-14 text-center">
           <h2 className="heading-section">Aún no tienes casos</h2>
           <p className="mt-1 text-[15px] text-ink-2">Crea un caso para enviar a la empresa su enlace de documentación.</p>
@@ -76,7 +80,7 @@ export default async function CasosPage({ searchParams }: { searchParams: Promis
         <>
           <nav aria-label="Filtrar casos" className="mb-6 flex flex-wrap gap-2">
             {CASE_FILTERS.map((f) => {
-              const n = cases.filter((c) => matchesFilter(c, f)).length;
+              const n = f === "cerrados" ? closedCount : cases.filter((c) => matchesFilter(c, f)).length;
               const active = f === filter;
               return (
                 <Link

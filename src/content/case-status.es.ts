@@ -5,5 +5,5 @@ export const CASE_STATUS: Record<string, { label: string; tone: Tone }> = {
   processing: { label: "Procesando", tone: "info" },
   ready: { label: "Listo para revisión", tone: "ok" },
   needs_review: { label: "Requiere revisión", tone: "high" },
-  archived: { label: "Archivado", tone: "neutral" },
+  archived: { label: "Cerrado", tone: "neutral" },
 };

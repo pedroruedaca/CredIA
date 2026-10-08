@@ -48,8 +48,18 @@ describe("case list filters", () => {
 
   it("parses the URL filter, defaulting to all", () => {
     expect(parseFilter("atencion")).toBe("atencion");
+    expect(parseFilter("cerrados")).toBe("cerrados");
     expect(parseFilter(["empresa"])).toBe("empresa");
     expect(parseFilter("x")).toBe("todos");
     expect(parseFilter(undefined)).toBe("todos");
+  });
+});
+
+describe("cerrados", () => {
+  it("closed cases appear only under «Cerrados», even when they still owe documents", () => {
+    const closed = kase({ status: "archived" });
+    expect(matchesFilter(closed, "cerrados")).toBe(true);
+    for (const f of ["todos", "atencion", "empresa", "procesando"] as const) expect(matchesFilter(closed, f)).toBe(false);
+    expect(matchesFilter(kase(), "cerrados")).toBe(false);
   });
 });

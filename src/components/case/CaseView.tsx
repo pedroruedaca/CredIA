@@ -7,14 +7,17 @@ import Link from "next/link";
 import { Eye, LayoutDashboard } from "lucide-react";
 import { AnalystChat, type ChatMessage } from "@/components/case/AnalystChat";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
+import { CloseCase, ReopenCase } from "@/components/case/CloseCase";
 import { ConclusionsSection } from "@/components/case/ConclusionsSection";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
+import { retentionEndsOn } from "@/lib/cases/closing";
 import { Pill } from "@/components/ui/Pill";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cx } from "@/components/ui/cx";
+import { closedLine } from "@/content/case-closing.es";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
@@ -54,6 +57,8 @@ export function CaseView({
   const pkg = buildPackage(data);
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const hasFinancials = pkg.basePeriod !== null;
+  const closed = kase.status === "archived";
+  const { closing } = data;
   
 
   const company = [
@@ -126,10 +131,22 @@ export function CaseView({
                 .flatMap((el, i) => (i === 0 ? [el] : [" · ", el]))}
             </p>
             <div className="grow" />
-            {canEdit && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "lender").map((r) => r.doc_kind)} />}
+            {canEdit && !closed && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "lender").map((r) => r.doc_kind)} />}
+            {canEdit && (closed ? <ReopenCase caseId={kase.id} /> : <CloseCase caseId={kase.id} companyName={kase.companyName} retentionMonths={closing.retentionMonths} />)}
             <ExportMenu caseId={kase.id} full={canDelete} />
           </div>
         </header>
+
+        {closed && (
+          <p role="status" className="text-[15px] text-ink-2">
+            {closedLine({
+              closedOn: formatDate(closing.closedAt),
+              reason: closing.reason,
+              keepUntil: closing.closedAt && closing.retentionMonths ? formatDate(retentionEndsOn(closing.closedAt, closing.retentionMonths)) : null,
+              months: closing.retentionMonths,
+            })}
+          </p>
+        )}
 
         {kase.status === "processing" && (
           <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="info">Procesando</Pill> Estamos leyendo los documentos; las cifras se actualizarán al terminar.</p>
