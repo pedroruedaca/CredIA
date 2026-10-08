@@ -1,6 +1,7 @@
 /**
  * POST /api/borrower/:token/uploads — step 1 of an upload.
- * Validates the declared file and returns a signed upload URL for Supabase Storage, so large files go
+ * Validates the declared file, checks the case's room and the upload rate limits (src/lib/borrower/limits.ts), and
+ * returns a signed upload URL for Supabase Storage, so large files go
  * straight from the browser to Storage (serverless request bodies are capped well below 20 MB).
  * Step 2 is POST /documents, which checks the stored bytes and records the document.
  */
@@ -8,6 +9,8 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { borrowerRoute, jsonError } from "@/lib/borrower/access";
+import { caseHasRoom, RATE_LIMITED_MESSAGE } from "@/lib/borrower/limits";
+import { caseUsage, withinRateLimit } from "@/lib/borrower/rate";
 import { checkDeclaredFile, uploadPath } from "@/lib/borrower/upload-rules";
 import { REQUIREMENT_KINDS } from "@/lib/cases/requirements";
 
@@ -39,6 +42,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
 
   const check = checkDeclaredFile(kind, filename, size);
   if (!check.ok) return jsonError(check.message, 400);
+
+  // Room in the case (documents and bytes), then the link holder's and the case's upload rates.
+  const room = caseHasRoom(await caseUsage(db, access.caseId), size);
+  if (!room.ok) return jsonError(room.message, 409);
+  for (const route of ["upload", "uploadCase"] as const) {
+    if (!(await withinRateLimit(db, route, access))) return jsonError(RATE_LIMITED_MESSAGE[route], 429);
+  }
 
   const path = uploadPath(access.caseId, kind, randomUUID(), check.ext);
   const { data, error } = await db.storage.from("case-files").createSignedUploadUrl(path);

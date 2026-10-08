@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/app-url";
 import { audit, borrowerRoute, jsonError } from "@/lib/borrower/access";
+import { RATE_LIMITED_MESSAGE } from "@/lib/borrower/limits";
+import { withinRateLimit } from "@/lib/borrower/rate";
 import { borrowerLink, delegateExpiry, generateMagicLinkToken } from "@/lib/magic-link";
 import { getNotifier } from "@/lib/notify";
 
@@ -36,6 +38,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ token: string 
   if ((count ?? 0) >= MAX_ACTIVE_DELEGATES) {
     return jsonError("Ya has enviado varios enlaces. Si necesitas otro, contacta con la entidad.", 429);
   }
+  if (!(await withinRateLimit(db, "delegate", access))) return jsonError(RATE_LIMITED_MESSAGE.delegate, 429);
 
   const { data: kase } = await db
     .from("cases")
