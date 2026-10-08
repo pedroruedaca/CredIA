@@ -1,7 +1,7 @@
 "use client";
 
 /** Case header actions: "Pedir documento" (soft, modal) and "Exportar paquete" (ink, menu PDF / Excel / JSON). */
-import { ChevronDown, FileJson, FileSpreadsheet, FileText } from "lucide-react";
+import { ChevronDown, FileArchive, FileJson, FileSpreadsheet, FileText } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { requestDocument } from "@/app/casos/[id]/actions";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +17,10 @@ const FORMATS = [
   { id: "json", label: "JSON", hint: "Datos con su source_ref", Icon: FileJson },
 ] as const;
 
-export function ExportMenu({ caseId }: { caseId: string }) {
+/** Owners only: every file and every piece of data of the case, for access requests or to hand the case back. */
+const FULL = { id: "todo", label: "Descargar todo", hint: "Archivos originales, datos, comunicaciones y auditoría (.zip)", Icon: FileArchive } as const;
+
+export function ExportMenu({ caseId, full = false }: { caseId: string; full?: boolean }) {
   return (
     <Popover
       align="end"
@@ -29,8 +32,8 @@ export function ExportMenu({ caseId }: { caseId: string }) {
       )}
     >
       <ul className="flex flex-col">
-        {FORMATS.map(({ id, label, hint, Icon }) => (
-          <li key={id}>
+        {[...FORMATS, ...(full ? [FULL] : [])].map(({ id, label, hint, Icon }) => (
+          <li key={id} className={id === "todo" ? "mt-1 border-t border-hairline pt-1" : undefined}>
             <a
               href={`/casos/${caseId}/exportar/${id}`}
               download

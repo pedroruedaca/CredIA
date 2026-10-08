@@ -4,8 +4,8 @@
  *
  * What goes: every row of the case (on delete cascade: documents, extractions, statements, KPIs, checks, bank movements,
  * CIRBE positions, links, assistant and analyst threads, conclusions, reviews, BORME match, audit rows) and every file
- * of the case in storage (uploads under `cases/<id>/`, Holded raw ledgers under `raw/holded/<id>/`, and any path a row
- * names). What stays: one audit row, without the case id as a foreign key, saying who deleted which case and when.
+ * of the case in storage (uploads under `cases/<id>/`, Holded raw ledgers under `raw/holded/<id>/`, «Descargar todo»
+ * zips under `exports/<id>/`, and any path a row names). What stays: one audit row, without the case id as a foreign key, saying who deleted which case and when.
  */
 import { normalizeCif } from "../cif.ts";
 
@@ -16,7 +16,7 @@ export function confirmsDeletion(typed: string, cif: string): boolean {
 }
 
 /** Storage prefixes that only ever hold this case's files. */
-export const casePrefixes = (caseId: string) => [`cases/${caseId}`, `raw/holded/${caseId}`];
+export const casePrefixes = (caseId: string) => [`cases/${caseId}`, `raw/holded/${caseId}`, `exports/${caseId}`];
 
 /** Every file to remove: what the listing found under the case's prefixes plus any path a row names, once each. */
 export function filesToRemove(caseId: string, listed: readonly string[], named: readonly (string | null | undefined)[]): string[] {

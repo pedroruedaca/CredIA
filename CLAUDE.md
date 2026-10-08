@@ -325,6 +325,15 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   `raw/holded/<id>/` plus paths rows name, never another case's), then the case row through the owner's session (RLS);
   every row cascades. If a file cannot be removed nothing else is deleted. One audit row stays (`case.deleted`,
   `case_id` null, case id in `detail`).
+- **«Descargar todo»** (`GET /casos/[id]/exportar/todo`, owners only, last item of «Exportar paquete»; pure layout and
+  README `src/lib/cases/full-export.ts`, `assembleZip`): one zip with LEEME.txt, caso.json, paquete.json (the JSON
+  export), every original file under `documentos/<tipo>/` with `documentos.json`, Holded raw ledgers, bank movements,
+  communications (gestoría links without tokens, the company's assistant chat, support requests) and the case's audit
+  log; not the analysts' private chat threads. For access/portability requests and handing a case back. Responses are
+  capped far below a case's size, so the zip goes to `exports/<case>/<epoch ms>-<uuid>.zip` (private) and the browser
+  gets a 60 s signed link; earlier zips of the case (> 10 min) are removed on each export, the daily cron removes any
+  older than an hour (`sweepExports`), «Eliminar caso» removes the folder. Refused above 45 MB of files. Audit
+  `package.exported` with `format: zip_complete`.
 - **Privacy notice** `/privacidad` (public; copy `src/content/data-protection.es.ts`, linked from the portal's privacy
   note): lender = controller, credIA = processor, subprocessors, retention, rights. Bracketed placeholders (credIA's
   legal identity, privacy email, retention period) stay until reviewed by a data-protection adviser.

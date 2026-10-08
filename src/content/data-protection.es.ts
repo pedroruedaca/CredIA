@@ -60,7 +60,7 @@ export const PRIVACY_NOTICE = {
     {
       heading: "Tus derechos",
       body: [
-        "Puedes pedir acceso, rectificación, supresión, oposición, limitación o portabilidad de los datos al prestamista que te envió el enlace. También puedes escribir a credIA en [EMAIL DE PRIVACIDAD DE CREDIA] y lo trasladaremos al prestamista.",
+        "Puedes pedir acceso, rectificación, supresión, oposición, limitación o portabilidad de los datos al prestamista que te envió el enlace. El prestamista puede descargar en cualquier momento una copia completa de todo lo que credIA guarda de tu empresa y entregártela. También puedes escribir a credIA en [EMAIL DE PRIVACIDAD DE CREDIA] y lo trasladaremos al prestamista.",
         "Si no estás conforme, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).",
       ],
     },
