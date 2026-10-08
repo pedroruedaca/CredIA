@@ -2,7 +2,9 @@
  * End-to-end happy path against a local Supabase (`npx supabase start`) and a dev server on port 3100.
  *   npm run test:e2e
  * Uses its own port so it never touches a dev server you have open. Set PW_CHROMIUM_PATH to use a
- * preinstalled Chromium instead of `npx playwright install chromium`.
+ * preinstalled Chromium instead of `npx playwright install chromium`. E2E_PROD=1 runs against a production build
+ * (`next build && next start`) instead of the dev server, for `e2e/csp.spec.ts`: the Content-Security-Policy is stricter
+ * there (no eval). The other specs are written against the dev server; some fail on a production build (on main too).
  */
 import { defineConfig } from "@playwright/test";
 import { localSupabase } from "./e2e/supabase";
@@ -26,9 +28,9 @@ export default defineConfig({
     launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
   webServer: {
-    command: `npx next dev -p ${PORT}`,
+    command: process.env.E2E_PROD ? `npx next build && npx next start -p ${PORT}` : `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
-    timeout: 240_000,
+    timeout: 600_000,
     reuseExistingServer: false,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: sb.url,
