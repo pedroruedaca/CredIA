@@ -4,11 +4,13 @@ import { BorrowerFlow } from "@/components/borrower/flow/BorrowerFlow";
 import { PortalMessage } from "@/components/borrower/PortalMessage";
 import { loadAssistantView } from "@/lib/assistant/server";
 import { resolveBorrowerAccess } from "@/lib/borrower/access";
+import { linkToken } from "@/lib/borrower/link-session";
 import { loadPortal } from "@/lib/borrower/load";
 import { resolveStep } from "@/lib/borrower/steps";
 import { formatDate } from "@/lib/format";
 import { requestLine } from "@/lib/borrower/request-line";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { LINK_COPY } from "@/content/borrower-link.es";
 
 export const dynamic = "force-dynamic";
 
@@ -18,23 +20,15 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-export default async function BorrowerPortalPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ paso?: string }> }) {
-  const { token } = await params;
+/** `/s/<handle>`: the link's token comes from its cookie (set by `/s`, see `borrowerLink`), never from the URL. */
+export default async function BorrowerPortalPage({ params, searchParams }: { params: Promise<{ link: string }>; searchParams: Promise<{ paso?: string }> }) {
+  const { link: handle } = await params;
   const { paso } = await searchParams;
+  const token = await linkToken(handle);
+  if (!token) return <LinkMessage copy={LINK_COPY.reopen} />;
   const db = createAdminClient();
   const res = await resolveBorrowerAccess(db, token);
-
-  if (!res.ok) {
-    return res.reason === "expired" ? (
-      <PortalMessage title="Este enlace ha caducado">
-        <p>Por seguridad, los enlaces para aportar documentación caducan pasado un tiempo. Pide a la entidad que te lo envió uno nuevo; lo que ya subiste se conserva.</p>
-      </PortalMessage>
-    ) : (
-      <PortalMessage title="No encontramos este enlace">
-        <p>Comprueba que has copiado el enlace completo del correo. Si lo has recibido hace tiempo, puede que se haya sustituido por uno nuevo.</p>
-      </PortalMessage>
-    );
-  }
+  if (!res.ok) return <LinkMessage copy={res.reason === "expired" ? LINK_COPY.expired : LINK_COPY.invalid} />;
 
   const { access } = res;
   const portal = await loadPortal(db, access);
@@ -61,7 +55,7 @@ export default async function BorrowerPortalPage({ params, searchParams }: { par
 
   return (
     <BorrowerFlow
-      token={token}
+      link={handle}
       actor={access.actor}
       lenderName={kase.lenderName}
       brandColor={kase.lenderBrandColor}
@@ -75,7 +69,7 @@ export default async function BorrowerPortalPage({ params, searchParams }: { par
       submittedLabel={kase.submittedAt ? formatDate(kase.submittedAt) : null}
       floating={
         <AssistantBar
-          token={token}
+          link={handle}
           lenderName={kase.lenderName}
           current={current}
           opening={assistant.opening}
@@ -84,5 +78,13 @@ export default async function BorrowerPortalPage({ params, searchParams }: { par
         />
       }
     />
+  );
+}
+
+function LinkMessage({ copy }: { copy: { title: string; body: string } }) {
+  return (
+    <PortalMessage title={copy.title}>
+      <p>{copy.body}</p>
+    </PortalMessage>
   );
 }

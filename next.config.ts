@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-// Borrower pages and APIs carry the magic-link token in the URL: never leak it via Referer, caches or indexes.
+// Borrower pages and APIs: the link's handle in the URL (the token only in the fragment of `/s` or in a cookie). Never
+// leak either via Referer, caches or indexes.
 const tokenHeaders = [
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
@@ -30,7 +31,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer", "unpdf"],
   // The assistant reads its guide at runtime; make sure it ships with the serverless bundle.
   outputFileTracingIncludes: {
-    "/api/borrower/[token]/assistant": ["./src/content/docs-guide.es.md"],
+    "/api/borrower/[link]/assistant": ["./src/content/docs-guide.es.md"],
     // Geist TTFs for the PDF export (react-pdf reads them from disk).
     "/casos/[id]/exportar/[format]": ["./src/lib/case-view/fonts/*.ttf"],
   },
@@ -39,6 +40,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: baseHeaders },
       { source: "/casos/:path*", headers: lenderHeaders },
+      { source: "/s", headers: tokenHeaders },
       { source: "/s/:path*", headers: tokenHeaders },
       { source: "/api/borrower/:path*", headers: tokenHeaders },
     ];

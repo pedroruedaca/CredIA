@@ -1,5 +1,5 @@
 /**
- * POST /api/borrower/:token/consent — "Retirar consentimiento" (company's own link only).
+ * POST /api/borrower/:link/consent — "Retirar consentimiento" (company's own link only).
  * Stops any further sharing: no more uploads or Holded syncs, stored Holded keys are destroyed and
  * gestoría links revoked. Documents already shared stay with the case; deletion requests go to the lender.
  */
@@ -9,8 +9,8 @@ import { getNotifier } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
-export async function POST(_req: Request, ctx: { params: Promise<{ token: string }> }) {
-  const r = await borrowerRoute((await ctx.params).token);
+export async function POST(_req: Request, ctx: { params: Promise<{ link: string }> }) {
+  const r = await borrowerRoute((await ctx.params).link);
   if (r.response) return r.response;
   const { db, access } = r;
   if (access.actor !== "borrower") return jsonError("Solo la empresa puede retirar el consentimiento.", 403);

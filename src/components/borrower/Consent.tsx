@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
 
 
-export function WithdrawConsent({ token, lenderName }: { token: string; lenderName: string }) {
+export function WithdrawConsent({ link, lenderName }: { link: string; lenderName: string }) {
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export function WithdrawConsent({ token, lenderName }: { token: string; lenderNa
   async function confirm() {
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/borrower/${encodeURIComponent(token)}/consent`, { method: "POST" }).catch(() => null);
+    const res = await fetch(`/api/borrower/${encodeURIComponent(link)}/consent`, { method: "POST" }).catch(() => null);
     const json = res ? await res.json().catch(() => ({})) : {};
     setBusy(false);
     if (!res?.ok) return setError(json.error ?? "No hemos podido registrarlo. Inténtalo de nuevo.");

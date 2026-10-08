@@ -56,6 +56,7 @@ export const PRIVACY_NOTICE = {
       heading: "Seguridad",
       body: [
         "Los datos viajan cifrados y cada prestamista solo puede acceder a sus propios casos. Las claves de Holded no se guardan salvo que elijas la sincronización periódica, y entonces se guardan cifradas. Cada consulta del prestamista a tus datos queda registrada.",
+        "Al abrir el enlace que te enviaron, tu navegador guarda una cookie técnica con él, que solo se envía a las páginas de tu solicitud y dura lo que dura el enlace. Así el enlace no aparece en la barra de direcciones ni en el historial. No usamos cookies de análisis ni de publicidad.",
       ],
     },
     {

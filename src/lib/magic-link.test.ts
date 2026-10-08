@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { borrowerLink, delegateExpiry, generateMagicLinkToken, hashToken, isPlausibleToken, linkState } from "./magic-link.ts";
+import { borrowerLink, delegateExpiry, generateMagicLinkToken, hashToken, isPlausibleHandle, isPlausibleToken, linkHandle, linkState } from "./magic-link.ts";
 
 describe("magic-link tokens", () => {
   it("generates a URL-safe 256-bit token whose hash matches hashToken", () => {
@@ -15,8 +15,28 @@ describe("magic-link tokens", () => {
   it("tokens are unique", () => {
     expect(generateMagicLinkToken().token).not.toBe(generateMagicLinkToken().token);
   });
-  it("builds the borrower link without double slashes", () => {
-    expect(borrowerLink("https://app.example/", "abc")).toBe("https://app.example/s/abc");
+  it("builds the borrower link with the token in the fragment, never in the path", () => {
+    const { token } = generateMagicLinkToken();
+    const link = new URL(borrowerLink("https://app.example/", token));
+    expect(link.href).toBe(`https://app.example/s#${token}`);
+    expect(link.pathname + link.search).not.toContain(token);
+  });
+});
+
+describe("link handles", () => {
+  it("are stable, URL-safe, distinct per token and never a token or its stored hash", () => {
+    const { token, hash } = generateMagicLinkToken();
+    const handle = linkHandle(token);
+    expect(handle).toBe(linkHandle(token));
+    expect(isPlausibleHandle(handle)).toBe(true);
+    expect(isPlausibleToken(handle)).toBe(false);
+    expect(isPlausibleHandle(token)).toBe(false);
+    expect(token).not.toContain(handle);
+    expect(hash).not.toContain(handle);
+    expect(linkHandle(generateMagicLinkToken().token)).not.toBe(handle);
+  });
+  it("shape check rejects path tricks", () => {
+    for (const bad of ["", "../../casos", "abc", "AAAAAAAAAAAAAAA/", "AAAAAAAAAAAAAAAAA"]) expect(isPlausibleHandle(bad)).toBe(false);
   });
 });
 

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/Input";
 type FileState = { key: string; name: string; status: "uploading" | "done" | "duplicate" | "error"; message?: string };
 
 interface Props {
-  token: string;
+  link: string;
   kind: RequirementKind;
   /** Norma 43: bank chip selected in the portal. */
   bank?: string;
@@ -31,7 +31,7 @@ async function postJson(url: string, body: unknown): Promise<{ ok: boolean; json
   return { ok: res.ok, json: await res.json().catch(() => ({})) };
 }
 
-export function UploadDropzone({ token, kind, bank, needsIssueDate = false, today, label }: Props) {
+export function UploadDropzone({ link, kind, bank, needsIssueDate = false, today, label }: Props) {
   const router = useRouter();
   // Not cleared on unmount: the item often collapses once done, and a later failure must still show up.
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -52,7 +52,7 @@ export function UploadDropzone({ token, kind, bank, needsIssueDate = false, toda
       update(key, { status: "error", message: declared.message });
       return false;
     }
-    const base = `/api/borrower/${encodeURIComponent(token)}`;
+    const base = `/api/borrower/${encodeURIComponent(link)}`;
     const step1 = await postJson(`${base}/uploads`, { kind, filename: file.name, size: file.size });
     if (!step1.ok) {
       update(key, { status: "error", message: String(step1.json.error ?? "No hemos podido subir el fichero.") });

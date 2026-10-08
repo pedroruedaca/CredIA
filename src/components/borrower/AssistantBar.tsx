@@ -23,7 +23,7 @@ import type { StepId } from "@/lib/borrower/steps";
 type Msg = { role: "user" | "assistant"; content: string; tone?: "notice" };
 
 interface Props {
-  token: string;
+  link: string;
   lenderName: string;
   current: StepId;
   opening: string;
@@ -78,7 +78,7 @@ function Answer({ text, steps, onStep }: { text: string; steps: Record<string, n
   );
 }
 
-export function AssistantBar({ token, lenderName, current, opening, history, steps }: Props) {
+export function AssistantBar({ link, lenderName, current, opening, history, steps }: Props) {
   const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: opening }, ...history]);
   const [open, setOpen] = useState(false);
@@ -90,7 +90,7 @@ export function AssistantBar({ token, lenderName, current, opening, history, ste
   const listRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
   const threadId = useId();
-  const base = `/api/borrower/${encodeURIComponent(token)}`;
+  const base = `/api/borrower/${encodeURIComponent(link)}`;
 
   useDismiss(open || hints, () => {
     setOpen(false);

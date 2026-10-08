@@ -15,7 +15,7 @@ type State =
   | { kind: "sent"; email: string; link: string; emailSent: boolean };
 
 /** "¿Lo gestiona tu asesoría? Enviar esta petición a mi gestoría" + modal. */
-export function DelegateDialog({ token, lenderName, inline = false }: { token: string; lenderName: string; inline?: boolean }) {
+export function DelegateDialog({ link, lenderName, inline = false }: { link: string; lenderName: string; inline?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -23,7 +23,7 @@ export function DelegateDialog({ token, lenderName, inline = false }: { token: s
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setState({ kind: "sending" });
-    const res = await fetch(`/api/borrower/${encodeURIComponent(token)}/delegate`, {
+    const res = await fetch(`/api/borrower/${encodeURIComponent(link)}/delegate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email }),
