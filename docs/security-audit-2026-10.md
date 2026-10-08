@@ -21,7 +21,7 @@ hardening work (§2–§3).
 | 1.3 | Anyone can create an auth account through the login form (open sign-up) | Low | **Partly fixed**: dashboard change needed |
 | 1.4 | Trigger functions with a mutable `search_path`; `touch_case` callable over RPC | Low | **Fixed** (0024) |
 | 2.1 | Legal basis "consent" does not cover the people in the documents; withdrawal doesn't stop processing | Medium (GDPR) | Open |
-| 2.2 | No retention period is enforced, and the notice still says `[PLAZO DE CONSERVACIÓN]` | Medium (GDPR) | In progress: closing, period and purge (0025, 0026); raw-data removal and notice pending |
+| 2.2 | No retention period is enforced, and the notice still says `[PLAZO DE CONSERVACIÓN]` | Medium (GDPR) | **Fixed** in #11: closing, retention period, purge with notice, chats at 90 days, real periods in the notice; raw-data removal at 90 days left for after the pilot |
 | 2.3 | Transfers to Anthropic (US): whole bank statements, including employees' names and salaries | Medium (GDPR) | Open |
 | 2.4 | Processor paperwork: Art. 28 contract with lenders, RoPA, DPIA, notice placeholders | Medium (GDPR) | Open |
 | 3.1 | No Content-Security-Policy, and the Supabase session cookie is readable by JS | Medium | Open |
