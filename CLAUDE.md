@@ -315,7 +315,9 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
   analyst's upload); the team personalises the case view and restores it; a template pre-sets a case's documents and
   dashboard, with a case-only layout and back; a case is closed, found under «Cerrados», its deletion date follows the
-  retention set in Ajustes, and it is reopened. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  retention set in Ajustes, and it is reopened. `PW_CHROMIUM_PATH` to reuse an installed Chromium. `E2E_PROD=1` runs the
+  same suite against `next build && next start`: some bugs only show there (CSP without eval, streamed responses), so run
+  it for changes to routing, loading states, middleware or headers.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.
@@ -398,7 +400,9 @@ primitives in `src/components/ui/` — use them instead of ad-hoc styles.
 - Radii: pills full; rows/inline panels 14–16px; inputs 14px; drop zones and floating panels 24–28px.
 - Inputs: soft fill, no border, 44px min height, 2px accent focus ring. Targets ≥ 44px.
 - Lists, not cards: `ListRow` with hover/selected soft fill and negative margin so text aligns with headings.
-- States: loading = `Skeleton` soft blocks; errors = one line with a high/warn pill (`ErrorLine`); no alert boxes.
+- States: loading = `Skeleton` soft blocks inside components; **no `loading.tsx` route boundaries** (Next 15.5: the page a
+  server action or `router.refresh()` sends back streams in behind them and is often never shown; production only;
+  `src/app/no-route-loading.test.ts`); errors = one line with a high/warn pill (`ErrorLine`); no alert boxes.
 - Tooltips: `Tooltip` (`src/components/ui/Tooltip.tsx`: title + explanatory line, hover/focus, Esc) — never a native `title`.
 - Icons: lucide-react, stroke 1.8–2. No emoji or ✓ glyphs. Motion 150–200ms ease-out; honour reduced motion.
 - Spanish UI copy lives in `src/content/`; bracketed placeholders like `[RUTA …]` stay until real paths exist.
