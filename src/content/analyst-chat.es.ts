@@ -5,7 +5,7 @@ export const ANALYST_CHAT_COPY = {
   barPlaceholder: "Pregunta sobre este caso: cifras, movimientos, verificaciones…",
   opening: "Pregúntame por las cifras, los movimientos bancarios, la CIRBE o las verificaciones de este caso. Cada cifra lleva su origen.",
   disclaimer: "Respuestas a partir de los datos del caso, con su origen. credIA no puntúa ni recomienda: la decisión es tuya.",
-  private: "Solo tú ves esta conversación.",
+  private: "Solo tú ves esta conversación. Los mensajes se borran a los 90 días; guarda como conclusión lo que quieras conservar.",
   thinking: "Pensando…",
   failed: "No he podido responder ahora. Inténtalo de nuevo en unos segundos.",
   refused: "No puedo responder a esa pregunta. Puedo darte las cifras, los indicadores y las verificaciones del caso.",

@@ -11,7 +11,7 @@ import { DOC_KIND_LABEL } from "@/content/case-view.es";
 import { ACTOR_LABEL, INBOX_KIND_LABEL, INBOX_TITLE, INBOX_TONE } from "@/content/inbox.es";
 import { INBOX_WINDOW_DAYS, type InboxItem } from "@/lib/inbox/build";
 import { loadInbox } from "@/lib/inbox/load";
-import { relativeTime } from "@/lib/format";
+import { formatDay, relativeTime } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
 import { createClient } from "@/lib/supabase/server";
 import { CloseButton } from "./CloseButton";
@@ -25,13 +25,15 @@ function Row({ item, canEdit, now }: { item: InboxItem; canEdit: boolean; now: D
       ? item.detail
         ? `«${item.detail}» · ${ACTOR_LABEL[item.actor ?? "borrower"]}`
         : `Sin mensaje · ${ACTOR_LABEL[item.actor ?? "borrower"]}`
-      : item.kind === "registry"
-        ? (item.detail ?? "Nuevos actos publicados")
-        : item.kind === "needs_review"
-          ? `${DOC_KIND_LABEL[item.detail ?? ""] ?? "Documento"}: credIA no ha podido leerlo con seguridad`
-          : item.kind === "submitted"
-            ? "Abre el caso para ver el paquete"
-            : "Ya no puede aportar documentos";
+      : item.kind === "purge"
+        ? `Se eliminará el ${formatDay(item.detail)} con todos sus datos. Descarga una copia antes si la necesitas.`
+        : item.kind === "registry"
+          ? (item.detail ?? "Nuevos actos publicados")
+          : item.kind === "needs_review"
+            ? `${DOC_KIND_LABEL[item.detail ?? ""] ?? "Documento"}: credIA no ha podido leerlo con seguridad`
+            : item.kind === "submitted"
+              ? "Abre el caso para ver el paquete"
+              : "Ya no puede aportar documentos";
   return (
     <li className={cx("-mx-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-row px-4 py-3.5 transition-colors duration-150 hover:bg-soft", !item.pending && "opacity-60")}>
       <SeverityDot tone={item.pending ? (item.tone ?? INBOX_TONE[item.kind]) : "neutral"} className="size-2.5" />

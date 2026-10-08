@@ -6,7 +6,7 @@
  */
 import { lenderRecipients } from "./email/recipients.ts";
 import { sendWithResend } from "./email/resend.ts";
-import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail, teamInviteEmail } from "./email/templates.ts";
+import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail, purgeNoticeEmail, teamInviteEmail } from "./email/templates.ts";
 import { normaliseBaseUrl } from "./base-url.ts";
 import { MAGIC_LINK_TTL_DAYS } from "./magic-link.ts";
 
@@ -53,12 +53,19 @@ export interface TeamInvite {
   loginUrl: string;
 }
 
+/** Closed cases of one lender whose deletion was just announced (retention purge, 14 days ahead). Owners only. */
+export interface PurgeNotice {
+  lenderId: string;
+  cases: { caseId: string; companyName: string; purgeOn: string }[];
+}
+
 export interface Notifier {
   sendTeamInvite(invite: TeamInvite): Promise<{ sent: boolean }>;
   sendBorrowerInvite(invite: BorrowerInvite): Promise<{ sent: boolean }>;
   sendDocumentRequest(request: DocumentRequest): Promise<{ sent: boolean }>;
   sendDelegateInvite(invite: DelegateInvite): Promise<{ sent: boolean }>;
   notifyLender(notice: LenderNotice): Promise<{ sent: boolean }>;
+  notifyPurgeScheduled(notice: PurgeNotice): Promise<{ sent: boolean }>;
 }
 
 const devConsoleNotifier: Notifier = {
@@ -80,6 +87,10 @@ const devConsoleNotifier: Notifier = {
   },
   async notifyLender(n) {
     console.info(`[notify:dev] Aviso al prestamista ${n.lenderId}: ${n.event} en ${n.companyName} (${n.caseId})`);
+    return { sent: true };
+  },
+  async notifyPurgeScheduled(n) {
+    console.info(`[notify:dev] Aviso de eliminación al prestamista ${n.lenderId}: ${n.cases.map((c) => `${c.caseId} el ${c.purgeOn}`).join(", ")}`);
     return { sent: true };
   },
 };
@@ -105,6 +116,10 @@ const noopNotifier: Notifier = {
     console.warn(`[notify] Sin proveedor de correo configurado: aviso ${n.event} no enviado.`);
     return { sent: false };
   },
+  async notifyPurgeScheduled() {
+    console.warn("[notify] Sin proveedor de correo configurado: aviso de eliminación no enviado (queda en la Bandeja).");
+    return { sent: false };
+  },
 };
 
 /** Default sender: Resend's shared test address, which only delivers to the Resend account's own email. */
@@ -112,7 +127,8 @@ export const DEFAULT_FROM = "credIA <onboarding@resend.dev>";
 
 export function resendNotifier(apiKey: string, env: { from?: string; replyTo?: string; appUrl?: string } = {}, deps: { recipients?: typeof lenderRecipients; fetchImpl?: typeof fetch } = {}): Notifier {
   const base = { apiKey, from: env.from || DEFAULT_FROM, replyTo: env.replyTo || undefined, fetchImpl: deps.fetchImpl };
-  const caseUrl = (caseId: string) => (env.appUrl ? `${env.appUrl.replace(/\/+$/, "")}/casos/${caseId}` : null);
+  const appPath = (path: string) => (env.appUrl ? `${env.appUrl.replace(/\/+$/, "")}${path}` : null);
+  const caseUrl = (caseId: string) => appPath(`/casos/${caseId}`);
   return {
     sendTeamInvite: (i) => sendWithResend(teamInviteEmail(i), { ...base, to: i.to, kind: "team_invite" }),
     sendBorrowerInvite: (i) =>
@@ -127,6 +143,12 @@ export function resendNotifier(apiKey: string, env: { from?: string; replyTo?: s
         to,
         kind: `lender_${n.event}`,
       });
+    },
+    async notifyPurgeScheduled(n) {
+      const to = await (deps.recipients ?? lenderRecipients)(n.lenderId, ["owner"]);
+      if (to.length === 0 || n.cases.length === 0) return { sent: false };
+      const cases = n.cases.map((c) => ({ companyName: c.companyName, purgeOn: c.purgeOn, caseUrl: caseUrl(c.caseId) }));
+      return sendWithResend(purgeNoticeEmail({ cases, retentionLink: appPath("/ajustes") }), { ...base, to, kind: "lender_purge_scheduled" });
     },
   };
 }

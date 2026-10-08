@@ -684,7 +684,8 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   if ((kase.submitted_at || update.submitted_at) && ["processing", "ready", "needs_review"].includes(status)) {
     update.status = (open ?? []).some((d) => d.status === "needs_review") ? "needs_review" : waiting ? "processing" : "ready";
   }
-  await db.from("cases").update(update).eq("id", kase.id);
+  // A case closed while this run was going stays closed (its status was read before the run).
+  await db.from("cases").update(update).eq("id", kase.id).neq("status", "archived");
   await db.from("audit_log").insert({
     lender_id: kase.lender_id,
     case_id: kase.id,

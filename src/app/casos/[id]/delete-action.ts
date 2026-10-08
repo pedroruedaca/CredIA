@@ -8,10 +8,10 @@
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { casePrefixes, confirmsDeletion, filesToRemove } from "@/lib/cases/deletion";
+import { removeCaseFiles } from "@/lib/cases/case-files";
+import { confirmsDeletion } from "@/lib/cases/deletion";
 import { caseRef } from "@/lib/format";
 import { requireLender } from "@/lib/lender";
-import { CASE_BUCKET as BUCKET, listAll } from "@/lib/storage/list";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,20 +35,17 @@ export async function deleteCase(caseId: string, typedCif: string): Promise<Dele
   ]);
   if (docs.error || memos.error) return { ok: false, message: "No hemos podido preparar el borrado. Inténtalo de nuevo." };
 
-  const admin = createAdminClient();
-  const listed: string[] = [];
-  for (const prefix of casePrefixes(caseId)) {
-    const found = await listAll(admin, prefix);
-    if (found === null) return { ok: false, message: "No hemos podido leer los archivos del caso. No se ha borrado nada." };
-    listed.push(...found);
-  }
-  const files = filesToRemove(caseId, listed, [
+  const files = await removeCaseFiles(createAdminClient(), caseId, [
     ...(docs.data ?? []).map((d) => d.storage_path as string),
     ...(memos.data ?? []).map((m) => m.storage_path as string),
   ]);
-  for (let i = 0; i < files.length; i += 100) {
-    const { error } = await admin.storage.from(BUCKET).remove(files.slice(i, i + 100));
-    if (error) return { ok: false, message: "No hemos podido borrar todos los archivos del caso. Vuelve a intentarlo; los datos siguen intactos." };
+  if (!files.ok) {
+    return {
+      ok: false,
+      message: files.reason === "list_failed"
+        ? "No hemos podido leer los archivos del caso. No se ha borrado nada."
+        : "No hemos podido borrar todos los archivos del caso. Vuelve a intentarlo; los datos siguen intactos.",
+    };
   }
 
   // The rows, through the owner's session: the database checks the owner role (0023). Everything else cascades.
@@ -61,7 +58,7 @@ export async function deleteCase(caseId: string, typedCif: string): Promise<Dele
     case_id: null,
     actor: lender.userId,
     action: "case.deleted",
-    detail: { case_id: caseId, case_ref: caseRef(caseId), files_removed: files.length },
+    detail: { case_id: caseId, case_ref: caseRef(caseId), files_removed: files.removed },
   });
   revalidatePath("/casos");
   redirect("/casos?eliminado=1");

@@ -44,6 +44,7 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
         const p = completeness(c.case_requirements, c.documents, c.holded_connections);
         const name = c.borrower_name ?? c.borrower_cif;
         const line = requestLine(c);
+        const closed = c.status === "archived";
         return (
           <li
             key={c.id}
@@ -60,7 +61,7 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
             </div>
             <div className="flex flex-wrap items-center justify-end gap-1.5 justify-self-end md:justify-start md:justify-self-start">
               <StatusChip status={c.status} />
-              <AnalystPendingChip count={analystPending(c.case_requirements, c.documents).length} />
+              {!closed && <AnalystPendingChip count={analystPending(c.case_requirements, c.documents).length} />}
             </div>
             {p.total === 0 ? (
               <div className="col-span-2 md:col-span-1">
@@ -97,7 +98,7 @@ export function CaseList({ cases, canEdit, now }: { cases: CaseRow[]; canEdit: b
                   <span className="sr-only">Ver como la empresa ({name})</span>
                 </Link>
               </Tooltip>
-              {canEdit && <NewLinkButton caseId={c.id} companyName={name} compact />}
+              {canEdit && !closed && <NewLinkButton caseId={c.id} companyName={name} compact />}
             </div>
           </li>
         );

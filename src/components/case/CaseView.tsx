@@ -7,21 +7,24 @@ import Link from "next/link";
 import { Eye, LayoutDashboard } from "lucide-react";
 import { AnalystChat, type ChatMessage } from "@/components/case/AnalystChat";
 import { ExportMenu, RequestDocumentButton } from "@/components/case/CaseActions";
+import { CloseCase, ReopenCase } from "@/components/case/CloseCase";
 import { ConclusionsSection } from "@/components/case/ConclusionsSection";
 import { DetailsSheet } from "@/components/case/DetailsSheet";
 import { EvidencePanel } from "@/components/case/EvidencePanel";
 import { AnalystPendingChip, StatusChip } from "@/components/StatusChip";
 import { analystPending } from "@/lib/cases/attention";
+import { scheduledDeletion } from "@/lib/cases/closing";
 import { Pill } from "@/components/ui/Pill";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cx } from "@/components/ui/cx";
+import { closedLine } from "@/content/case-closing.es";
 import { productLabel } from "@/content/products.es";
 import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
 import { DEFAULT_LAYOUT, type Layout, type LayoutSource } from "@/lib/case-view/modules";
 import { CaseModules } from "@/components/case/modules/CaseModules";
 import { LayoutEditor, type SaveOption } from "@/components/case/modules/LayoutEditor";
-import { caseRef, formatDate, formatFigure, relativeTime } from "@/lib/format";
+import { caseRef, formatDate, formatDay, formatFigure, relativeTime } from "@/lib/format";
 
 export function CaseView({
   data,
@@ -54,6 +57,12 @@ export function CaseView({
   const pkg = buildPackage(data);
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const hasFinancials = pkg.basePeriod !== null;
+  const closed = kase.status === "archived";
+  const { closing } = data;
+  const deletion =
+    closed && closing.closedAt && closing.retentionMonths
+      ? scheduledDeletion({ closedAt: closing.closedAt, retentionMonths: closing.retentionMonths, warnedAt: closing.purgeWarnedAt, warnedFor: closing.purgeWarnedFor })
+      : null;
   
 
   const company = [
@@ -126,10 +135,23 @@ export function CaseView({
                 .flatMap((el, i) => (i === 0 ? [el] : [" · ", el]))}
             </p>
             <div className="grow" />
-            {canEdit && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "lender").map((r) => r.doc_kind)} />}
+            {canEdit && !closed && <RequestDocumentButton caseId={kase.id} companyName={kase.companyName} requested={data.requirements.filter((r) => r.required && r.source !== "lender").map((r) => r.doc_kind)} />}
+            {canEdit && (closed ? <ReopenCase caseId={kase.id} /> : <CloseCase caseId={kase.id} companyName={kase.companyName} retentionMonths={closing.retentionMonths} />)}
             <ExportMenu caseId={kase.id} full={canDelete} />
           </div>
         </header>
+
+        {closed && (
+          <p role="status" className="text-[15px] text-ink-2">
+            {closedLine({
+              closedOn: formatDate(closing.closedAt),
+              reason: closing.reason,
+              deleteOn: deletion ? formatDay(deletion.date) : null,
+              announced: deletion?.announced ?? false,
+              months: closing.retentionMonths,
+            })}
+          </p>
+        )}
 
         {kase.status === "processing" && (
           <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="info">Procesando</Pill> Estamos leyendo los documentos; las cifras se actualizarán al terminar.</p>

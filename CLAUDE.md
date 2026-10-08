@@ -70,7 +70,9 @@ UI `src/components/ConnectHolded.tsx`):
 6. **Token handling:** never logged or echoed in errors. `one_time` (default): key lives in memory for the
    request only and is never stored. `refresh`: sealed with AES-256-GCM (`src/lib/crypto/token.ts`,
    AAD = connection id, key `CREDIA_ENCRYPTION_KEY`). Encrypted columns are not selectable by clients.
-7. Raw ledger lines + exclusion decisions stored at `raw/holded/<case>/<sync_id>.json` (bucket `case-files`).
+7. Raw ledger lines + exclusion decisions stored at `raw/holded/<case>/<sync_id>.json` (bucket `case-files`), as audit
+   evidence while the case is studied; removed when the case is closed (`releaseOnClose`). Statements come from
+   `ledger_balances`, never from these files.
 8. Sync runs inside the request (`maxDuration = 300`). Move to a background job once real books need it.
 
 ## BORME (Registro Mercantil)
@@ -189,7 +191,8 @@ prompt forbids scores, approve/decline, rates, limits; provider rating/PD/limit 
   default claude-opus-5-5) at effort medium, server-side refusal fallback, cached tools + stable prompt (`prompt.ts`), then
   a figure-free case snapshot. Route `POST/DELETE /casos/[id]/preguntar` (NDJSON events `protocol.ts`: delta, status,
   done, error); 60 questions/hour per analyst; audit `case.question_asked` (tools, counts; never the text).
-- **Threads are private** (`analyst_messages`: RLS same lender and `user_id = auth.uid()`; viewers may ask). UI
+- **Threads are private** (`analyst_messages`: RLS same lender and `user_id = auth.uid()`; viewers may ask); messages
+  older than 90 days are deleted by the daily cron (`deleteOldChats`). UI
   `AnalystChat` (assistant bar at the bottom of the case view, suggestions from `chatSuggestions`), `CitedText`
   (numbered chips with tooltip and link, numbered sources).
 - **Conclusions** (`case_conclusions`, members read, owners/analysts write): «Guardar como conclusión» on an answer,
@@ -310,7 +313,8 @@ closing-entries suspicion · bank accounts held by someone other than the compan
 - E2E: `npm run test:e2e` (Playwright, local Supabase, dev server on :3100): lender creates a case → company uploads
   TB + Norma 43 → lender sees the package; an all-«Lo subo yo» case (no invitation, pill, filter, moves on after the
   analyst's upload); the team personalises the case view and restores it; a template pre-sets a case's documents and
-  dashboard, with a case-only layout and back. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
+  dashboard, with a case-only layout and back; a case is closed, found under «Cerrados», its deletion date follows the
+  retention set in Ajustes, and it is reopened. `PW_CHROMIUM_PATH` to reuse an installed Chromium.
 - Processing runs after the response (`after()`, pages/routes with `maxDuration = 300`). A run can die (time limit,
   deploy, read-only database): `stuckReason` (`src/lib/pipeline/stuck.ts`) spots stuck cases and they are re-run when
   the case or the case list is opened and in the daily cron's sweep; pages auto-refresh while something is processing.
@@ -325,6 +329,26 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   `raw/holded/<id>/` plus paths rows name, never another case's), then the case row through the owner's session (RLS);
   every row cascades. If a file cannot be removed nothing else is deleted. One audit row stays (`case.deleted`,
   `case_id` null, case id in `detail`).
+- **Closing cases and retention** (0025; pure rules `src/lib/cases/closing.ts`, DB `close-store.ts`, actions
+  `src/app/casos/[id]/close-action.ts`, UI `CloseCase.tsx`, copy `src/content/case-closing.es.ts`): «Cerrar caso» (owners
+  and analysts; reason decided / declined / withdrawn) sets `status = 'archived'` + `closed_at`/`closed_reason` (a
+  constraint keeps them together), stops the company's and gestoría links, destroys stored Holded keys and removes the Holded raw ledgers (`releaseOnClose`); «Reabrir
+  caso» goes back to awaiting_documents (or processing if submitted). The daily cron closes open cases with no activity
+  from a person (audit rows not by `system`, `open_case_activity()`, service role only) for the lender's
+  `auto_close_months` (default 6, null = never; reason `inactive`). Each lender sets `retention_months` (default 12) in
+  Ajustes «Conservación de datos» (owners); the case header shows until when a closed case is kept. Closed cases list
+  under the «Cerrados» filter only.
+- **Retention purge** (0026; `purgeStep` in `closing.ts`, `src/lib/cases/purge.ts`, daily cron): a closed case is due
+  `retention_months` after `closed_at`. 14 days before, the cron announces it (`purge_warned_at`/`purge_warned_for`, audit
+  `case.purge_scheduled` → Bandeja item «se eliminará pronto», one email per lender to its owners listing the cases,
+  `notifyPurgeScheduled`); a late warning announces today + 14, never sooner. On the announced date it deletes the case
+  like «Eliminar caso» (files first via `removeCaseFiles` in `case-files.ts`, then the row; cascade) and leaves one
+  `case.purged` audit row without company name or CIF. An announcement counts only for the current closing and a date
+  not earlier than the due date: reopening cancels it, lengthening the period re-announces, shortening keeps the date
+  promised. ≤ 25 deletions per run within the cron's time left. The same cron deletes chat messages (company assistant
+  and analyst chat) older than `CHAT_RETENTION_DAYS` (90; `deleteOldChats`; saved conclusions stay). **Not yet (after the
+  pilot, if lenders want it):** removing raw data 90 days after closing (needs tombstone documents and frozen cases),
+  a «Conservar» hold.
 - **«Descargar todo»** (`GET /casos/[id]/exportar/todo`, owners only, last item of «Exportar paquete»; pure layout and
   README `src/lib/cases/full-export.ts`, `assembleZip`): one zip with LEEME.txt, caso.json, paquete.json (the JSON
   export), every original file under `documentos/<tipo>/` with `documentos.json`, Holded raw ledgers, bank movements,
@@ -335,8 +359,9 @@ closing-entries suspicion · bank accounts held by someone other than the compan
   older than an hour (`sweepExports`), «Eliminar caso» removes the folder. Refused above 45 MB of files. Audit
   `package.exported` with `format: zip_complete`.
 - **Privacy notice** `/privacidad` (public; copy `src/content/data-protection.es.ts`, linked from the portal's privacy
-  note): lender = controller, credIA = processor, subprocessors, retention, rights. Bracketed placeholders (credIA's
-  legal identity, privacy email, retention period) stay until reviewed by a data-protection adviser.
+  note): lender = controller, credIA = processor, subprocessors, retention (the real periods: lender's period after
+  closing, default 12 months; Holded raw ledgers at closing; chats at 90 days), rights. Bracketed placeholders (credIA's
+  legal identity, privacy email) stay until reviewed by a data-protection adviser.
 - **Headers** (`next.config.ts`): every page `X-Frame-Options: DENY` + `frame-ancestors 'none'`, nosniff, HSTS,
   `Permissions-Policy`; lender pages `private, no-store` + noindex; token pages `no-referrer`. No full CSP yet (needs
   nonces for Next's inline scripts).

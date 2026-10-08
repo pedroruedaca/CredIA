@@ -26,7 +26,7 @@ export function analystCompletesCase(reqs: CaseRequirement[], docs: CaseDocument
   return mine.length > 0 && analystPending(reqs, docs).length === 0 && mine.some((r) => isRequirementMet(r.doc_kind, docs, []));
 }
 
-export const CASE_FILTERS = ["todos", "atencion", "empresa", "procesando"] as const;
+export const CASE_FILTERS = ["todos", "atencion", "empresa", "procesando", "cerrados"] as const;
 export type CaseFilter = (typeof CASE_FILTERS)[number];
 
 export interface FilterableCase {
@@ -41,8 +41,11 @@ export interface FilterableCase {
  *   need review.
  * - empresa: waiting on the company (its required documents are not all in, or it has not submitted).
  * - procesando: documents being read.
+ * - cerrados: closed cases (0025). Every other filter is about open cases only.
  */
 export function matchesFilter(c: FilterableCase, f: CaseFilter): boolean {
+  if (f === "cerrados") return c.status === "archived";
+  if (c.status === "archived") return false;
   switch (f) {
     case "todos":
       return true;

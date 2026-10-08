@@ -6,8 +6,10 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Pill } from "@/components/ui/Pill";
+import { RETENTION_COPY as R } from "@/content/case-closing.es";
+import { AUTO_CLOSE_OPTIONS, RETENTION_OPTIONS } from "@/lib/cases/closing";
 import { initials } from "@/lib/initials";
-import { changeRole, inviteMember, removeMember, updateLender, type Result } from "./actions";
+import { changeRole, inviteMember, removeMember, updateLender, updateRetention, type Result } from "./actions";
 
 type Role = "owner" | "analyst" | "viewer";
 const ROLE_LABEL: Record<Role, string> = { owner: "Administrador", analyst: "Analista", viewer: "Consulta" };
@@ -70,6 +72,47 @@ export function LenderForm({ name, brandColor, canEdit }: { name: string; brandC
       {canEdit && (
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={pending || (n === name && color === brandColor)}>{pending ? "Guardando…" : "Guardar"}</Button>
+          <Feedback result={result} />
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** «Conservación de datos»: retention after closing and auto-close of idle cases (owners edit). */
+export function RetentionForm({ retentionMonths, autoCloseMonths, canEdit }: { retentionMonths: number; autoCloseMonths: number | null; canEdit: boolean }) {
+  const initialAuto = autoCloseMonths === null ? "never" : String(autoCloseMonths);
+  const [retention, setRetention] = useState(String(retentionMonths));
+  const [auto, setAuto] = useState(initialAuto);
+  const [result, setResult] = useState<Result | null>(null);
+  const [pending, start] = useTransition();
+  // A value set outside the offered choices (database accepts more) is still shown.
+  const retentionChoices = [...new Set<number>([...RETENTION_OPTIONS, retentionMonths])].sort((a, b) => a - b);
+  const autoChoices = [...new Set<number>([...AUTO_CLOSE_OPTIONS, ...(autoCloseMonths === null ? [] : [autoCloseMonths])])].sort((a, b) => a - b);
+  return (
+    <form
+      className="flex flex-col gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => setResult(await updateRetention({ retentionMonths: retention, autoCloseMonths: auto })));
+      }}
+    >
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field id="retention-months" label={R.retentionLabel} hint={R.retentionHint}>
+          <Select id="retention-months" value={retention} disabled={!canEdit} onChange={(e) => setRetention(e.target.value)}>
+            {retentionChoices.map((m) => <option key={m} value={m}>{R.keep(m)}</option>)}
+          </Select>
+        </Field>
+        <Field id="auto-close-months" label={R.autoCloseLabel} hint={R.autoCloseHint}>
+          <Select id="auto-close-months" value={auto} disabled={!canEdit} onChange={(e) => setAuto(e.target.value)}>
+            {autoChoices.map((m) => <option key={m} value={m}>{R.after(m)}</option>)}
+            <option value="never">{R.never}</option>
+          </Select>
+        </Field>
+      </div>
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={pending || (retention === String(retentionMonths) && auto === initialAuto)}>{pending ? "Guardando…" : "Guardar"}</Button>
           <Feedback result={result} />
         </div>
       )}

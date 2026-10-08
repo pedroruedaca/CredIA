@@ -2,13 +2,13 @@
  * Data protection copy: the privacy notice the company sees (/privacidad, linked from the portal) and «Eliminar caso».
  *
  * The notice describes how the product actually works. Bracketed placeholders (`[…]`) are facts only the business can
- * fill in (credIA's legal identity, contact, retention period); they stay until a data-protection
+ * fill in (credIA's legal identity, contact); they stay until a data-protection
  * adviser has reviewed the text. Do not invent them.
  */
 
 export const PRIVACY_NOTICE = {
   title: "Cómo se tratan los datos de tu empresa",
-  updated: "Versión del 7 de octubre de 2026",
+  updated: "Versión del 8 de octubre de 2026",
   intro:
     "Has recibido un enlace de una entidad de financiación (el prestamista) para que le envíes la documentación de tu empresa. Este texto explica qué datos se tratan, para qué, quién los ve y cómo ejercer tus derechos.",
   sections: [
@@ -47,7 +47,8 @@ export const PRIVACY_NOTICE = {
     {
       heading: "Cuánto tiempo",
       body: [
-        "Mientras el prestamista estudia la solicitud y, como máximo, [PLAZO DE CONSERVACIÓN] después. El prestamista puede eliminar el caso antes; al hacerlo se borran todos los datos y archivos del caso.",
+        "Mientras el prestamista estudia la solicitud. Cuando la cierra (o, si así lo tiene configurado, tras varios meses sin actividad), el caso se conserva durante el plazo que fije el prestamista, por defecto 12 meses, y después se elimina con todos sus datos y archivos. El prestamista puede alargar ese plazo si una norma le obliga a conservar la documentación, o eliminar el caso antes.",
+        "Algunos datos se borran antes: los apuntes contables importados de Holded tal cual llegaron, al cerrarse el caso (las cifras calculadas se quedan), y las conversaciones con el asistente, a los 90 días.",
         "Si retiras el consentimiento, no se podrán subir más documentos; para que se borren los ya compartidos, pídeselo al prestamista.",
       ],
     },

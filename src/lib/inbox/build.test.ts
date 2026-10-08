@@ -53,4 +53,12 @@ describe("buildInbox", () => {
     ]);
     expect(r.pendingCount).toBe(1);
   });
+
+  it("an announced deletion is pending until the case is opened after it", () => {
+    const purge: InboxInput["purge"] = [{ id: "9", case_id: "c3", at: "2026-09-24T08:30:00Z", company: "Talleres", purge_on: "2026-10-08" }];
+    expect(buildInbox({ ...base, purge }, now).items).toEqual([
+      { id: "purge:9", kind: "purge", caseId: "c3", company: "Talleres", at: "2026-09-24T08:30:00Z", pending: true, detail: "2026-10-08", tone: "warn" },
+    ]);
+    expect(buildInbox({ ...base, purge, views: [{ case_id: "c3", at: "2026-09-25T10:00:00Z" }] }, now).items[0].pending).toBe(false);
+  });
 });

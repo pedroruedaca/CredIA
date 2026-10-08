@@ -2,12 +2,15 @@
  * GET /api/cron/borme — daily BORME import (Vercel Cron, see vercel.json). Imports today's Section A and catches up
  * on any weekday of the last 10 days not yet imported (or that failed). Then cases whose confirmed company has new
  * acts in those days are flagged in the Bandeja and reprocessed (notifyNewActs), and index days older than the
- * retention window are pruned, and «Descargar todo» zips older than an hour removed. Last, with the time left, cases stuck in processing are run again. Vercel sends `Authorization: Bearer $CRON_SECRET`.
+ * retention window are pruned, and «Descargar todo» zips older than an hour removed, cases idle for their lender's auto-close period closed, and closed cases past their retention period announced (14 days ahead) or deleted, and chat messages older than 90 days removed. Last, with the time left, cases stuck in processing are run again. Vercel sends `Authorization: Bearer $CRON_SECRET`.
  */
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ingestDay, pruneIndex, watchedSheets, weekdays } from "@/lib/borme/ingest";
 import { notifyNewActs } from "@/lib/borme/watch";
+import { closeInactiveCases } from "@/lib/cases/close-store";
+import { deleteOldChats, runRetentionPurge } from "@/lib/cases/purge";
+import { getNotifier } from "@/lib/notify";
 import { sweepExports } from "@/lib/cases/export-sweep";
 import { runStuck, stuckCases } from "@/lib/pipeline/kick";
 import { todayMadrid } from "@/lib/format";
@@ -44,7 +47,13 @@ export async function GET(req: Request) {
   const prunedBefore = await pruneIndex(db, today);
   // «Descargar todo» zips are temporary: anything older than an hour goes.
   const exportsRemoved = await sweepExports(db).catch(() => 0);
+  // Cases with no activity for their lender's auto-close period are closed (Ajustes, «Conservación de datos»).
+  const closed = await closeInactiveCases(db).catch(() => [] as string[]);
+  // Closed cases past their lender's retention period: announced 14 days ahead, then deleted on the date.
+  const purge = await runRetentionPurge(db, getNotifier(), { budgetMs: Math.max(0, 200_000 - (Date.now() - started)) }).catch(() => null);
+  // Chat messages older than 90 days (company assistant and analyst chat).
+  const chats = await deleteOldChats(db).catch(() => null);
   const stuck = await stuckCases(db);
   const rerun = await runStuck(db, stuck, Math.max(0, 240_000 - (Date.now() - started)));
-  return NextResponse.json({ ok: true, results, notified, prunedBefore, exportsRemoved, stuck: stuck.length, rerun: rerun.length });
+  return NextResponse.json({ ok: true, results, notified, prunedBefore, exportsRemoved, closed: closed.length, purge: purge && { warned: purge.warned, emailed: purge.emailed, purged: purge.purged.length, failed: purge.failed.length }, chats, stuck: stuck.length, rerun: rerun.length });
 }

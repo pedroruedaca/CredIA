@@ -8,7 +8,7 @@ const company = (c: CaseRef) => c?.borrower_name ?? c?.borrower_cif ?? "Empresa"
 
 export async function loadInbox(db: SupabaseClient, now = new Date()) {
   const since = new Date(now.getTime() - INBOX_WINDOW_DAYS * 86_400_000).toISOString();
-  const [support, cases, docs, registry] = await Promise.all([
+  const [support, cases, docs, registry, purge] = await Promise.all([
     db
       .from("support_requests")
       .select("id, case_id, actor, message, status, created_at, cases(borrower_name, borrower_cif)")
@@ -33,8 +33,17 @@ export async function loadInbox(db: SupabaseClient, now = new Date()) {
       .gte("at", since)
       .order("at", { ascending: false })
       .limit(200),
+    db
+      .from("audit_log")
+      .select("id, case_id, at, detail, cases(borrower_name, borrower_cif)")
+      .eq("action", "case.purge_scheduled")
+      .gte("at", since)
+      .order("at", { ascending: false })
+      .limit(200),
   ]);
-  const caseIds = [...new Set([...(cases.data ?? []).map((c) => c.id), ...(registry.data ?? []).map((r) => r.case_id as string)])];
+  const caseIds = [
+    ...new Set([...(cases.data ?? []).map((c) => c.id), ...(registry.data ?? []).map((r) => r.case_id as string), ...(purge.data ?? []).map((p) => p.case_id as string)]),
+  ];
   const views = caseIds.length
     ? await db.from("audit_log").select("case_id, at").eq("action", "case.viewed").in("case_id", caseIds).gte("at", since)
     : { data: [] as { case_id: string; at: string }[] };
@@ -50,6 +59,13 @@ export async function loadInbox(db: SupabaseClient, now = new Date()) {
       at: r.at,
       company: company(r.cases as unknown as CaseRef),
       acts: ((r.detail as { acts?: { label: string; severity: "high" | "warn" | "info" | null }[] } | null)?.acts ?? []).map((a) => ({ label: a.label, severity: a.severity })),
+    })),
+    purge: (purge.data ?? []).map((p) => ({
+      id: String(p.id),
+      case_id: p.case_id as string,
+      at: p.at,
+      company: company(p.cases as unknown as CaseRef),
+      purge_on: (p.detail as { purge_on?: string } | null)?.purge_on ?? "",
     })),
   };
   return { ...buildInbox(input, now), failed: !!(support.error || cases.error || docs.error) };
