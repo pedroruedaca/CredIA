@@ -20,7 +20,7 @@ export const CLOSE_CASE_COPY = {
   reasonLabel: "Motivo",
   effects: [
     "El enlace de la empresa y los de su gestoría dejan de funcionar.",
-    "Si la empresa dejó guardada su clave de Holded, se borra.",
+    "Si la empresa dejó guardada su clave de Holded, se borra, y también los apuntes en bruto importados de Holded (las cifras del caso se quedan).",
     "El equipo sigue viendo el caso y puede exportarlo o reabrirlo hasta que se elimine.",
   ],
   retention: (months: number) =>

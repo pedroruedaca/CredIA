@@ -35,6 +35,9 @@ export function addMonths(iso: string, months: number): string {
 /** The day a closed case is due for deletion: its closing date plus the lender's retention period. */
 export const retentionEndsOn = (closedAt: string, retentionMonths: number) => addMonths(closedAt, retentionMonths);
 
+/** Chat messages (the company's assistant and the analysts' «Preguntar al caso») are deleted after this many days. */
+export const CHAT_RETENTION_DAYS = 90;
+
 /** Days between the warning (Bandeja + email to owners) and the deletion. */
 export const PURGE_NOTICE_DAYS = 14;
 

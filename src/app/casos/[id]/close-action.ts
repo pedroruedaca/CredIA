@@ -3,13 +3,14 @@
 /**
  * «Cerrar caso» / «Reabrir caso» (owners and analysts). The case row is written through the analyst's own session,
  * so the database checks the role (0023) and the columns (0024/0025). Closing stops the company's and the gestoría's
- * links (resolveBorrowerAccess refuses archived cases) and destroys stored Holded keys (service role: clients cannot
- * write holded_connections). Reopening a submitted case processes it again.
+ * links (resolveBorrowerAccess refuses archived cases), destroys stored Holded keys and removes the Holded raw ledgers
+ * (`releaseOnClose`, service role: clients cannot write either). Reopening a submitted case processes it again (from
+ * the stored balances, which stay).
  */
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { closeUpdate, isCloseReason, reopenUpdate } from "@/lib/cases/closing";
-import { destroyStoredHoldedKeys } from "@/lib/cases/close-store";
+import { releaseOnClose } from "@/lib/cases/close-store";
 import { requireLender } from "@/lib/lender";
 import { processCase } from "@/lib/pipeline/process-case";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,13 +32,13 @@ export async function closeCase(caseId: string, reason: string): Promise<CloseRe
   if (error) return { ok: false, message: "No hemos podido cerrar el caso. Inténtalo de nuevo." };
   if (!kase) return { ok: false, message: "El caso no existe o ya está cerrado." };
 
-  const keys = await destroyStoredHoldedKeys(createAdminClient(), caseId, now);
+  const released = await releaseOnClose(createAdminClient(), caseId, now);
   await supabase.from("audit_log").insert({
     lender_id: kase.lender_id,
     case_id: caseId,
     actor: lender.userId,
     action: "case.closed",
-    detail: { reason, holded_keys_destroyed: keys },
+    detail: { reason, ...released },
   });
   revalidatePath(`/casos/${caseId}`);
   revalidatePath("/casos");

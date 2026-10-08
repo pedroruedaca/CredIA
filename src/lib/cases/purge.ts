@@ -2,14 +2,14 @@
  * Retention purge (daily cron, 0026): closed cases whose lender's retention period has ended are announced 14 days
  * ahead (Bandeja item + one email per lender to its owners) and deleted on the announced date, with the same
  * files-then-rows order as «Eliminar caso». One audit row stays per deleted case, with no company data. Rules in
- * ./closing.ts (`purgeStep`). Server-only (service role).
+ * ./closing.ts (`purgeStep`). Also the 90-day chat clean-up (`deleteOldChats`). Server-only (service role).
  */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { caseRef, formatDay } from "../format.ts";
 import type { Notifier } from "../notify.ts";
 import { removeCaseFiles } from "./case-files.ts";
-import { purgeStep } from "./closing.ts";
+import { CHAT_RETENTION_DAYS, purgeStep } from "./closing.ts";
 
 /** Deletions per run (each lists and removes the case's files); the rest go on the next run. */
 const PURGE_BATCH = 25;
@@ -110,4 +110,19 @@ async function purgeCase(admin: SupabaseClient, kase: ClosedCase, purgeOn: strin
     detail: { case_id: kase.id, case_ref: caseRef(kase.id), closed_at: kase.closed_at, retention_months: kase.lenders?.retention_months ?? null, purge_on: purgeOn, files_removed: files.removed, at: now.toISOString() },
   });
   return true;
+}
+
+/**
+ * Chat messages older than CHAT_RETENTION_DAYS go, open case or not: the company's assistant (`assistant_messages`) and
+ * the analysts' «Preguntar al caso» (`analyst_messages`). Saved conclusions are separate rows and stay. Returns the
+ * number of messages deleted per table (null when the delete failed; the next run tries again).
+ */
+export async function deleteOldChats(admin: SupabaseClient, now = new Date()): Promise<{ assistant: number | null; analyst: number | null }> {
+  const cutoff = new Date(now.getTime() - CHAT_RETENTION_DAYS * 86_400_000).toISOString();
+  const del = async (table: string) => {
+    const { count, error } = await admin.from(table).delete({ count: "exact" }).lt("created_at", cutoff);
+    if (error) console.error(`[retention] ${table} not cleaned: ${error.code ?? "unknown"}`);
+    return error ? null : (count ?? 0);
+  };
+  return { assistant: await del("assistant_messages"), analyst: await del("analyst_messages") };
 }
