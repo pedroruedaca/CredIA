@@ -60,6 +60,23 @@ describe("computed data and the audit log", () => {
   });
 });
 
+describe("case columns (0024)", () => {
+  it("editors change what the app's lender actions write, never consent or pipeline state", async () => {
+    must(await admin.from("cases").update({ consent_withdrawn_at: new Date().toISOString() }).eq("id", caseId));
+    for (const db of [A.db, owner.db]) {
+      expect((await db.from("cases").update({ consent_withdrawn_at: null }).eq("id", caseId)).error).not.toBeNull();
+      expect((await db.from("cases").update({ bank_kpis: { forged: true } }).eq("id", caseId)).error).not.toBeNull();
+      expect((await db.from("cases").update({ borrower_cif: "A58818501" }).eq("id", caseId)).error).not.toBeNull();
+    }
+    const row = must(await admin.from("cases").select("consent_withdrawn_at, bank_kpis, borrower_cif").eq("id", caseId).single()) as { consent_withdrawn_at: string | null; bank_kpis: unknown; borrower_cif: string };
+    expect(row.consent_withdrawn_at).not.toBeNull();
+    expect(row.bank_kpis).toBeNull();
+    expect(row.borrower_cif).toBe("B12345674");
+    must(await A.db.from("cases").update({ status: "awaiting_documents", submitted_at: null, layout: null }).eq("id", caseId).select("id"));
+    must(await admin.from("cases").update({ consent_withdrawn_at: null }).eq("id", caseId));
+  });
+});
+
 describe("deleting a case", () => {
   it("only an owner can, and everything of the case goes with it", async () => {
     await A.db.from("cases").delete().eq("id", caseId);
