@@ -3,8 +3,8 @@
  *   npm run test:e2e
  * Uses its own port so it never touches a dev server you have open. Set PW_CHROMIUM_PATH to use a
  * preinstalled Chromium instead of `npx playwright install chromium`. E2E_PROD=1 runs against a production build
- * (`next build && next start`) instead of the dev server, for `e2e/csp.spec.ts`: the Content-Security-Policy is stricter
- * there (no eval). The other specs are written against the dev server; some fail on a production build (on main too).
+ * (`next build && next start`) instead of the dev server. Some bugs only show there: the Content-Security-Policy has no
+ * eval, and responses stream (see src/app/no-route-loading.test.ts). Every spec passes in both modes.
  */
 import { defineConfig } from "@playwright/test";
 import { localSupabase } from "./e2e/supabase";
