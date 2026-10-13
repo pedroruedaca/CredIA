@@ -5,9 +5,8 @@
  * service role (pipeline): BORME tables are readable by any signed-in user, case_borme_matches only by the case's lender.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CheckResult } from "../checks/engine.ts";
 import { companyKey } from "./names.ts";
-import { bormeChecks, buildProfile, type CompanyProfile, type StoredAct } from "./profile.ts";
+import { buildProfile, type CompanyProfile, type StoredAct } from "./profile.ts";
 
 const ACT_COLUMNS = "published_on, borme_id, province, entry_number, company_name, registry_sheet, registered_on, act_index, act_type, act_label, act_text, details";
 
@@ -82,10 +81,10 @@ export async function loadCaseRegistry(db: SupabaseClient, caseId: string, compa
   return { coverage, match: m, candidates, profile: buildProfile(acts), fetch: st ? { status: st.status, error: st.error, updatedAt: st.updated_at } : null };
 }
 
-/** Checks for the pipeline: only once the lender has confirmed which company it is. */
-export async function caseBormeChecks(db: SupabaseClient, caseId: string, today: string): Promise<CheckResult[]> {
+/** The confirmed company's acts for the pipeline; null until the lender has confirmed which company it is. */
+export async function confirmedRegistryActs(db: SupabaseClient, caseId: string): Promise<{ acts: StoredAct[]; coverageStart: string | null } | null> {
   const { data: match } = await db.from("case_borme_matches").select("status, registry_sheet").eq("case_id", caseId).maybeSingle();
-  if (match?.status !== "confirmed" || !match.registry_sheet) return [];
+  if (match?.status !== "confirmed" || !match.registry_sheet) return null;
   const [acts, coverage] = await Promise.all([actsForSheet(db, match.registry_sheet), bormeCoverage(db)]);
-  return bormeChecks(acts, { today, coverageStart: coverage?.from ?? null });
+  return { acts, coverageStart: coverage?.from ?? null };
 }

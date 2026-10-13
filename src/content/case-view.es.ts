@@ -177,6 +177,13 @@ export const VALUE_LABEL: Record<string, string> = {
   report_date: "Fecha del informe",
   incidents: "Incidencias",
   report: "Informe",
+  case_name: "Denominación del caso",
+  registry_name: "Denominación en el Registro",
+  former_names: "Denominaciones anteriores",
+  cif: "CIF",
+  documents_compared: "Documentos comparados",
+  documents_with_cif: "Documentos con el CIF del caso",
+  officers: "Administradores",
 };
 
 /** Short labels for passing checks, shown as green pills. */
@@ -198,6 +205,8 @@ export const CHECK_PASS_LABEL: Record<string, string> = {
   solvency_payment_incidents: "Sin incidencias de pago",
   solvency_judicial: "Sin incidencias judiciales",
   solvency_vs_books_revenue: "Informe de solvencia: ventas cuadran",
+  kyb_identity_consistent: "Denominación y CIF coherentes",
+  kyb_officers: "Administradores identificados",
 };
 
 /** Name of each check, for the evidence panel header. */
@@ -251,6 +260,13 @@ export const CHECK_NAME: Record<string, string> = {
   solvency_payment_incidents: "Informe de solvencia · incidencias de pago",
   solvency_judicial: "Informe de solvencia · incidencias judiciales",
   solvency_vs_books_revenue: "Informe de solvencia vs libros · ventas",
+  kyb_name_mismatch: "Identidad · otra denominación en documentos",
+  kyb_registry_name: "Identidad · denominación en el Registro",
+  kyb_identity_consistent: "Identidad · denominación y CIF",
+  kyb_control_change: "Identidad · cambios de socio único o estructura",
+  kyb_name_or_purpose_change: "Identidad · cambio de denominación u objeto",
+  kyb_officers: "Identidad · administradores",
+  kyb_officer_bank_account: "Identidad · cuentas a nombre de cargos",
 };
 
 export const SEVERITY_LABEL = { high: "Alta", warn: "Media", info: "Info" } as const;
