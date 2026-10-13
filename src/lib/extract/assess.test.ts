@@ -1,6 +1,7 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { describe, expect, it } from "vitest";
-import { assessExtraction, cleanNif, type AssessContext } from "./assess.ts";
+import { assessExtraction, cleanNif, normalizeSheet, type AssessContext } from "./assess.ts";
+import { notaSimpleWire } from "../__fixtures__/nota-simple.ts";
 import { solvencyWireSample } from "../__fixtures__/solvency-report.ts";
 import { modelo303Wire } from "../__fixtures__/modelo303.ts";
 import { WIRE_FOR, type CertificateWire, type CirbeWire, type Modelo200Wire } from "./schemas.ts";
@@ -168,5 +169,37 @@ describe("Modelo 303", () => {
   it("names the Modelo 303 when it is uploaded as the Modelo 200", () => {
     const a = assessExtraction("modelo200", { ...m200, document_type: "modelo303" }, CTX);
     expect(a.attentionMessage).toContain("parece una declaración de IVA (Modelo 303)");
+  });
+});
+
+describe("nota simple", () => {
+  it("reads the registered identity, the positions in force and the issue date for freshness", () => {
+    const a = assessExtraction("nota_simple", notaSimpleWire, CTX);
+    expect(a.status).toBe("parsed");
+    expect(a.issuedOn).toBe("2026-09-02");
+    expect(a.canonical?.kind).toBe("nota_simple");
+    const d = (a.canonical as { data: import("../schema/canonical.ts").NotaSimple }).data;
+    expect(d).toMatchObject({ sheet: "M-654321", sheetPrinted: "Hoja M-654.321", name: "DISTRIBUCIONES EJEMPLO SL", capital: 3000, situation: "active", situationText: null, soleShareholder: "GRUPO EJEMPLO INVERSIONES SL" });
+    expect(d.positions).toEqual([
+      { kind: "administrator", role: "Administrador único", name: "GARCÍA LÓPEZ, MARTA", since: "2018-05-21", page: 1 },
+      { kind: "attorney", role: "Apoderado solidario", name: "RUIZ SOLER, ANA", since: "2021-03-01", page: 2 },
+    ]);
+  });
+
+  it("asks for the complete nota when the issue date cannot be read", () => {
+    const a = assessExtraction("nota_simple", { ...notaSimpleWire, issue_date: "" }, CTX);
+    expect(a.status).toBe("needs_review");
+    expect(a.attentionMessage).toContain("fecha de expedición");
+  });
+
+  it("rejects another company's nota simple", () => {
+    const a = assessExtraction("nota_simple", { ...notaSimpleWire, company_nif: "A08001851" }, CTX);
+    expect(a.status).toBe("failed");
+  });
+
+  it("normalises the registry sheet to the BORME's form, never taking the tomo for the hoja", () => {
+    expect(["Hoja M-123.456", "H B 12345", "M-123456", "T 12345, F 120, S 8, H M 123456", "Hoja nº MA-12345", "Hoja: V-98765", "Tomo 1234, Folio 5", ""].map(normalizeSheet)).toEqual([
+      "M-123456", "B-12345", "M-123456", "M-123456", "MA-12345", "V-98765", null, null,
+    ]);
   });
 });

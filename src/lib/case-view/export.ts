@@ -8,6 +8,7 @@ import { footnoted } from "../analyst-chat/refs.ts";
 import { CHECK_NAME, DISCLAIMER, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
 import { applyCostOfSales } from "../kpis/cost-of-sales.ts";
 import { checkSlugs } from "./evidence.ts";
+import { identityView } from "./identity.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
 import { describeSource } from "./present.ts";
@@ -68,6 +69,7 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
           acts: d.registry.profile.timeline.map((t) => ({ date: t.date, type: t.type, label: t.label, text: t.text, source_ref: t.source })),
         }
       : null,
+    identity: identityJson(d),
     periods: statements.map((s) => ({ kind: s.period.kind, start: s.period.start, end: s.period.end, months: s.months, pnl_available: s.pnlAvailable, scope: s.scope ?? "full", source: s.period.kind === "closed_fy" ? d.statements.closedSource : d.statements.ytdSource })),
     balance_sheet: { assets: lines(tables.assets), equity_and_liabilities: lines(tables.liabilities) },
     income_statement: lines(tables.pnl),
@@ -229,4 +231,20 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   [12, 36, 14, 16, 36, 70].forEach((w, i) => (trace.getColumn(i + 1).width = w));
 
   return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/** «Identidad y titularidad»: the nota simple as read and the current board, each with its source_ref. */
+function identityJson(d: CaseViewData) {
+  const v = identityView(d, { open: [], passed: [] });
+  const n = d.nota?.data ? d.nota : null;
+  if (!v || (!n && !v.board)) return null;
+  return {
+    note: "Datos del Registro Mercantil tal como figuran en la nota simple y en el BORME; credIA no valora la identidad de la empresa.",
+    registered_name: v.name,
+    facts: v.facts.map((f) => ({ label: f.label, value: f.value, source_ref: f.source })),
+    nota_simple: n ? { source_ref: `doc:${n.docId}`, uploaded_by: n.uploadedBy, ...n.data } : null,
+    board: v.board
+      ? { basis: v.boardBasis, members: v.board.members.map((m) => ({ kind: m.kind, role: m.role, name: m.name, since: m.since, source_ref: m.source })) }
+      : null,
+  };
 }

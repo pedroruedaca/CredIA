@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
 import { AnnualAccountsSection } from "@/components/case/AnnualAccountsSection";
 import { BalanceBars } from "@/components/case/BalanceBars";
+import { IdentitySection } from "@/components/case/IdentitySection";
 import { KpiRow } from "@/components/case/KpiRow";
 import { LenderDocumentsSection } from "@/components/case/LenderDocumentsSection";
 import { PnlSankey } from "@/components/case/PnlSankey";
@@ -17,6 +18,7 @@ import { Pill, SourcePill } from "@/components/ui/Pill";
 import { SeverityDot } from "@/components/ui/SeverityDot";
 import { CHECK_PASS_LABEL, REVIEW_LABEL } from "@/content/case-view.es";
 import type { CaseViewData } from "@/lib/case-view/load";
+import { identityView } from "@/lib/case-view/identity";
 import { layoutRows, moduleKey, moduleSettings, type Layout, type ModuleId, type ModuleSettings, type ModuleWidth } from "@/lib/case-view/modules";
 import { periodView, summaryView, type CasePackage } from "@/lib/case-view/package";
 import { pickTiles, sourceHref } from "@/lib/case-view/present";
@@ -171,6 +173,11 @@ function SolvencyModule({ data, canEdit }: ModuleContext) {
   );
 }
 
+function IdentityModule({ data, pkg, check }: ModuleContext) {
+  const view = identityView(data, pkg);
+  return view ? <IdentitySection caseId={data.kase.id} view={view} docs={data.documents} check={check} /> : null;
+}
+
 function RegistryModule({ data, canEdit }: ModuleContext) {
   return <RegistrySection caseId={data.kase.id} companyName={data.registeredName} registry={data.registry} canEdit={canEdit} />;
 }
@@ -195,6 +202,7 @@ const MODULES: Record<ModuleId, (props: ModuleProps) => React.ReactNode> = {
   analyst_documents: AnalystDocumentsModule,
   annual_accounts: AnnualAccountsModule,
   solvency: SolvencyModule,
+  identity: IdentityModule,
   registry: RegistryModule,
   sources: SourcesModule,
 };

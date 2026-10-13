@@ -38,6 +38,7 @@ Holded → pipeline: `ingest → classify → parse → normalise (PGC) → cano
 | CIRBE PDF | Claude structured output → Zod | Debt exposure |
 | AEAT / TGSS certificates | Claude structured output | Validity + status |
 | Informe de solvencia PDF (Experian, Informa…) | Claude structured output → Zod (`SolvencyWire`) | Company or lender uploads; incidents, judicial, provider figures |
+| Nota simple mercantil PDF | Claude structured output → Zod (`NotaSimpleWire`) | «Identidad y titularidad» (optional, 90 days); registered identity, positions in force (names and roles, never ID numbers), situation |
 | BORME | Fetch + parse | Officers, capital changes, insolvency |
 
 **Rule: every number carries a `source_ref`** (document id + page/row, or `holded:ledger:<start>..<end>:acct:<account>#sync:<id>`).
@@ -288,16 +289,29 @@ result, equity) · recurring debt payments in N43 vs declared debt · AEAT/TGSS 
 BORME adverse acts · Modelo 303 last 4 quarters received (`m303_quarters`, warn) · Modelo 303 declared sales vs revenue of a period they cover month by month (`m303_vs_books_revenue`, 10 % / 5.000 €, warn) · solvency-report incidents and revenue vs books · Holded chart vs ledger reconciliation ·
 closing-entries suspicion · bank accounts held by someone other than the company (`bank_holder_mismatch`, warn).
 
-**KYB consistency** (`src/lib/kyb/identity.ts`, pure, `kybChecks`; phase 1 of KYB: no new documents or personal data):
-the name printed on every document read (`output.wire.company_name`) vs the case name and the confirmed registry's
-current and former names (`kyb_name_mismatch` warn; a former name is explained, not flagged), case name vs the registry's
-current name (`kyb_registry_name` warn), otherwise `kyb_identity_consistent` pass (counts documents carrying the case's
-CIF; another company's CIF is already rejected when read). Once the BORME match is confirmed: sole-shareholder, merger,
-spin-off, transformation acts in 24 months (`kyb_control_change` warn), name or purpose change in 24 months
-(`kyb_name_or_purpose_change` warn), current administrators in the BORME window (`kyb_officers`, pass, or info when none,
-pointing to a nota simple), bank statements held by an administrator or attorney (`kyb_officer_bank_account` warn).
-Later phases (not built): nota simple / titularidad real / portal declaration and ownership graph; EU/UN/OFAC screening;
-PEP and ID verification via a vendor. AML record-keeping (10 years) stays with the lender («Descargar todo»).
+**KYB consistency** (`src/lib/kyb/identity.ts`, pure, `kybChecks`): the name printed on every document read
+(`output.wire.company_name`) vs the case name and the registered names (confirmed BORME sheet, current and former, and the
+nota simple) (`kyb_name_mismatch` warn; a former name is explained, not flagged), case name vs the registry's current name
+or, without a confirmed sheet, the nota simple's (`kyb_registry_name` warn), otherwise `kyb_identity_consistent` pass
+(counts documents carrying the case's CIF; another company's CIF is already rejected when read). Nota simple: sheet vs the
+confirmed one (`kyb_registry_sheet` warn), situation not active (`kyb_nota_situation`, high; «other» warn), older than the
+case allows (`kyb_nota_simple_age` warn). BORME (once confirmed): sole-shareholder, merger, spin-off, transformation acts
+in 24 months (`kyb_control_change` warn), name or purpose change in 24 months (`kyb_name_or_purpose_change` warn). Board
+(`src/lib/kyb/board.ts`, `currentBoard`): the nota simple's positions in force, then BORME appointments/cessations
+published after its issue date (people matched by their set of words); without a nota, the BORME window only →
+`kyb_officers` (pass listing administrators and attorneys; info when the BORME shows none; warn when the nota and later
+acts leave none), bank statements held by an administrator or attorney (`kyb_officer_bank_account` warn).
+**Nota simple** (kind `nota_simple`, 0028; bundle «Identidad y titularidad» in the new-case form, `module: "identity"`):
+`NotaSimpleWire` → `NotaSimpleSchema` (`assess.ts`; `normalizeSheet` gives the BORME's `M-123456`, never the tomo);
+issue date drives freshness. Portal copy keeps `[RUTA EN REGISTRADORES.ORG PARA PEDIR LA NOTA SIMPLE]` until verified.
+Fixture `__fixtures__/nota-simple.ts` is hand-written: adjust the schema descriptions when real notas arrive.
+**«Identidad y titularidad» module** (`identity` in `MODULE_SPECS`, default layout between solvency and registry; layouts
+saved before it exist don't get it until added in the designer): `identityView` (`src/lib/case-view/identity.ts`, pure):
+facts from the nota simple unless the BORME published a newer one (address, capital, sole shareholder), each with its
+source; the board; the nota simple's state; the KYB checks and `bank_holder_mismatch` (also in «Para revisar»).
+`IdentitySection`, PDF `Identity`, JSON `identity`; copy `src/content/identity.es.ts`.
+Later phases (not built): titularidad real document, portal declaration and ownership graph (`case_parties`); EU/UN/OFAC
+screening; PEP and ID verification via a vendor. AML record-keeping (10 years) stays with the lender («Descargar todo»).
 
 ## Conventions
 - Money as `number` in euros inside the engine; parse decimal strings with `toNumber()`; round only for display.

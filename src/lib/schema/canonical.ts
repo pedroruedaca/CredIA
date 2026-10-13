@@ -168,6 +168,34 @@ export const SolvencyReportSchema = z.object({
 
 export type SolvencyReport = z.infer<typeof SolvencyReportSchema>;
 
+/** Nota simple informativa del Registro Mercantil. Names and roles only: never people's ID numbers. */
+export const NotaSimpleSchema = z.object({
+  nif: z.string(),
+  issuedOn: date,
+  registry: z.string().nullable(),
+  /** Hoja registral in the BORME's form, "M-123456"; null if not printed or unreadable. */
+  sheet: z.string().nullable(),
+  sheetPrinted: z.string().nullable(),
+  name: z.string().nullable(),
+  legalForm: z.string().nullable(),
+  office: z.string().nullable(),
+  purpose: z.string().nullable(),
+  incorporatedOn: date.nullable(),
+  capital: money.nullable(),
+  situation: z.enum(["active", "dissolved", "in_liquidation", "extinct", "insolvency", "sheet_closed", "other"]),
+  situationText: z.string().nullable(),
+  soleShareholder: z.string().nullable(),
+  positions: z.array(z.object({
+    kind: z.enum(["administrator", "attorney", "auditor", "secretary", "other"]),
+    role: z.string(),
+    name: z.string(),
+    since: date.nullable(),
+    page: pageNum.nullable(),
+  })),
+  page: pageNum.nullable(),
+});
+export type NotaSimple = z.infer<typeof NotaSimpleSchema>;
+
 /** LLM extraction target for one Modelo 303 (IVA) return, quarterly ("1T".."4T") or monthly ("01".."12"). */
 export const Modelo303ExtractionSchema = z.object({
   nif: z.string(),

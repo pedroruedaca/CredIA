@@ -33,6 +33,7 @@ const KIND_SHORT: Record<string, string> = {
   aeat_cert: "AEAT",
   tgss_cert: "TGSS",
   solvency_report: "Informe de solvencia",
+  nota_simple: "Nota simple",
 };
 
 /** "4300001" → "430·0001": PGC group, then subaccount, as the design writes accounts. Model lines (annual accounts) stay as named. */

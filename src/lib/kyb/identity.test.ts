@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { StoredAct } from "../borme/profile.ts";
 import { kybChecks, type KybInput } from "./identity.ts";
+import { assessExtraction } from "../extract/assess.ts";
+import { notaSimpleWire } from "../__fixtures__/nota-simple.ts";
+import type { NotaSimple } from "../schema/canonical.ts";
 
 const TODAY = "2026-10-13";
 
@@ -107,8 +110,10 @@ describe("kybChecks · registry", () => {
   it("names the administrators the BORME shows, with the coverage", () => {
     const c = byKey(kybChecks(base()));
     expect(c.kyb_officers).toMatchObject({ status: "pass", severity: "info" });
-    expect(c.kyb_officers.message).toBe("Administración según el BORME: GARCIA LOPEZ MARTA (Adm. Unico, desde 04/06/2018) (BORME revisado desde 01/10/2024).");
-    expect(c.kyb_officers.evidence.sources).toEqual(["borme:2018-06-04:BORME-A-2018-1-28:entry:21000"]);
+    expect(c.kyb_officers.message).toBe(
+      "Administración según el BORME: GARCIA LOPEZ MARTA (Adm. Unico, desde 04/06/2018) (BORME revisado desde 01/10/2024). Apoderados: RUIZ SOLER ANA (Apoderado, desde 10/03/2021).",
+    );
+    expect(c.kyb_officers.evidence.sources).toEqual(["borme:2018-06-04:BORME-A-2018-1-28:entry:21000", "borme:2021-03-10:BORME-A-2021-1-28:entry:9000"]);
   });
 
   it("says when no administrator appears in the imported acts", () => {
@@ -129,5 +134,66 @@ describe("kybChecks · registry", () => {
     expect(c.kyb_officer_bank_account).toMatchObject({ status: "fail", severity: "warn" });
     expect(c.kyb_officer_bank_account.evidence.values).toEqual({ "0049 1500 ****1234": "MARTA GARCIA LOPEZ · Adm. Unico", "0182 2000 ****9999": "ANA RUIZ SOLER · Apoderado" });
     expect(c.kyb_officer_bank_account.evidence.sources).toEqual(["doc:d-n43b", "doc:d-n43c"]);
+  });
+});
+
+/** The fixture nota simple as the pipeline stores it (issued 02/09/2026, sheet M-654321). */
+const NOTA = (assessExtraction("nota_simple", notaSimpleWire, { fileName: "nota.pdf", caseCif: "B12345674", companyName: "X", lenderName: "L", expectedFiscalYear: null }).canonical as { data: NotaSimple }).data;
+const withNota = (data: Partial<NotaSimple> = {}, maxAgeDays: number | null = 90) => ({ docId: "d-nota", data: { ...NOTA, ...data }, maxAgeDays });
+
+describe("kybChecks · nota simple", () => {
+  it("takes the board from the nota simple and the BORME acts published after it", () => {
+    const later = [
+      ...HISTORY,
+      act("2026-09-20", 8000, "cessations", { officers: [{ role: "Apoderado", name: "RUIZ SOLER ANA" }] }, "Ceses/Dimisiones"),
+      act("2026-09-20", 8000, "appointments", { officers: [{ role: "Adm. Solid.", name: "PEREZ VIDAL JORGE" }] }, "Nombramientos", { act_index: 1 }),
+    ];
+    const c = byKey(kybChecks(base({ registry: { acts: later, coverageStart: "2024-10-01" }, nota: withNota() })));
+    expect(c.kyb_officers).toMatchObject({ status: "pass", severity: "info" });
+    expect(c.kyb_officers.message).toBe(
+      "Administración según la nota simple del 02/09/2026 y el BORME posterior: GARCÍA LÓPEZ, MARTA (Administrador único, desde 21/05/2018); PEREZ VIDAL JORGE (Adm. Solid., desde 20/09/2026). Cambios publicados después de la nota: Ceses/Dimisiones, 20/09/2026; Nombramientos, 20/09/2026.",
+    );
+    expect(c.kyb_officers.evidence.sources).toEqual(["doc:d-nota:page:1", "borme:2026-09-20:BORME-A-2026-1-28:entry:8000"]);
+  });
+
+  it("works from the nota simple alone, before the BORME match is confirmed", () => {
+    const c = byKey(kybChecks(base({ registry: null, nota: withNota() })));
+    expect(c.kyb_officers.message).toBe(
+      "Administración según la nota simple del 02/09/2026: GARCÍA LÓPEZ, MARTA (Administrador único, desde 21/05/2018). Apoderados: RUIZ SOLER, ANA (Apoderado solidario, desde 01/03/2021).",
+    );
+    expect(c.kyb_identity_consistent.message).toContain("la nota simple (M-654321)");
+    // The nota gives the registered name: a document under it is not a mismatch.
+    const renamed = byKey(kybChecks(base({ company: { name: "Ejemplo Logística SL", cif: "B12345674" }, documents: [], registry: null, nota: withNota() })));
+    expect(renamed.kyb_registry_name.message).toBe(
+      "La nota simple está a nombre de «DISTRIBUCIONES EJEMPLO SL», no de «Ejemplo Logística SL». Comprueba si la sociedad ha cambiado de denominación o si la nota es de otra sociedad.",
+    );
+  });
+
+  it("flags a nota simple of another registry sheet than the confirmed one", () => {
+    const c = byKey(kybChecks(base({ nota: withNota({ sheet: "M-111111" }) })));
+    expect(c.kyb_registry_sheet).toMatchObject({ status: "fail", severity: "warn" });
+    expect(c.kyb_registry_sheet.message).toBe("La nota simple es de la hoja M-111111, pero la confirmada en el Registro Mercantil es la M-654321. Una de las dos no es esta sociedad.");
+    expect(byKey(kybChecks(base({ nota: withNota() }))).kyb_registry_sheet).toBeUndefined();
+  });
+
+  it("reports the situation the nota states and when it is older than the case allows", () => {
+    const c = byKey(kybChecks(base({ nota: withNota({ situation: "sheet_closed", situationText: "Cierre provisional por falta de depósito de cuentas", issuedOn: "2026-05-01" }) })));
+    expect(c.kyb_nota_situation).toMatchObject({ status: "fail", severity: "high" });
+    expect(c.kyb_nota_situation.message).toBe("La nota simple del 01/05/2026 indica que la sociedad está con la hoja registral cerrada: «Cierre provisional por falta de depósito de cuentas».");
+    expect(c.kyb_nota_simple_age).toMatchObject({ severity: "warn", evidence: { values: { age_days: 165, max_age_days: 90 } } });
+    expect(byKey(kybChecks(base({ nota: withNota({}, null) }))).kyb_nota_simple_age).toBeUndefined();
+  });
+
+  it("warns when the nota and the later acts leave no administrator", () => {
+    const later = [...HISTORY, act("2026-09-25", 8100, "cessations", { officers: [{ role: "Adm. Unico", name: "GARCIA LOPEZ MARTA" }] }, "Ceses/Dimisiones")];
+    const c = byKey(kybChecks(base({ registry: { acts: later, coverageStart: "2024-10-01" }, nota: withNota() })));
+    expect(c.kyb_officers).toMatchObject({ status: "fail", severity: "warn" });
+    expect(c.kyb_officers.message).toContain("No queda ningún administrador vigente según la nota simple del 02/09/2026 y el BORME posterior.");
+  });
+
+  it("matches bank holders against the nota simple's officers, in any word order", () => {
+    const holders = [{ docId: "d-n43b", accountMasked: "0049 1500 ****1234", holder: "MARTA GARCIA LOPEZ" }];
+    const c = byKey(kybChecks(base({ registry: null, nota: withNota(), bankHolders: holders })));
+    expect(c.kyb_officer_bank_account.evidence.values).toEqual({ "0049 1500 ****1234": "MARTA GARCIA LOPEZ · Administrador único" });
   });
 });

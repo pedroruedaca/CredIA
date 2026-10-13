@@ -184,6 +184,9 @@ export const VALUE_LABEL: Record<string, string> = {
   documents_compared: "Documentos comparados",
   documents_with_cif: "Documentos con el CIF del caso",
   officers: "Administradores",
+  attorneys: "Apoderados",
+  nota_sheet: "Hoja en la nota simple",
+  situation: "Situación",
 };
 
 /** Short labels for passing checks, shown as green pills. */
@@ -267,6 +270,11 @@ export const CHECK_NAME: Record<string, string> = {
   kyb_name_or_purpose_change: "Identidad · cambio de denominación u objeto",
   kyb_officers: "Identidad · administradores",
   kyb_officer_bank_account: "Identidad · cuentas a nombre de cargos",
+  kyb_registry_sheet: "Identidad · hoja de la nota simple",
+  kyb_nota_situation: "Identidad · situación en la nota simple",
+  kyb_nota_simple_age: "Identidad · antigüedad de la nota simple",
+  nota_no_date: "Nota simple sin fecha",
+  nota_sheet_unreadable: "Nota simple: hoja registral ilegible",
 };
 
 export const SEVERITY_LABEL = { high: "Alta", warn: "Media", info: "Info" } as const;
@@ -283,6 +291,7 @@ export const DOC_KIND_LABEL: Record<string, string> = {
   aeat_cert: "Certificado AEAT",
   tgss_cert: "Certificado TGSS",
   solvency_report: "Informe de solvencia",
+  nota_simple: "Nota simple mercantil",
   borme: "BORME",
   other: "Documento",
 };

@@ -12,6 +12,7 @@ export const SHORT_NAME: Record<RequirementKind, string> = {
   aeat_cert: "el certificado de Hacienda",
   tgss_cert: "el certificado de la Seguridad Social",
   solvency_report: "el informe de solvencia",
+  nota_simple: "la nota simple del Registro Mercantil",
 };
 
 /** Same, for items that need fixing ("… y un certificado de la Seguridad Social más reciente"). */
@@ -25,6 +26,7 @@ export const FIX_NAME: Record<RequirementKind, string> = {
   aeat_cert: "un certificado de Hacienda más reciente",
   tgss_cert: "un certificado de la Seguridad Social más reciente",
   solvency_report: "un informe de solvencia más reciente",
+  nota_simple: "una nota simple más reciente",
 };
 
 /** Chip label for "how do I get X?". */
@@ -38,6 +40,7 @@ export const CHIP_NAME: Record<RequirementKind, string> = {
   aeat_cert: "Certificado de Hacienda",
   tgss_cert: "Certificado Seguridad Social",
   solvency_report: "Informe de solvencia",
+  nota_simple: "Nota simple",
 };
 
 export const ASSISTANT_COPY = {
@@ -66,6 +69,7 @@ export const STEP_TIP: Record<RequirementKind | "enviar", string> = {
   aeat_cert: "Sube el PDF original que descargas de la sede electrónica, no una foto ni un escaneo.",
   tgss_cert: "Sube el PDF original que descargas de la sede electrónica, no una foto ni un escaneo.",
   solvency_report: "Sube el informe completo tal como te lo entrega el proveedor, no un resumen ni una captura.",
+  nota_simple: "Sube la nota simple en PDF tal como te la envía el Registro. Tu gestoría o tu notaría también pueden pedirla.",
   enviar: "Cuando lo envíes, la entidad podrá revisarlo. Si te pide algo más, aparecerá aquí.",
 };
 
@@ -80,5 +84,6 @@ export const STEP_SUGGESTIONS: Record<RequirementKind | "enviar", string[]> = {
   aeat_cert: ["¿Cómo lo pido?", "¿Qué antigüedad vale?", "Lo lleva mi gestoría"],
   tgss_cert: ["¿Cómo lo pido?", "¿Qué antigüedad vale?", "Lo lleva mi gestoría"],
   solvency_report: ["¿Dónde lo consigo?", "¿Qué proveedor vale?", "¿Por qué lo pedís?"],
+  nota_simple: ["¿Dónde la pido?", "¿Qué antigüedad vale?", "¿Por qué lo pedís?"],
   enviar: ["¿Qué pasa al enviar?", "¿Puedo añadir algo después?"],
 };

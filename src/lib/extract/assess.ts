@@ -13,6 +13,8 @@ import {
   Modelo200ExtractionSchema,
   Modelo303ExtractionSchema,
   type Modelo303Extraction,
+  NotaSimpleSchema,
+  type NotaSimple,
   SolvencyReportSchema,
   type SolvencyReport,
   type CertificateExtraction,
@@ -20,7 +22,7 @@ import {
   type Modelo200Extraction,
 } from "../schema/canonical.ts";
 import type { Warning } from "../types.ts";
-import type { AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, Modelo200Wire, Modelo303Wire, SolvencyWire } from "./schemas.ts";
+import type { AccountsYearWire, AnnualAccountsWire, CertificateWire, CirbeWire, ExtractKind, Modelo200Wire, Modelo303Wire, NotaSimpleWire, SolvencyWire } from "./schemas.ts";
 import { periodRange } from "../tax/modelo303.ts";
 
 export interface AssessContext {
@@ -38,7 +40,8 @@ export type Canonical =
   | { kind: "annual_accounts"; data: AnnualAccountsExtraction }
   | { kind: "cirbe"; data: CirbeExtraction }
   | { kind: "certificate"; data: CertificateExtraction }
-  | { kind: "solvency"; data: SolvencyReport };
+  | { kind: "solvency"; data: SolvencyReport }
+  | { kind: "nota_simple"; data: NotaSimple };
 
 export interface Assessment {
   status: "parsed" | "failed" | "needs_review";
@@ -62,7 +65,7 @@ export function cleanNif(raw: string | null | undefined): string | null {
 
 const fail = (attentionMessage: string, warnings: Warning[] = []): Assessment => ({ status: "failed", attentionMessage, issuedOn: null, canonical: null, warnings });
 
-type Wire = Modelo200Wire | Modelo303Wire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire;
+type Wire = Modelo200Wire | Modelo303Wire | AnnualAccountsWire | CirbeWire | CertificateWire | SolvencyWire | NotaSimpleWire;
 
 /** Checks shared by every kind: legible, right document, right company. */
 function identity(kind: ExtractKind, wire: Wire, ctx: AssessContext): Assessment | Warning[] {
@@ -251,6 +254,57 @@ function solvency(w: SolvencyWire, ctx: AssessContext, warnings: Warning[]): Ass
   return { status: "parsed", attentionMessage: null, issuedOn: reportDate, canonical: { kind: "solvency", data: parsed.data }, warnings };
 }
 
+const SHEET_NUMBER = String.raw`([A-Z]{1,3})[\s.:-]*(\d{1,3}(?:\.\d{3})+|\d{1,7})\b`;
+
+/**
+ * "Hoja M-123.456", "H B 12345", "M-123456" → the BORME's "M-123456". Marked with H/Hoja wherever it is in the text
+ * (so "T 1234, F 5, H M 123456" gives the hoja, not the tomo), or the whole text when it is just letters and a number.
+ */
+export function normalizeSheet(raw: string | null | undefined): string | null {
+  const t = (raw ?? "").toUpperCase().replace(/N\.?\s?º|NÚM\.?/g, " ");
+  const m = new RegExp(String.raw`(?:^|[^A-Z])H(?:OJA)?[\s.:]*` + SHEET_NUMBER).exec(t) ?? new RegExp(String.raw`^\s*` + SHEET_NUMBER + String.raw`\s*$`).exec(t);
+  return m ? `${m[1]}-${m[2].replace(/\./g, "")}` : null;
+}
+
+/** Nota simple: when it was issued (freshness), who the company is as registered, who runs it, its situation. */
+function notaSimple(w: NotaSimpleWire, ctx: AssessContext, warnings: Warning[]): Assessment {
+  const issuedOn = isoOrNull(w.issue_date);
+  if (!issuedOn) {
+    return {
+      status: "needs_review",
+      attentionMessage: `No encontramos la fecha de expedición en «${ctx.fileName}». Sube la nota simple completa, tal como te la envía el Registro.`,
+      issuedOn: null,
+      canonical: null,
+      warnings: [...warnings, { code: "nota_no_date", message: "No se ha encontrado la fecha de expedición de la nota simple." }],
+    };
+  }
+  const str = (v: string) => (v.trim() ? v.trim() : null);
+  const sheet = normalizeSheet(w.registry_sheet);
+  if (str(w.registry_sheet) && !sheet) warnings.push({ code: "nota_sheet_unreadable", message: `Hoja registral leída «${w.registry_sheet.trim()}» sin el formato habitual.` });
+  const parsed = NotaSimpleSchema.safeParse({
+    nif: cleanNif(w.company_nif) ?? cleanNif(ctx.caseCif) ?? "",
+    issuedOn,
+    registry: str(w.registry),
+    sheet,
+    sheetPrinted: str(w.registry_sheet),
+    name: w.company_name?.trim() || null,
+    legalForm: str(w.legal_form),
+    office: str(w.registered_office),
+    purpose: str(w.purpose),
+    incorporatedOn: isoOrNull(w.incorporated_on),
+    capital: w.share_capital >= 0 ? w.share_capital : null,
+    situation: w.situation,
+    situationText: str(w.situation_text),
+    soleShareholder: str(w.sole_shareholder),
+    positions: w.positions
+      .filter((p) => p.name.trim())
+      .map((p) => ({ kind: p.kind, role: p.role.trim() || p.kind, name: p.name.trim(), since: isoOrNull(p.appointed_on), page: pos(p.page) })),
+    page: pos(w.page),
+  });
+  if (!parsed.success) return { status: "needs_review", attentionMessage: null, issuedOn, canonical: null, warnings: [...warnings, { code: "extract_invalid", message: parsed.error.message }] };
+  return { status: "parsed", attentionMessage: null, issuedOn, canonical: { kind: "nota_simple", data: parsed.data }, warnings };
+}
+
 /** One Modelo 303 return: which period it covers and the figures of the liquidación. */
 function modelo303(w: Modelo303Wire, ctx: AssessContext, warnings: Warning[]): Assessment {
   if (w.fiscal_year <= 0 || w.period === "") {
@@ -304,5 +358,7 @@ export function assessExtraction(kind: ExtractKind, wire: Wire, ctx: AssessConte
       return certificate(kind, wire as CertificateWire, ctx, id);
     case "solvency_report":
       return solvency(wire as SolvencyWire, ctx, id);
+    case "nota_simple":
+      return notaSimple(wire as NotaSimpleWire, ctx, id);
   }
 }
