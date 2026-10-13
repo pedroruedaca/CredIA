@@ -49,7 +49,9 @@ import {
   type Severity,
 } from "../checks/engine.ts";
 import { assignTbPeriods, chooseSource, dedupeBankAccounts } from "./plan.ts";
-import { caseBormeChecks } from "../borme/case.ts";
+import { confirmedRegistryActs } from "../borme/case.ts";
+import { bormeChecks } from "../borme/profile.ts";
+import { kybChecks } from "../kyb/identity.ts";
 
 const LOCK_MS = 10 * 60 * 1000;
 const STALE_PARSING_MS = 15 * 60 * 1000;
@@ -650,7 +652,24 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   if (solvency && solvencyDoc) checks.push(...checkSolvencyReport(solvency, solvencyDoc.id, closed));
 
   // Registry (BORME), once the lender has confirmed which registry sheet is the company.
-  checks.push(...(await caseBormeChecks(db, kase.id, today)));
+  const registry = await confirmedRegistryActs(db, kase.id);
+  if (registry) checks.push(...bormeChecks(registry.acts, { today, coverageStart: registry.coverageStart }));
+
+  // KYB consistency: the name and CIF printed on each document read, the bank account holders and the registry.
+  checks.push(
+    ...kybChecks({
+      company: { name: kase.borrower_name, cif: kase.borrower_cif },
+      documents: parsed.flatMap((d) => {
+        const wire = d.output.wire as { company_name?: unknown; company_nif?: unknown } | undefined;
+        if (!wire || typeof wire !== "object" || !("company_name" in wire)) return [];
+        const str = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
+        return [{ docId: d.id, fileName: d.fileName, name: str(wire.company_name), nif: str(wire.company_nif) }];
+      }),
+      bankHolders: allBank.filter((b) => b.account.name.trim()).map((b) => ({ docId: b.docId, accountMasked: b.account.accountMasked, holder: b.account.name })),
+      registry,
+      today,
+    }),
+  );
 
   await db.from("checks").delete().eq("case_id", kase.id).eq("source", "engine");
   await insertChunks(

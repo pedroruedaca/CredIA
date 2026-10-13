@@ -52,7 +52,7 @@ export interface CompanyProfile {
 }
 
 const ADMIN_ROLE = /^(adm|consej|con\.?\s?del|cons\.|president|vicepres|liquidador)/i;
-const isAdminRole = (role: string) => ADMIN_ROLE.test(role) && !/concursal/i.test(role);
+export const isAdminRole = (role: string) => ADMIN_ROLE.test(role) && !/concursal/i.test(role);
 
 const actDate = (a: StoredAct) => a.registered_on ?? a.published_on;
 const order = (a: StoredAct, b: StoredAct) =>

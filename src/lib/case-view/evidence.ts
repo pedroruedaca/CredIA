@@ -258,7 +258,27 @@ export function evidenceView(
       }
       break;
     }
+    case "kyb_name_mismatch":
+    case "kyb_officer_bank_account": {
+      // Values are keyed by file name (or masked account): what is printed there.
+      const known = new Set(["case_name"]);
+      const entries = Object.entries(values).filter(([k, v]) => !known.has(k) && typeof v === "string");
+      const names = check.check_key === "kyb_name_mismatch";
+      base.table = {
+        title: names ? "Denominación impresa en cada documento" : "Titular de cada cuenta",
+        columns: names ? ["Documento", "Denominación"] : ["Cuenta", "Titular · cargo"],
+        rows: entries.map(([k, v]) => ({ label: k, mono: !names, a: String(v), mismatch: true })),
+      };
+      base.values = base.values.filter((v) => v.label === VALUE_LABEL.case_name);
+      base.evidenceLine = names && values.case_name ? `Caso: ${values.case_name}` : entries.map(([k]) => k).join(" · ");
+      break;
+    }
     default:
+      if (check.check_key.startsWith("kyb_")) {
+        // Identity facts: the documents and announcements compared are the evidence; there is nothing to break down.
+        base.evidenceLine = [values.sheet ? `Hoja ${values.sheet}` : null, values.case_name ? `Caso: ${values.case_name}` : null].filter(Boolean).join(" · ");
+        return { ...base, gaps: base.sources.length ? [] : ["Sin referencia a documento o anuncio de origen."] };
+      }
       if (check.check_key.startsWith("borme_")) {
         // Registry acts: the text and the announcement links are the evidence; there is nothing to break down.
         base.evidenceLine = [values.sheet ? `Hoja ${values.sheet}` : null, typeof values.act_date === "string" ? formatDate(values.act_date) : null].filter(Boolean).join(" · ");
