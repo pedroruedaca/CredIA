@@ -37,8 +37,13 @@ describe("REQUIREMENT_MODULES", () => {
   it("groups the Modelo 200 and the Modelo 303 as «Documentos fiscales»", () => {
     const fiscal = REQUIREMENT_MODULES.find((m) => m.label === "Documentos fiscales")!;
     expect(fiscal.specs.map((s) => s.kind)).toEqual(["modelo200", "modelo303"]);
-    expect(REQUIREMENT_MODULES.flatMap((m) => m.specs).length).toBe(9);
+    expect(REQUIREMENT_MODULES.flatMap((m) => m.specs).length).toBe(10);
     expect(REQUIREMENT_MODULES.map((m) => m.label)).not.toContain("Modelo 200");
+  });
+  it("offers the nota simple as «Identidad y titularidad», optional, at most 90 days old", () => {
+    const identity = REQUIREMENT_MODULES.find((m) => m.id === "identity")!;
+    expect(identity.label).toBe("Identidad y titularidad");
+    expect(identity.specs.map((s) => [s.kind, s.defaultRequired, s.defaultMaxAgeDays])).toEqual([["nota_simple", false, 90]]);
   });
 });
 

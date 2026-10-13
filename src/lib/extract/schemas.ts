@@ -12,7 +12,7 @@
 import * as z from "zod/v4";
 import { M303_PERIODS } from "../tax/modelo303.ts";
 
-export const DOC_TYPES = ["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report", "bank_statement", "trial_balance", "invoice", "other"] as const;
+export const DOC_TYPES = ["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report", "nota_simple", "bank_statement", "trial_balance", "invoice", "other"] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
 const common = {
@@ -245,6 +245,44 @@ export const SolvencyWire = z.object({
 });
 export type SolvencyWire = z.infer<typeof SolvencyWire>;
 
+export const NOTA_SIMPLE_SITUATIONS = ["active", "dissolved", "in_liquidation", "extinct", "insolvency", "sheet_closed", "other"] as const;
+export const NOTA_SIMPLE_POSITION_KINDS = ["administrator", "attorney", "auditor", "secretary", "other"] as const;
+
+/**
+ * Nota simple informativa del Registro Mercantil on a company: who it is as registered, who runs it today and its
+ * situation. Officers and attorneys are copied as printed (names and roles only: no ID numbers). Sentinels: "" for
+ * text and dates, -1 for an amount, 0 for a page.
+ */
+export const NotaSimpleWire = z.object({
+  ...common,
+  issue_date: date.describe("Date the nota simple was issued (fecha de expedición / emitida el / información a fecha), YYYY-MM-DD; empty string if not shown."),
+  registry: text("Registro Mercantil that issued it, e.g. 'Registro Mercantil de Madrid'."),
+  registry_sheet: text("Hoja registral as printed, e.g. 'M-123456' or 'Hoja B-12.345'."),
+  legal_form: text("Forma jurídica, e.g. 'Sociedad Limitada'."),
+  registered_office: text("Domicilio social as printed."),
+  purpose: text("Objeto social, the first sentence or CNAE description as printed."),
+  incorporated_on: date.describe("Fecha de constitución, YYYY-MM-DD; empty string if not shown."),
+  share_capital: amount("Capital social suscrito."),
+  situation: z
+    .enum(NOTA_SIMPLE_SITUATIONS)
+    .describe("Company situation as the nota states it: active when it states no dissolution, liquidation, extinction, insolvency (concurso) or closure of the sheet (cierre provisional / baja en el Índice de Entidades de Hacienda); other for any other annotation."),
+  situation_text: text("The situation or annotation as printed (e.g. 'Cierre provisional por falta de depósito de cuentas'). Empty when active with nothing printed."),
+  sole_shareholder: text("Socio único (unipersonalidad) as printed, the shareholder's name. Empty if the nota states none."),
+  positions: z
+    .array(
+      z.object({
+        kind: z.enum(NOTA_SIMPLE_POSITION_KINDS).describe("administrator: administrador único/solidario/mancomunado, consejero, presidente, consejero delegado, liquidador; attorney: apoderado; auditor; secretary: secretario no consejero; other."),
+        role: z.string().describe("Role as printed, e.g. 'Administrador único', 'Apoderado solidario'."),
+        name: z.string().describe("Name of the person or company holding the position, as printed. Never an ID number."),
+        appointed_on: date.describe("Date of appointment or of the inscription that appointed them, YYYY-MM-DD; empty string if not shown."),
+        page,
+      }),
+    )
+    .describe("Every position in force (cargos vigentes) and every power of attorney in force (apoderamientos), as listed. Not ceased or revoked ones. Empty if none."),
+  page: z.number().int().describe("1-based PDF page with the company's identification (denominación, hoja, domicilio); 0 if not identifiable."),
+});
+export type NotaSimpleWire = z.infer<typeof NotaSimpleWire>;
+
 /**
  * One Modelo 303 return (IVA, autoliquidación trimestral o mensual). Figures as printed; the canonical schema adds
  * the period dates and the sum of the accrued bases.
@@ -315,7 +353,7 @@ export type BankStatementWire = z.infer<typeof BankStatementWire>;
 export const BANK_STATEMENT_INSTRUCTIONS =
   "This should be a Spanish bank account statement (extracto de cuenta / movimientos) from a bank's online banking or branch. Copy each movement exactly as printed, with its date, concept and amount signed by direction (abono/haber/ingreso positive, cargo/debe/adeudo negative), and the running balance when the statement prints one. Do not add, merge, compute or reorder movements; do not invent balances.";
 
-export type ExtractKind = "modelo200" | "modelo303" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report";
+export type ExtractKind = "modelo200" | "modelo303" | "cuentas_anuales" | "cirbe" | "aeat_cert" | "tgss_cert" | "solvency_report" | "nota_simple";
 
 export const WIRE_FOR = {
   modelo200: Modelo200Wire,
@@ -325,6 +363,7 @@ export const WIRE_FOR = {
   aeat_cert: CertificateWire,
   tgss_cert: CertificateWire,
   solvency_report: SolvencyWire,
+  nota_simple: NotaSimpleWire,
 } as const;
 
 export const EXTRACT_INSTRUCTIONS: Record<ExtractKind, string> = {
@@ -342,4 +381,6 @@ export const EXTRACT_INSTRUCTIONS: Record<ExtractKind, string> = {
     "This should be a Tesorería General de la Seguridad Social certificate stating whether the company is up to date with its Social Security payments (certificado de estar al corriente).",
   solvency_report:
     "This should be a commercial credit report on a Spanish company (informe de solvencia / informe comercial / informe de empresa) from a credit information provider such as Experian, Informa (D&B), Axesor, Iberinform, eInforma or Equifax. Extract the provider's own rating, probability of default and recommended credit limit exactly as reported, every payment incident (RAI, ASNEF-Empresas, bureau files) and judicial or administrative incident, and the yearly financial figures. Do not compute or infer anything the report does not state.",
+  nota_simple:
+    "This should be a nota simple informativa from a Spanish Registro Mercantil about a company (sociedad mercantil): its registered name, CIF, registry sheet (hoja), registered office, purpose, capital, situation, sole shareholder and the positions and powers of attorney in force. Copy names, roles and dates exactly as printed; list only positions in force, never ceased or revoked ones; never copy ID numbers (DNI, NIE) of people.",
 };

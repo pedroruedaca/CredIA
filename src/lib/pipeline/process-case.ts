@@ -27,7 +27,7 @@ import { buildStatement, isFullStatement } from "../pgc/mapping.ts";
 import { MODELO200_SOURCE, MODELO303_SOURCE, modelo200Period, statementFromModelo200, statementFromModelo303 } from "../pgc/tax-returns.ts";
 import { coveredYtdEnd, type M303Return } from "../tax/modelo303.ts";
 import { analystCompletesCase } from "../cases/attention.ts";
-import type { AnnualAccountsExtraction, CertificateExtraction, CirbeExtraction, Modelo200Extraction, SolvencyReport } from "../schema/canonical.ts";
+import type { AnnualAccountsExtraction, CertificateExtraction, CirbeExtraction, Modelo200Extraction, NotaSimple, SolvencyReport } from "../schema/canonical.ts";
 import type { AdminClient } from "../borrower/access.ts";
 import { addDays, fiscalYearStart, type LedgerBalance, type Period, type PeriodKind, type Warning } from "../types.ts";
 import { todayMadrid } from "../format.ts";
@@ -345,7 +345,7 @@ async function processOne(db: AdminClient, kase: CaseRow, doc: DocRow): Promise<
   }
 
   const kind = doc.kind as ExtractKind;
-  if (!["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report"].includes(kind)) return { status: "uploaded" };
+  if (!["modelo200", "modelo303", "cuentas_anuales", "cirbe", "aeat_cert", "tgss_cert", "solvency_report", "nota_simple"].includes(kind)) return { status: "uploaded" };
   const call = await extractPdf(kind, bytes);
   if (!call.ok) {
     if (call.reason === "api_error" || call.reason === "not_configured") {
@@ -655,7 +655,10 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
   const registry = await confirmedRegistryActs(db, kase.id);
   if (registry) checks.push(...bormeChecks(registry.acts, { today, coverageStart: registry.coverageStart }));
 
-  // KYB consistency: the name and CIF printed on each document read, the bank account holders and the registry.
+  // KYB consistency: the name and CIF printed on each document read, the bank account holders, the nota simple and the
+  // registry.
+  const notaDoc = latest("nota_simple");
+  const nota = (notaDoc?.output.canonical as Canonical | undefined)?.kind === "nota_simple" ? (notaDoc!.output.canonical as { data: NotaSimple }).data : null;
   checks.push(
     ...kybChecks({
       company: { name: kase.borrower_name, cif: kase.borrower_cif },
@@ -667,6 +670,7 @@ async function recompute(db: AdminClient, kase: CaseRow, now: Date) {
       }),
       bankHolders: allBank.filter((b) => b.account.name.trim()).map((b) => ({ docId: b.docId, accountMasked: b.account.accountMasked, holder: b.account.name })),
       registry,
+      nota: notaDoc && nota ? { docId: notaDoc.id, data: nota, maxAgeDays: (reqs ?? []).find((r) => r.doc_kind === "nota_simple")?.max_age_days ?? null } : null,
       today,
     }),
   );

@@ -38,6 +38,7 @@ export const UPLOAD_RULES: Record<RequirementKind, UploadRule> = {
   aeat_cert: PDF_ONLY,
   tgss_cert: PDF_ONLY,
   solvency_report: PDF_ONLY,
+  nota_simple: PDF_ONLY,
 };
 
 export function extensionOf(filename: string): string {

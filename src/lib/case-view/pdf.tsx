@@ -12,11 +12,13 @@ import { INCIDENT_REGISTRY_LABEL, INCIDENT_STATUS_LABEL, JUDICIAL_TYPE_LABEL, PR
 import { productLabel } from "../../content/products.es.ts";
 import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } from "../format.ts";
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
+import { IDENTITY_COPY } from "../../content/identity.es.ts";
+import { identityView } from "./identity.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
 import { DEFAULT_LAYOUT, moduleKey, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
 import { periodView, summaryView } from "./package.ts";
-import { pickTiles } from "./present.ts";
+import { describeSource, pickTiles } from "./present.ts";
 import { layoutSankey, type PnlSankey } from "./sankey.ts";
 import { statementTables, type TableRow } from "./tables.ts";
 
@@ -211,6 +213,59 @@ function Registry({ d }: { d: CaseViewData }) {
   );
 }
 
+/** Identidad y titularidad: the company as registered, who runs it, the KYB checks; each fact with its source. */
+function Identity({ d, pkg }: { d: CaseViewData; pkg: CasePackage }) {
+  const v = identityView(d, pkg);
+  if (!v) return null;
+  const src = (ref: string | null) => (ref ? describeSource(ref, d.documents).label : "");
+  const n = v.nota;
+  const notaLine =
+    n.kind === "parsed" ? IDENTITY_COPY.notaParsed(formatDate(n.issuedOn))
+    : n.kind === "reading" ? IDENTITY_COPY.notaReading
+    : n.kind === "failed" ? IDENTITY_COPY.notaFailed
+    : n.kind === "requested" ? (n.from === "lender" ? IDENTITY_COPY.notaYours : IDENTITY_COPY.notaRequested)
+    : IDENTITY_COPY.notaNone;
+  return (
+    <View>
+      <View wrap={false}>
+        <Text style={s.h2}>Identidad y titularidad · {notaLine}</Text>
+        <Text style={{ fontWeight: 500 }}>{v.name}{v.formerNames.length ? <Text style={s.muted}>{`  · ${IDENTITY_COPY.formerNames(v.formerNames)}`}</Text> : null}</Text>
+        {v.facts.map((f) => (
+          <View key={f.label} style={s.tableRow}>
+            <Text style={[s.muted, { width: 95 }]}>{f.label}</Text>
+            <Text style={[{ flex: 1 }, f.mono ? s.mono : {}]}>{f.value}</Text>
+            <Text style={[s.mono, s.muted, { width: 130, textAlign: "right", fontSize: 8 }]}>{src(f.source)}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>{IDENTITY_COPY.boardTitle}{v.boardBasis ? ` · ${v.boardBasis}` : ""}</Text>
+      {!v.board && <Text style={{ color: C.ink2 }}>{IDENTITY_COPY.boardUnknown}</Text>}
+      {v.board && v.board.members.length === 0 && <Text style={{ color: C.ink2 }}>{IDENTITY_COPY.boardEmpty}</Text>}
+      {v.board?.members.map((m) => (
+        <View key={`${m.kind}|${m.name}|${m.role}`} style={s.tableRow} wrap={false}>
+          <Text style={{ flex: 1 }}>{m.name}</Text>
+          <Text style={[{ width: 110 }, { color: C.ink2 }]}>{m.role}</Text>
+          <Text style={[s.mono, s.muted, { width: 60, textAlign: "right" }]}>{m.since ? formatDate(m.since) : "—"}</Text>
+          <Text style={[s.mono, s.muted, { width: 110, textAlign: "right", fontSize: 8 }]}>{src(m.source)}</Text>
+        </View>
+      ))}
+      {v.open.length > 0 && <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>{IDENTITY_COPY.checksTitle}</Text>}
+      {v.open.map((c) => (
+        <View key={c.slug} style={s.checkRow} wrap={false}>
+          <View style={[s.dot, { backgroundColor: DOT[c.severity] }]} />
+          <Text style={{ flex: 1 }}>{c.message}</Text>
+        </View>
+      ))}
+      {v.passed.length > 0 && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+          {v.passed.map((c) => <Text key={c.slug} style={[s.pill, { backgroundColor: C.okBg, color: C.ok }]}>{CHECK_PASS_LABEL[c.key] ?? c.name}</Text>)}
+        </View>
+      )}
+      <Text style={[s.muted, { fontSize: 8, marginTop: 6 }]}>{IDENTITY_COPY.footnote}</Text>
+    </View>
+  );
+}
+
 /** Informe de solvencia: provider figures (attributed), incidents and yearly figures, each with its PDF page. */
 function Solvency({ d }: { d: CaseViewData }) {
   const r = d.solvency?.report ?? null;
@@ -379,6 +434,7 @@ function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Req
     analyst_documents: () => null,
     annual_accounts: () => null,
     solvency: () => <Solvency d={d} />,
+    identity: () => <Identity d={d} pkg={pkg} />,
     registry: () => <Registry d={d} />,
     sources: () => (
       <>

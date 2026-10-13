@@ -10,6 +10,7 @@ export const REQUIREMENT_KINDS = [
   "aeat_cert",
   "tgss_cert",
   "solvency_report",
+  "nota_simple",
 ] as const;
 export type RequirementKind = (typeof REQUIREMENT_KINDS)[number];
 
@@ -24,7 +25,7 @@ export interface RequirementSpec {
   defaultMaxAgeDays: number | null;
   supportsMaxAge: boolean;
   /** Requested together with other kinds under one choice in the new-case form (see REQUIREMENT_MODULES). */
-  module?: "fiscal";
+  module?: "fiscal" | "identity";
 }
 
 export const REQUIREMENT_SPECS: RequirementSpec[] = [
@@ -37,6 +38,7 @@ export const REQUIREMENT_SPECS: RequirementSpec[] = [
   { kind: "aeat_cert", label: "Certificado AEAT", hint: "Estar al corriente con Hacienda", defaultRequired: true, defaultMaxAgeDays: null, supportsMaxAge: true },
   { kind: "tgss_cert", label: "Certificado TGSS", hint: "Estar al corriente con la Seguridad Social", defaultRequired: true, defaultMaxAgeDays: 90, supportsMaxAge: true },
   { kind: "solvency_report", label: "Informe de solvencia", hint: "Experian, Informa, Axesor, Iberinform…", defaultRequired: null, defaultMaxAgeDays: 90, supportsMaxAge: true },
+  { kind: "nota_simple", label: "Nota simple mercantil", hint: "Registro Mercantil: administradores, domicilio, capital", defaultRequired: false, defaultMaxAgeDays: 90, supportsMaxAge: true, module: "identity" },
 ];
 
 /** One choice in the new-case form: a single document, or several requested together ("Documentos fiscales"). */
@@ -47,7 +49,10 @@ export interface RequirementModule {
   specs: RequirementSpec[];
 }
 
-const MODULE_COPY = { fiscal: { label: "Documentos fiscales", hint: "Modelo 200 del último ejercicio y Modelo 303 (IVA) de los últimos 4 trimestres" } };
+const MODULE_COPY = {
+  fiscal: { label: "Documentos fiscales", hint: "Modelo 200 del último ejercicio y Modelo 303 (IVA) de los últimos 4 trimestres" },
+  identity: { label: "Identidad y titularidad", hint: "Nota simple del Registro Mercantil: quién administra la sociedad hoy" },
+};
 
 export const REQUIREMENT_MODULES: RequirementModule[] = REQUIREMENT_SPECS.reduce<RequirementModule[]>((out, spec) => {
   const id = spec.module ?? spec.kind;

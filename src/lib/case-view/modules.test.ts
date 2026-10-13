@@ -57,9 +57,9 @@ describe("editing a layout", () => {
   const l = DEFAULT_LAYOUT;
   it("moves, removes, adds and resizes", async () => {
     const { addModule, availableModules, moveModule, removeModule, sameLayout, setModuleWidth } = await import("./modules.ts");
-    const moved = moveModule(l, 9, 0);
+    const moved = moveModule(l, 10, 0);
     expect(moved.modules[0].id).toBe("sources");
-    expect(moved.modules).toHaveLength(10);
+    expect(moved.modules).toHaveLength(11);
     expect(moveModule(l, 0, 99)).toBe(l);
 
     const removed = removeModule(l, "kpis");

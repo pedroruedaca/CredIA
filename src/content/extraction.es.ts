@@ -7,6 +7,7 @@ export const DOC_TYPE_LABEL: Record<string, string> = {
   aeat_cert: "un certificado de Hacienda",
   tgss_cert: "un certificado de la Seguridad Social",
   solvency_report: "un informe de solvencia",
+  nota_simple: "una nota simple del Registro Mercantil",
   bank_statement: "un extracto bancario",
   trial_balance: "un balance de sumas y saldos",
   invoice: "una factura",

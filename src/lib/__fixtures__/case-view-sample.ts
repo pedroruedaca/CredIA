@@ -52,9 +52,10 @@ export const caseViewSample: CaseViewData = {
   cirbeDocId: "c1",
   holded: null,
   activity: [],
-  registry: { coverage: null, match: null, candidates: [], profile: null, fetch: null },
+  registry: { coverage: null, match: null, candidates: [], profile: null, acts: [], fetch: null },
   solvency: null,
   annualAccounts: null,
+  nota: null,
   registeredName: "Talleres Demo Levante, S.L.",
   conclusions: [],
 };

@@ -8,7 +8,7 @@ import type { BankKpiSet } from "../kpis/bank.ts";
 import { adjustedGrossMarginKpi, normalizeCostDefinition, type CostOfSalesDefinition } from "../kpis/cost-of-sales.ts";
 import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
-import type { AnnualAccountsExtraction, CirbeExtraction, SolvencyReport } from "../schema/canonical.ts";
+import type { AnnualAccountsExtraction, CirbeExtraction, NotaSimple, SolvencyReport } from "../schema/canonical.ts";
 import { parseCitations, type Citation } from "../analyst-chat/refs.ts";
 import type { CheckRow, SourceDoc } from "./present.ts";
 
@@ -76,6 +76,15 @@ export interface CaseViewData {
     attention: string | null;
     accounts: Pick<AnnualAccountsExtraction, "fiscalYear" | "model" | "periodEnd" | "pages"> & { hasPrior: boolean } | null;
   } | null;
+  /** Latest nota simple: the newest one read, else the latest upload's state (being read, or not readable). */
+  nota: {
+    docId: string;
+    fileName: string;
+    uploadedBy: "borrower" | "delegate" | "lender";
+    status: string;
+    attention: string | null;
+    data: NotaSimple | null;
+  } | null;
   /** Company name as entered for the case (null when only the CIF is known). */
   registeredName: string | null;
   /** The analysts' conclusions kept from «Preguntar al caso», oldest first (case view, PDF, exports). */
@@ -101,7 +110,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows, closingRow] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows, closingRow, notaDocs] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -138,7 +147,22 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     db.from("case_conclusions").select("id, text, citations, question, created_by, created_at").eq("case_id", caseId).order("created_at").limit(200),
     // Before migrations 0025/0026 the columns do not exist: the case shows as open, with no retention period.
     db.from("cases").select("closed_at, closed_reason, purge_warned_at, purge_warned_for, lenders(retention_months)").eq("id", caseId).maybeSingle(),
+    db
+      .from("documents")
+      .select("id, status, original_filename, uploaded_by, attention_message, extractions(output, created_at)")
+      .eq("case_id", caseId)
+      .eq("kind", "nota_simple")
+      .order("uploaded_at", { ascending: false })
+      .limit(10),
   ]);
+
+  type NotaRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: NotaSimple } }; created_at: string }[] | null };
+  const notaRows = (notaDocs.data ?? []) as unknown as NotaRow[];
+  const notaOf = (r: NotaRow) => {
+    const latest = [...(r.extractions ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    return latest?.output?.canonical?.kind === "nota_simple" ? latest.output.canonical.data : null;
+  };
+  const shownNota = notaRows.find((r) => r.status === "parsed" && notaOf(r)) ?? notaRows[0] ?? null;
 
   type AccountsRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: AnnualAccountsExtraction } }; created_at: string }[] | null };
   const accountsRows = (accountsDocs.data ?? []) as unknown as AccountsRow[];
@@ -248,6 +272,9 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
           attention: shownAccounts.attention_message,
           accounts: shownAccounts.status === "parsed" ? accountsOf(shownAccounts) : null,
         }
+      : null,
+    nota: shownNota
+      ? { docId: shownNota.id, fileName: shownNota.original_filename ?? "nota-simple.pdf", uploadedBy: shownNota.uploaded_by, status: shownNota.status, attention: shownNota.attention_message, data: shownNota.status === "parsed" ? notaOf(shownNota) : null }
       : null,
     registeredName: c.borrower_name,
     conclusions: (conclusionRows.data ?? []).map((r) => ({

@@ -25,6 +25,8 @@ export interface CaseRegistry {
   match: { status: "confirmed" | "none"; sheet: string | null; decidedAt: string } | null;
   candidates: BormeCandidate[];
   profile: CompanyProfile | null;
+  /** The confirmed company's acts, as stored (the profile is built from them). */
+  acts: StoredAct[];
   /** On-demand read of the confirmed company's acts: in progress, done or failed (with a note). */
   fetch: { status: "fetching" | "ready" | "failed"; error: string | null; updatedAt: string } | null;
 }
@@ -78,7 +80,7 @@ export async function loadCaseRegistry(db: SupabaseClient, caseId: string, compa
     confirmed ? db.from("borme_sheets").select("status, error, updated_at").eq("sheet", confirmed).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const st = sheetState.data as { status: "fetching" | "ready" | "failed"; error: string | null; updated_at: string } | null;
-  return { coverage, match: m, candidates, profile: buildProfile(acts), fetch: st ? { status: st.status, error: st.error, updatedAt: st.updated_at } : null };
+  return { coverage, match: m, candidates, profile: buildProfile(acts), acts, fetch: st ? { status: st.status, error: st.error, updatedAt: st.updated_at } : null };
 }
 
 /** The confirmed company's acts for the pipeline; null until the lender has confirmed which company it is. */

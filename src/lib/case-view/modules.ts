@@ -18,6 +18,7 @@ export const MODULE_IDS = [
   "analyst_documents",
   "annual_accounts",
   "solvency",
+  "identity",
   "registry",
   "sources",
 ] as const;
@@ -51,6 +52,7 @@ export const MODULE_SPECS: Record<ModuleId, ModuleSpec> = {
   analyst_documents: { id: "analyst_documents", title: "Documentos que subes tú", description: "Documentos marcados «Lo subo yo» y su estado.", removable: true, widths: ["full", "half"] },
   annual_accounts: { id: "annual_accounts", title: "Cuentas anuales", description: "Depósito de cuentas: ejercicio, modelo y subida.", removable: true, widths: ["full", "half"] },
   solvency: { id: "solvency", title: "Informe de solvencia", description: "Incidencias y cifras del proveedor, atribuidas a él.", removable: true, widths: ["full", "half"] },
+  identity: { id: "identity", title: "Identidad y titularidad", description: "Quién es la sociedad y quién la administra hoy: nota simple, BORME y sus verificaciones.", removable: true, widths: ["full", "half"] },
   registry: { id: "registry", title: "Registro Mercantil", description: "BORME: hoja registral y actos publicados.", removable: true, widths: ["full", "half"] },
   sources: { id: "sources", title: "Fuentes", description: "Documentos y conexiones de los que salen las cifras.", removable: true, widths: ["full"] },
 };
@@ -183,6 +185,7 @@ export const DEFAULT_LAYOUT: Layout = {
     { id: "analyst_documents", width: "full" },
     { id: "annual_accounts", width: "full" },
     { id: "solvency", width: "full" },
+    { id: "identity", width: "full" },
     { id: "registry", width: "full" },
     { id: "sources", width: "full" },
   ],

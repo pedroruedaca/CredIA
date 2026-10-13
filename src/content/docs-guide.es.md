@@ -131,6 +131,21 @@ captura. Cualquier proveedor vale salvo que la entidad indique otra cosa. La fec
 
 **Antigüedad.** La entidad puede exigir que sea reciente; la regla de este caso figura en la lista.
 
+## Nota simple del Registro Mercantil (nota_simple)
+
+**Qué es.** La nota simple informativa de la empresa que expide el Registro Mercantil: denominación, CIF, hoja
+registral, domicilio social, objeto, capital, administradores y apoderados inscritos, socio único si lo hay y
+situación (por ejemplo, si consta una disolución o un concurso).
+
+**Para qué se pide.** Para que la entidad sepa quién administra hoy la sociedad y con qué datos está inscrita, sin
+pedir escrituras.
+
+**Cómo conseguirla.** Se pide al Registro Mercantil: [RUTA EN REGISTRADORES.ORG PARA PEDIR LA NOTA
+SIMPLE]. Se busca la empresa por su nombre o su CIF. Es un servicio de pago del Registro y se recibe en PDF. La
+gestoría o la notaría de la empresa también pueden pedirla. Hay que subir el PDF tal como se recibe.
+
+**Antigüedad.** La entidad puede exigir que sea reciente; la regla de este caso figura en la lista.
+
 ## Uso del portal
 
 - Cada documento es un paso de la lista. Se sube arrastrando el fichero al recuadro o pulsando "selecciónalo".

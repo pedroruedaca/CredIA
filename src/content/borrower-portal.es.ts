@@ -85,6 +85,15 @@ export const ITEM_COPY: Record<RequirementKind, ItemCopy> = {
       "Súbelo aquí.",
     ],
   },
+  nota_simple: {
+    title: "Nota simple del Registro Mercantil",
+    description: "La nota simple informativa de la empresa: quién la administra hoy, domicilio social, capital y situación.",
+    steps: [
+      "Pide una nota simple mercantil de la empresa en el Registro Mercantil: [RUTA EN REGISTRADORES.ORG PARA PEDIR LA NOTA SIMPLE]. Búscala por su nombre o su CIF.",
+      "Es un servicio de pago del Registro. Recibirás la nota en PDF.",
+      "Súbela aquí tal como la recibes.",
+    ],
+  },
 };
 
 /** Support contact shown on error pages. `null` until a real address exists: never invent one. */
@@ -155,6 +164,12 @@ export const STEP_COPY: Record<RequirementKind, StepCopy> = {
     short: "Informe de solvencia",
     heading: "Tu informe de solvencia",
     why: (l) => `Un informe comercial de la empresa (Experian, Informa, Axesor…). ${l} lo usa para conocer incidencias de pago y datos registrales sin pedírtelos uno a uno.`,
+    estimate: "≈ 10 min",
+  },
+  nota_simple: {
+    short: "Nota simple",
+    heading: "Tu nota simple del Registro Mercantil",
+    why: (l) => `La nota simple informativa de la empresa. ${l} la usa para saber quién administra la sociedad hoy, su domicilio y su capital, sin pedirte escrituras.`,
     estimate: "≈ 10 min",
   },
 };
