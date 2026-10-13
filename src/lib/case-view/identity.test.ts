@@ -48,7 +48,7 @@ describe("identityView", () => {
     expect(v.nota).toEqual({ kind: "parsed", docId: "d-nota", fileName: "nota.pdf", issuedOn: "2026-09-02" });
     expect(Object.fromEntries(v.facts.map((f) => [f.label, [f.value, f.source]]))).toEqual({
       CIF: ["B12345674", null],
-      "Hoja registral": ["M-654321", "borme:2026-09-20:BORME-A-2026-1-28:entry:8001"],
+      "Hoja registral": ["M-654321", "doc:d-nota:page:1"],
       "Forma jurídica": ["Sociedad Limitada", "doc:d-nota:page:1"],
       // Moved after the nota was issued: the BORME's address.
       "Domicilio social": ["Calle Nueva 3, 28010 Madrid", "borme:2026-09-20:BORME-A-2026-1-28:entry:8000"],

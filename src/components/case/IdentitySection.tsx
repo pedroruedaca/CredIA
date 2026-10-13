@@ -75,11 +75,18 @@ export function IdentitySection({ caseId, view, docs, check }: { caseId: string;
           <ul className="flex flex-col">
             {members.map((m) => (
               <li key={`${m.kind}|${m.name}|${m.role}`}>
-                <ListRow className="flex-wrap py-2.5">
-                  <span className="min-w-0 grow truncate text-[15px]">{m.name}</span>
-                  <span className="text-[13px] text-ink-2">{m.role}</span>
-                  <span className="w-24 text-right font-mono text-[13px] text-muted">{m.since ? formatDay(m.since) : "—"}</span>
-                  <span className="hidden sm:inline-flex"><Source caseId={caseId} refStr={m.source} docs={docs} /></span>
+                <ListRow className="py-2.5">
+                  <span className="flex min-w-0 grow flex-col gap-0.5">
+                    <span className="truncate text-[15px]">{m.name}</span>
+                    {/* Phones: role and date under the name instead of in columns. */}
+                    <span className="text-[13px] text-ink-2 sm:hidden">
+                      {m.role}
+                      {m.since && <> · <span className="font-mono text-muted">{formatDay(m.since)}</span></>}
+                    </span>
+                  </span>
+                  <span className="hidden shrink-0 text-[13px] text-ink-2 sm:inline">{m.role}</span>
+                  <span className="hidden w-24 shrink-0 text-right font-mono text-[13px] text-muted sm:inline">{m.since ? formatDay(m.since) : "—"}</span>
+                  <span className="hidden shrink-0 sm:inline-flex"><Source caseId={caseId} refStr={m.source} docs={docs} /></span>
                 </ListRow>
               </li>
             ))}
@@ -104,7 +111,7 @@ export function IdentitySection({ caseId, view, docs, check }: { caseId: string;
                     <SeverityDot tone={v.severity} className={cx("size-2.5", reviewed && "opacity-40")} />
                     <span className={cx("line-clamp-2 min-w-0 grow text-[15px]", reviewed && "text-ink-2")}>{v.message}</span>
                     {reviewed && <Pill tone={v.review!.status === "reviewed" ? "ok" : "info"} className="hidden sm:inline-flex">{REVIEW_LABEL[v.review!.status]}</Pill>}
-                    <ChevronRight size={18} strokeWidth={2} className={v.slug === check ? "text-ink" : "text-faint"} aria-hidden />
+                    <ChevronRight size={18} strokeWidth={2} className={cx("shrink-0", v.slug === check ? "text-ink" : "text-faint")} aria-hidden />
                   </Link>
                 </li>
               );

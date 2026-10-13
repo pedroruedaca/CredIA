@@ -234,7 +234,7 @@ function Identity({ d, pkg }: { d: CaseViewData; pkg: CasePackage }) {
           <View key={f.label} style={s.tableRow}>
             <Text style={[s.muted, { width: 95 }]}>{f.label}</Text>
             <Text style={[{ flex: 1 }, f.mono ? s.mono : {}]}>{f.value}</Text>
-            <Text style={[s.mono, s.muted, { width: 130, textAlign: "right", fontSize: 8 }]}>{src(f.source)}</Text>
+            <Text style={[s.mono, s.muted, { width: 160, textAlign: "right", fontSize: 8 }]}>{src(f.source)}</Text>
           </View>
         ))}
       </View>
@@ -244,9 +244,9 @@ function Identity({ d, pkg }: { d: CaseViewData; pkg: CasePackage }) {
       {v.board?.members.map((m) => (
         <View key={`${m.kind}|${m.name}|${m.role}`} style={s.tableRow} wrap={false}>
           <Text style={{ flex: 1 }}>{m.name}</Text>
-          <Text style={[{ width: 110 }, { color: C.ink2 }]}>{m.role}</Text>
-          <Text style={[s.mono, s.muted, { width: 60, textAlign: "right" }]}>{m.since ? formatDate(m.since) : "—"}</Text>
-          <Text style={[s.mono, s.muted, { width: 110, textAlign: "right", fontSize: 8 }]}>{src(m.source)}</Text>
+          <Text style={[{ width: 100 }, { color: C.ink2 }]}>{m.role}</Text>
+          <Text style={[s.mono, s.muted, { width: 75, textAlign: "right" }]}>{m.since ? formatDate(m.since) : "—"}</Text>
+          <Text style={[s.mono, s.muted, { width: 160, paddingLeft: 10, textAlign: "right", fontSize: 8 }]}>{src(m.source)}</Text>
         </View>
       ))}
       {v.open.length > 0 && <Text style={[s.muted, { fontSize: 8.5, marginTop: 12, marginBottom: 2 }]}>{IDENTITY_COPY.checksTitle}</Text>}

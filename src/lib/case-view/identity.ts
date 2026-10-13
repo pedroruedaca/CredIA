@@ -78,7 +78,9 @@ export function identityView(d: CaseViewData, pkg: Pick<CasePackage, "open" | "p
     if (value) facts.push({ label, value, source, ...(mono ? { mono } : {}) });
   };
   fact("CIF", d.kase.cif, null, true);
-  fact("Hoja registral", profile?.sheet ?? nota?.data.sheet, profile ? bormeRef(acts[acts.length - 1]) : notaRef(), true);
+  // The nota simple prints the sheet; the BORME only when the nota is missing or says another one (kyb_registry_sheet).
+  const sheet = profile?.sheet ?? nota?.data.sheet;
+  fact("Hoja registral", sheet, nota?.data.sheet === sheet ? notaRef() : profile ? bormeRef(acts[acts.length - 1]) : null, true);
   fact("Forma jurídica", nota?.data.legalForm, notaRef());
   const move = lastOf("address_change");
   if (move?.details.value) fact("Domicilio social", move.details.value, bormeRef(move));
