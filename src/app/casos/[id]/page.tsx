@@ -10,6 +10,8 @@ import { loadCaseView } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
 import { loadCaseLayout } from "@/lib/case-view/layout-store";
 import { requireLender } from "@/lib/lender";
+import { policyView } from "@/lib/case-view/policy";
+import { listPolicies } from "@/lib/policies/store";
 import { logCaseRead } from "@/lib/lender-audit";
 import { stuckCases } from "@/lib/pipeline/kick";
 import { processCase } from "@/lib/pipeline/process-case";
@@ -43,11 +45,17 @@ export default async function CasePage({ params, searchParams }: { params: Promi
     history: thread.map((m) => ({ id: m.role === "assistant" ? m.id : null, role: m.role, content: m.content, citations: m.citations })),
     suggestions: chatSuggestions(data, buildPackage(data)),
   };
+  // Credit policies: the lender's thresholds, compared with this case's KPIs for information («Política» in «Indicadores»).
+  const applied = policyView(data);
+  const policy = {
+    options: (await listPolicies(db)).map((p) => ({ id: p.id, name: p.name })),
+    applied: applied ? { id: applied.id, name: applied.name, result: applied.result } : null,
+  };
   const busy = stuck || data.kase.status === "processing" || data.documents.some((d) => d.status === "parsing" || (d.status === "uploaded" && !d.summary));
   return (
     <>
       <AutoRefresh active={busy && !editing} />
-      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} chat={chat} canDelete={lender.role === "owner"} />
+      <CaseView data={data} check={check ?? null} canEdit={canEdit} userId={lender.userId} layout={caseLayout.layout} layoutInfo={caseLayout} editing={editing} chat={chat} canDelete={lender.role === "owner"} policy={policy} />
     </>
   );
 }

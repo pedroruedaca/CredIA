@@ -5,7 +5,7 @@
  * white 44px tile with a small shadow. Bandeja shows its pending count. Sections not built yet are shown but
  * disabled. On phones the rail becomes a top bar.
  */
-import { Briefcase, FileText, Inbox, Settings, type LucideIcon } from "lucide-react";
+import { Briefcase, FileText, Inbox, Settings, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +27,7 @@ const MAIN: Item[] = [
   { label: "Casos", hint: "Todos los casos del equipo y en qué punto está cada uno.", icon: Briefcase, href: "/casos", match: /^\/casos(\/|$)/ },
   { label: "Bandeja", hint: "Lo que necesita tu atención: envíos, peticiones de ayuda y revisiones.", icon: Inbox, href: "/bandeja", match: /^\/bandeja(\/|$)/ },
   { label: "Plantillas", hint: "Documentos y panel guardados por tipo de operación.", icon: FileText, href: "/plantillas", match: /^\/plantillas(\/|$)/ },
+  { label: "Políticas", hint: "Umbrales de vuestra entidad para comparar los indicadores de cada caso.", icon: SlidersHorizontal, href: "/politicas", match: /^\/politicas(\/|$)/ },
 ];
 const SETTINGS: Item = { label: "Ajustes", hint: "Entidad, equipo y correo.", icon: Settings, href: "/ajustes", match: /^\/ajustes(\/|$)/ };
 

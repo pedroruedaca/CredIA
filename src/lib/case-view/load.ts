@@ -10,6 +10,7 @@ import type { Kpi } from "../kpis/engine.ts";
 import type { CanonicalStatement } from "../pgc/mapping.ts";
 import type { AnnualAccountsExtraction, CirbeExtraction, NotaSimple, SolvencyReport } from "../schema/canonical.ts";
 import { parseCitations, type Citation } from "../analyst-chat/refs.ts";
+import { normalizeCriteria, type CreditPolicy } from "../policies/policy.ts";
 import type { CheckRow, SourceDoc } from "./present.ts";
 
 const KPI_UNIT: Record<string, Kpi["unit"]> = {
@@ -89,6 +90,8 @@ export interface CaseViewData {
   registeredName: string | null;
   /** The analysts' conclusions kept from «Preguntar al caso», oldest first (case view, PDF, exports). */
   conclusions: Conclusion[];
+  /** The lender's credit policy applied to this case (0029), null when none; evaluated by policyView. */
+  policy: CreditPolicy | null;
 }
 
 export interface Conclusion {
@@ -110,7 +113,7 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
     .maybeSingle();
   if (!c) return null;
 
-  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows, closingRow, notaDocs] = await Promise.all([
+  const [stmts, checks, reviews, docs, reqs, debt, holded, activity, registry, solvencyDocs, accountsDocs, bankKpis, costDef, ledgerNames, conclusionRows, closingRow, notaDocs, policyRow] = await Promise.all([
     db.from("financial_statements").select("period_kind, statement, source, kpis(key, value, formula, inputs, note)").eq("case_id", caseId),
     db.from("checks").select("id, check_key, status, severity, message, evidence, source, document_id").eq("case_id", caseId).order("id"),
     db.from("check_reviews").select("check_key, status, note, at").eq("case_id", caseId).order("at", { ascending: false }),
@@ -154,6 +157,8 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       .eq("kind", "nota_simple")
       .order("uploaded_at", { ascending: false })
       .limit(10),
+    // Before migration 0029 the column does not exist: no policy applied.
+    db.from("cases").select("credit_policies(id, name, description, criteria)").eq("id", caseId).maybeSingle(),
   ]);
 
   type NotaRow = { id: string; status: string; original_filename: string | null; uploaded_by: "borrower" | "delegate" | "lender"; attention_message: string | null; extractions: { output: { canonical?: { kind: string; data: NotaSimple } }; created_at: string }[] | null };
@@ -285,7 +290,13 @@ export async function loadCaseView(db: SupabaseClient, caseId: string): Promise<
       createdBy: (r.created_by as string | null) ?? null,
       createdAt: r.created_at as string,
     })),
+    policy: policyOf(policyRow.error ? null : policyRow.data),
   };
+}
+
+function policyOf(row: unknown): CreditPolicy | null {
+  const p = (row as { credit_policies?: { id: string; name: string; description: string | null; criteria: unknown } | null } | null)?.credit_policies;
+  return p ? { id: p.id, name: p.name, description: p.description, criteria: normalizeCriteria(p.criteria) } : null;
 }
 
 function closingOf(row: unknown): CaseViewData["closing"] {

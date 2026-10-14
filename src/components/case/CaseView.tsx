@@ -23,6 +23,7 @@ import type { CaseViewData } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
 import { DEFAULT_LAYOUT, type Layout, type LayoutSource } from "@/lib/case-view/modules";
 import { CaseModules } from "@/components/case/modules/CaseModules";
+import type { CasePolicyView } from "@/components/case/PolicyPanel";
 import { LayoutEditor, type SaveOption } from "@/components/case/modules/LayoutEditor";
 import { caseRef, formatDate, formatDay, formatFigure, relativeTime } from "@/lib/format";
 
@@ -37,6 +38,7 @@ export function CaseView({
   editing = false,
   chat = null,
   canDelete = false,
+  policy = null,
 }: {
   data: CaseViewData;
   check: string | null;
@@ -52,6 +54,8 @@ export function CaseView({
   chat?: { history: ChatMessage[]; suggestions: string[] } | null;
   /** Owners: «Eliminar caso» in «Detalles» and «Descargar todo» in the export menu. */
   canDelete?: boolean;
+  /** Credit policies to apply from «Indicadores» and the one applied, evaluated (null: none loaded). */
+  policy?: CasePolicyView | null;
 }) {
   const { kase } = data;
   const pkg = buildPackage(data);
@@ -167,7 +171,7 @@ export function CaseView({
           </div>
         )}
 
-        {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} tilesWithData={pkg.tiles.map((t) => t.id)} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials }} />}
+        {editing ? <CaseLayoutEditor caseId={kase.id} layout={layout} info={layoutInfo} tilesWithData={pkg.tiles.map((t) => t.id)} /> : <CaseModules layout={layout} ctx={{ data, pkg, check, canEdit, hasFinancials, policy }} />}
 
         {!editing && <ConclusionsSection caseId={kase.id} conclusions={data.conclusions} canEdit={canEdit} />}
       </div>

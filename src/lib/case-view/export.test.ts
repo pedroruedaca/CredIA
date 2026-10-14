@@ -175,6 +175,46 @@ describe("exports", () => {
     expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).not.toContain("Conclusiones del analista");
   }, 30_000);
 
+  it("the applied credit policy travels in the JSON, an Excel sheet and the PDF, under «Indicadores»", async () => {
+    const withPolicy = {
+      ...sample,
+      policy: {
+        id: "pol-1",
+        name: "Circulante pyme",
+        description: null,
+        criteria: [
+          { metric: "dscr" as const, op: "gte" as const, threshold: 1.25, period: "base" as const },
+          { metric: "debtToEquity" as const, op: "lte" as const, threshold: 0.5, period: "closed" as const },
+          { metric: "minBalance" as const, op: "gte" as const, threshold: 10_000, period: "base" as const },
+        ],
+      },
+    };
+    const p = buildPackage(withPolicy);
+    const j = packageJson(withPolicy, p, at);
+    expect(j.credit_policy).toMatchObject({ name: "Circulante pyme", outcome: "outside", outcome_label: "Fuera de la política", counts: { met: 2, not_met: 1, no_data: 0 } });
+    expect(j.credit_policy!.statement).toMatch(/no permitirían financiar: 1 criterio no se cumple/);
+    expect(j.credit_policy!.criteria.map((c) => [c.metric, c.value, c.status, c.kpi_ref])).toEqual([
+      ["dscr", 1.59, "met", "kpis.closed_fy.dscr"],
+      ["debtToEquity", 0.72, "not_met", "kpis.closed_fy.debtToEquity"],
+      ["minBalance", 22_000, "met", "bank_kpis.minBalance"],
+    ]);
+    expect(packageJson(sample, pkg, at).credit_policy).toBeNull();
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await packageXlsx(withPolicy, p, at)) as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet("Política")!;
+    expect(ws.getCell("A1").value).toBe("Política «Circulante pyme» · Fuera de la política");
+    expect([ws.getCell("A5").value, ws.getCell("B5").value, ws.getCell("C5").value, ws.getCell("F5").value]).toEqual(["DSCR", "≥ 1,25x", 1.59, "Cumple"]);
+
+    const { pdfText } = await import("../borme/fetch.ts");
+    const text = await pdfText(new Uint8Array(await packagePdf(withPolicy, p, at, { version: 1, modules: [{ id: "kpis", width: "full" }, { id: "review", width: "full" }] })));
+    expect(text).toContain("Fuera de la política");
+    expect(text.indexOf("Circulante pyme")).toBeLessThan(text.indexOf("Para revisar"));
+    expect(text).toContain("≤ 0,5x");
+    // Without «Indicadores» in the layout it still prints, after the modules.
+    expect(await pdfText(new Uint8Array(await packagePdf(withPolicy, p, at, { version: 1, modules: [{ id: "review", width: "full" }] })))).toContain("Circulante pyme");
+  }, 30_000);
+
   it("PDF renders", async () => {
     const buf = await packagePdf(sample, pkg, at);
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");

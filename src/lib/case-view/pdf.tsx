@@ -14,6 +14,8 @@ import { caseRef, formatCompactEur, formatDate, formatEurWhole, formatFigure } f
 import type { BalanceSegment, SegmentTone } from "./balance.ts";
 import { IDENTITY_COPY } from "../../content/identity.es.ts";
 import { identityView } from "./identity.ts";
+import { criterionLine, policyView, OUTCOME_LABEL } from "./policy.ts";
+import { POLICY_NOTE } from "../../content/policies.es.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
 import { DEFAULT_LAYOUT, moduleKey, moduleSettings, type Layout, type ModuleId, type ModuleSettings } from "./modules.ts";
@@ -448,6 +450,40 @@ function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Req
   };
 }
 
+/**
+ * The lender's credit policy applied to the case, under the first «Indicadores» (after the modules when the layout
+ * has none), as in the case view. Informational: the thresholds are the lender's.
+ */
+function Policy({ d }: { d: CaseViewData }) {
+  const v = policyView(d);
+  if (!v) return null;
+  const tone = { within: { bg: C.okBg, fg: C.ok }, outside: { bg: C.highBg, fg: C.high }, incomplete: { bg: C.soft, fg: C.ink2 } }[v.result.outcome];
+  const dot = { met: C.ok, not_met: C.highDot, no_data: C.hairline } as const;
+  return (
+    <View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 26, marginBottom: 6 }} wrap={false}>
+        <Text style={[s.h2, { marginTop: 0, marginBottom: 0 }]}>Política «{v.name}»</Text>
+        <Text style={[s.pill, { backgroundColor: tone.bg, color: tone.fg }]}>{OUTCOME_LABEL[v.result.outcome]}</Text>
+      </View>
+      <Text style={{ color: C.ink2, fontSize: 10, marginBottom: 6 }}>{v.sentence}</Text>
+      {v.result.results.map((r, i) => {
+        const l = criterionLine(r);
+        return (
+          <View key={i} style={s.tableRow} wrap={false}>
+            <View style={[s.dot, { backgroundColor: dot[r.status], marginRight: 8 }]} />
+            <Text style={{ flex: 1 }}>{l.label}</Text>
+            <Text style={[s.mono, s.muted, { width: 86 }]}>{l.condition}</Text>
+            <Text style={[s.muted, { width: 90 }]}>{l.source}</Text>
+            <Text style={[s.mono, { width: 70, textAlign: "right" }]}>{l.value}</Text>
+            <Text style={{ width: 56, textAlign: "right", color: C.ink2 }}>{l.status}</Text>
+          </View>
+        );
+      })}
+      <Text style={[s.muted, { fontSize: 7.5, marginTop: 4 }]}>{POLICY_NOTE}</Text>
+    </View>
+  );
+}
+
 /** The analysts' conclusions: not a module, always printed after the modules (like the statements appendix). */
 function Conclusions({ d }: { d: CaseViewData }) {
   if (!d.conclusions.length) return null;
@@ -472,6 +508,7 @@ function Conclusions({ d }: { d: CaseViewData }) {
 
 function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePackage; generatedAt: string; layout: Layout }) {
   const mods = pdfModules(d, pkg);
+  const policyHost = layout.modules.find((m) => m.id === "kpis");
   const { kase } = d;
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const request = [kase.product ? productLabel(kase.product) : null, amount ? `${amount.number} ${amount.unit}` : null, kase.termMonths ? `${kase.termMonths} meses` : null, `CIF ${kase.cif}`].filter(Boolean).join(" · ");
@@ -494,8 +531,10 @@ function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePa
 
         {layout.modules.map((m) => {
           const content = mods[m.id](moduleSettings(m));
-          return content ? <Fragment key={moduleKey(m)}>{content}</Fragment> : null;
+          const policy = policyHost && moduleKey(m) === moduleKey(policyHost) ? <Policy d={d} /> : null;
+          return content || policy ? <Fragment key={moduleKey(m)}>{content}{policy}</Fragment> : null;
         })}
+        {!policyHost && <Policy d={d} />}
 
         <Conclusions d={d} />
 
