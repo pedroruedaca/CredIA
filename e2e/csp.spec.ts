@@ -57,7 +57,7 @@ test("lender pages load under the CSP with no violation", async ({ page }) => {
   await expect(page).toHaveURL(/\/casos\/[0-9a-f-]{36}$/);
   const casePath = new URL(page.url()).pathname;
 
-  for (const path of ["/casos", "/casos/nuevo", casePath, `${casePath}/tablas`, `${casePath}/vista-empresa`, `${casePath}/coste-de-ventas`, `${casePath}?personalizar=1`, "/bandeja", "/plantillas", "/politicas", "/ajustes", "/privacidad"]) {
+  for (const path of ["/casos", "/casos/nuevo", casePath, `${casePath}/tablas`, `${casePath}/vista-empresa`, `${casePath}/coste-de-ventas`, `${casePath}?personalizar=1`, "/bandeja", "/plantillas", "/plantillas/panel", "/politicas", "/ajustes", "/privacidad"]) {
     await expectCleanPage(page, path, refused);
   }
 
