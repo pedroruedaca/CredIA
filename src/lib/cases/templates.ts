@@ -28,6 +28,8 @@ export interface CaseTemplate {
   layout: unknown;
   /** Default cost of sales for the adjusted gross margin, copied into each case created from it; null: none. */
   costOfSales: CostOfSalesDefinition | null;
+  /** Default credit policy, applied to each case created from it (the analyst can change it); null: none. */
+  policyId: string | null;
 }
 
 /** Requirements as the case form parses them → as a template stores them. */
@@ -63,16 +65,16 @@ export function templateFormValues(reqs: TemplateRequirement[]): Record<string, 
   return v;
 }
 
-export type TemplateFieldErrors = Partial<Record<"name" | "description" | "product" | "requirements", string>>;
+export type TemplateFieldErrors = Partial<Record<"name" | "description" | "product" | "requirements" | "policy", string>>;
 
 /** The template's case-view panel: the team's standard one, or its own (designed in the panel editor). */
 export type TemplatePanel = "team" | "custom";
 
 const productValues: string[] = PRODUCTS.map((p) => p.value);
 
-/** The template form: name, description, optional default product, the document choices. */
+/** The template form: name, description, optional default product, the document choices, an optional default policy. */
 export function parseTemplateForm(values: Record<string, string | undefined>):
-  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[]; panel: TemplatePanel; costOfSales: CostOfSalesDefinition | null } }
+  | { ok: true; data: { name: string; description: string | null; product: string | null; requirements: TemplateRequirement[]; panel: TemplatePanel; costOfSales: CostOfSalesDefinition | null; policyId: string | null } }
   | { ok: false; errors: TemplateFieldErrors } {
   const errors: TemplateFieldErrors = {};
   const name = (values.name ?? "").trim();
@@ -81,11 +83,13 @@ export function parseTemplateForm(values: Record<string, string | undefined>):
   if (description.length > 300) errors.description = "La descripción admite hasta 300 caracteres.";
   const product = (values.product ?? "").trim();
   if (product && !productValues.includes(product)) errors.product = "Elige un producto de la lista.";
+  const policyId = (values.policy ?? "").trim();
+  if (policyId && !/^[0-9a-f-]{36}$/i.test(policyId)) errors.policy = "Elige una política de la lista.";
   const req = parseRequirementFields(values);
   if (req.error) errors.requirements = req.error;
   if (Object.keys(errors).length) return { ok: false, errors };
   const panel: TemplatePanel = values.panel === "custom" ? "custom" : "team";
-  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements), panel, costOfSales: parseCostFields(values) } };
+  return { ok: true, data: { name, description: description || null, product: product || null, requirements: toTemplateRequirements(req.requirements), panel, costOfSales: parseCostFields(values), policyId: policyId || null } };
 }
 
 /** One line for lists: "6 documentos · 2 los subes tú". */

@@ -21,6 +21,8 @@ export interface TemplateOption {
   description: string | null;
   product: string | null;
   requirements: TemplateRequirement[];
+  /** The template's default credit policy, applied to the case when it is created. */
+  policyName?: string | null;
 }
 
 export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templates?: TemplateOption[]; initialTemplateId?: string }) {
@@ -100,6 +102,7 @@ export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templa
             </Select>
           </Field>
           {template?.description && <p className="text-[13px] text-muted">{template.description}</p>}
+          {template?.policyName && <p className="text-[13px] text-muted">Se aplicará la política «{template.policyName}»; puedes cambiarla en el caso.</p>}
         </section>
       )}
 

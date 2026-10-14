@@ -28,14 +28,15 @@ export async function saveTemplate(id: string | null, _prev: TemplateFormState, 
   const parsed = parseTemplateForm(values);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, values };
   const supabase = await createClient();
-  const { panel, costOfSales, ...fields } = parsed.data;
+  const { panel, costOfSales, policyId, ...fields } = parsed.data;
   // The standard panel drops any panel of its own; a custom one is designed in the editor right after saving
   // (unless the template already has one, which is kept).
   const hadOwnPanel = id ? !!(await supabase.from("case_templates").select("layout").eq("id", id).maybeSingle()).data?.layout : false;
-  const row = { ...fields, cost_of_sales: costOfSales, ...(panel === "team" ? { layout: null } : {}), updated_by: lender.userId, updated_at: new Date().toISOString() };
+  const row = { ...fields, cost_of_sales: costOfSales, policy_id: policyId, ...(panel === "team" ? { layout: null } : {}), updated_by: lender.userId, updated_at: new Date().toISOString() };
   const { data, error } = id
     ? await supabase.from("case_templates").update(row).eq("id", id).select("id").maybeSingle()
     : await supabase.from("case_templates").insert({ ...row, lender_id: lender.lenderId, created_by: lender.userId }).select("id").single();
+  // A policy of another lender (or deleted meanwhile) is refused by the database trigger.
   if (error || !data) return { status: "failed", message: "No hemos podido guardar la plantilla. Inténtalo de nuevo.", values };
   await supabase.from("audit_log").insert({ lender_id: lender.lenderId, actor: lender.userId, action: id ? "template.updated" : "template.created", detail: { template_id: data.id, name: parsed.data.name } });
   revalidatePath("/plantillas");
