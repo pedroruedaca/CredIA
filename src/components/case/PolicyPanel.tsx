@@ -56,7 +56,7 @@ export function PolicyPanel({ caseId, view, canEdit }: { caseId: string; view: C
         {canEdit && options.length > 0 && (
           <>
             <label htmlFor="case-policy" className="sr-only">Política aplicada</label>
-            <Select id="case-policy" value={applied?.id ?? ""} disabled={pending} onChange={(e) => choose(e.target.value)} className="w-auto min-w-52 max-w-full">
+            <Select id="case-policy" value={applied?.id ?? ""} disabled={pending} onChange={(e) => choose(e.target.value)} className="w-auto! min-w-52 max-w-full">
               <option value="">Sin política</option>
               {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
