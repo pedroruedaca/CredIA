@@ -9,6 +9,8 @@ import { CHECK_NAME, DISCLAIMER, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_
 import { applyCostOfSales } from "../kpis/cost-of-sales.ts";
 import { checkSlugs } from "./evidence.ts";
 import { identityView } from "./identity.ts";
+import { criterionLine, policyView, OUTCOME_LABEL } from "./policy.ts";
+import { POLICY_NOTE } from "../../content/policies.es.ts";
 import type { CaseViewData } from "./load.ts";
 import type { CasePackage } from "./package.ts";
 import { describeSource } from "./present.ts";
@@ -91,6 +93,7 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
           ),
         }
       : null,
+    credit_policy: policyJson(d),
     bank_kpis: d.bank
       ? {
           period: d.bank.period,
@@ -193,6 +196,18 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   }
   [26, 10, 14, 8, 60, 60, 50].forEach((w, i) => (kpis.getColumn(i + 1).width = w));
 
+  const policy = policyView(d);
+  if (policy) {
+    const ws = wb.addWorksheet("Política");
+    title(ws, `Política «${policy.name}» · ${OUTCOME_LABEL[policy.result.outcome]}`, `${policy.sentence} ${POLICY_NOTE} ${sub}`);
+    header(ws, ["Indicador", "Criterio", "Valor del caso", "Unidad", "Origen", "Resultado", "Nota"]);
+    for (const r of policy.result.results) {
+      const l = criterionLine(r);
+      ws.addRow([l.label, l.condition, r.value, unitLabel(r.unit), l.source, l.status, r.note ?? ""]);
+    }
+    [34, 16, 14, 8, 20, 12, 50].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  }
+
   const alerts = wb.addWorksheet("Alertas");
   title(alerts, "Verificaciones", sub);
   header(alerts, ["Verificación", "Estado", "Severidad", "Mensaje", "Regla", "Revisión", "Nota interna"]);
@@ -231,6 +246,38 @@ export async function packageXlsx(d: CaseViewData, pkg: CasePackage, generatedAt
   [12, 36, 14, 16, 36, 70].forEach((w, i) => (trace.getColumn(i + 1).width = w));
 
   return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/**
+ * The lender's credit policy applied to the case: each criterion with the case's KPI, where it comes from (a key of
+ * `kpis` or `bank_kpis`) and whether it is met. Informational, worded as what the lender's own policy would suggest.
+ */
+function policyJson(d: CaseViewData) {
+  const v = policyView(d);
+  if (!v) return null;
+  const kpiRef = (src: string | null, key: string) => (src === "bank" ? `bank_kpis.${key}` : src === "closed" ? `kpis.closed_fy.${key}` : src === "ytd" ? `kpis.ytd.${key}` : null);
+  return {
+    note: POLICY_NOTE,
+    id: v.id,
+    name: v.name,
+    description: v.description,
+    outcome: v.result.outcome,
+    outcome_label: OUTCOME_LABEL[v.result.outcome],
+    statement: v.sentence,
+    counts: { met: v.result.met, not_met: v.result.notMet, no_data: v.result.noData },
+    criteria: v.result.results.map((r) => ({
+      metric: r.criterion.metric,
+      label: KPI_LABEL[r.criterion.metric] ?? r.criterion.metric,
+      op: r.criterion.op,
+      threshold: r.criterion.threshold,
+      unit: r.unit,
+      period: r.criterion.period,
+      value: r.value,
+      status: r.status,
+      kpi_ref: kpiRef(r.source, r.criterion.metric),
+      note: r.note,
+    })),
+  };
 }
 
 /** «Identidad y titularidad»: the nota simple as read and the current board, each with its source_ref. */

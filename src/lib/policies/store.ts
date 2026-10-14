@@ -25,9 +25,3 @@ export async function getPolicy(db: SupabaseClient, id: string) {
   const { data } = await db.from("credit_policies").select(COLUMNS).eq("id", id).maybeSingle();
   return data ? toPolicy(data as Row) : null;
 }
-
-/** The policy applied to a case, read on its own: before migration 0029 the column does not exist (none applied). */
-export async function casePolicyId(db: SupabaseClient, caseId: string): Promise<string | null> {
-  const { data, error } = await db.from("cases").select("policy_id").eq("id", caseId).maybeSingle();
-  return error ? null : ((data as { policy_id: string | null } | null)?.policy_id ?? null);
-}

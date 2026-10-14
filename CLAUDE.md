@@ -222,8 +222,11 @@ policy applied (`cases.policy_id`, `on delete set null`, lender-match trigger, c
 (`src/app/casos/policy-actions.ts`, audit `policy.applied/removed`). The «Política» panel (`PolicyPanel`) sits under the
 first «Indicadores» module (after the modules if the layout has none): selector, outcome pill, the lender's sentence,
 each criterion with its value and source, and `POLICY_NOTE`. Copy `src/content/policies.es.ts`. Evaluated when the case
-is read (no reprocess). Integration `tests/integration/policies.test.ts`. Not yet: the PDF / JSON / Excel exports, a
-template's default policy, policies in the analyst chat.
+is read (no reprocess); `CaseViewData.policy` (load.ts) → `policyView` (`src/lib/case-view/policy.ts`, pure) for the case
+view and every export: PDF `Policy` under the first «Indicadores» as on screen, Excel sheet «Política», JSON
+`credit_policy` (outcome, the lender's sentence, each criterion with value, status and `kpi_ref` into `kpis` /
+`bank_kpis`, `POLICY_NOTE`; also in «Descargar todo»'s paquete.json). Integration `tests/integration/policies.test.ts`.
+Not yet: a template's default policy, policies in the analyst chat.
 
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,

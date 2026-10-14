@@ -10,8 +10,8 @@ import { loadCaseView } from "@/lib/case-view/load";
 import { buildPackage } from "@/lib/case-view/package";
 import { loadCaseLayout } from "@/lib/case-view/layout-store";
 import { requireLender } from "@/lib/lender";
-import { evaluatePolicy } from "@/lib/policies/policy";
-import { casePolicyId, listPolicies } from "@/lib/policies/store";
+import { policyView } from "@/lib/case-view/policy";
+import { listPolicies } from "@/lib/policies/store";
 import { logCaseRead } from "@/lib/lender-audit";
 import { stuckCases } from "@/lib/pipeline/kick";
 import { processCase } from "@/lib/pipeline/process-case";
@@ -46,11 +46,10 @@ export default async function CasePage({ params, searchParams }: { params: Promi
     suggestions: chatSuggestions(data, buildPackage(data)),
   };
   // Credit policies: the lender's thresholds, compared with this case's KPIs for information («Política» in «Indicadores»).
-  const [policies, appliedId] = await Promise.all([listPolicies(db), casePolicyId(db, id)]);
-  const applied = policies.find((p) => p.id === appliedId) ?? null;
+  const applied = policyView(data);
   const policy = {
-    options: policies.map((p) => ({ id: p.id, name: p.name })),
-    applied: applied ? { id: applied.id, name: applied.name, result: evaluatePolicy(applied.criteria, { closed: data.kpis.closed, ytd: data.kpis.ytd, bank: data.bank }) } : null,
+    options: (await listPolicies(db)).map((p) => ({ id: p.id, name: p.name })),
+    applied: applied ? { id: applied.id, name: applied.name, result: applied.result } : null,
   };
   const busy = stuck || data.kase.status === "processing" || data.documents.some((d) => d.status === "parsing" || (d.status === "uploaded" && !d.summary));
   return (
