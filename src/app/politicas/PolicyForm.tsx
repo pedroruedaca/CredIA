@@ -85,58 +85,64 @@ export function PolicyForm({ id, initial, canEdit }: { id: string | null; initia
               const unit = UNIT_TEXT[metricUnit(r.metric)];
               const bank = isBankMetric(r.metric);
               return (
-                <li key={r.key} className="flex flex-col gap-2 rounded-row bg-soft p-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <label className="sr-only" htmlFor={`metric-${r.key}`}>Indicador del criterio {i + 1}</label>
-                  <Select
-                    id={`metric-${r.key}`}
-                    value={r.metric}
-                    onChange={(e) => {
-                      const metric = e.target.value as PolicyMetric;
-                      update(r.key, { metric, op: defaultOp(metric) });
-                    }}
-                    className="bg-surface sm:w-64 sm:grow"
-                  >
-                    {POLICY_METRIC_GROUPS.map((g) => (
-                      <optgroup key={g.id} label={KPI_TILE_GROUP_LABEL[g.id]}>
-                        {g.metrics.map((m) => <option key={m} value={m}>{KPI_LABEL[m] ?? m}</option>)}
-                      </optgroup>
-                    ))}
-                  </Select>
-                  <label className="sr-only" htmlFor={`op-${r.key}`}>Condición del criterio {i + 1}</label>
-                  <Select id={`op-${r.key}`} value={r.op} onChange={(e) => update(r.key, { op: e.target.value as PolicyOp })} className="bg-surface sm:w-40">
-                    {(["gte", "lte"] as const).map((op) => <option key={op} value={op}>{OP_LABEL[op]}</option>)}
-                  </Select>
-                  <span className="flex items-center gap-2">
-                    <label className="sr-only" htmlFor={`threshold-${r.key}`}>Umbral del criterio {i + 1}{unit ? ` (${unit})` : ""}</label>
-                    <input
-                      id={`threshold-${r.key}`}
-                      inputMode="decimal"
-                      value={r.threshold}
-                      onChange={(e) => update(r.key, { threshold: e.target.value })}
-                      placeholder="1,25"
-                      className={cx(fieldClass, "w-32 bg-surface font-mono tabular-nums")}
-                    />
-                    <span className="w-9 text-[13px] text-muted">{unit}</span>
-                  </span>
-                  {bank ? (
-                    <span className="text-[13px] text-muted sm:w-40">Últimos 12 meses</span>
-                  ) : (
-                    <>
-                      <label className="sr-only" htmlFor={`period-${r.key}`}>Periodo del criterio {i + 1}</label>
-                      <Select id={`period-${r.key}`} value={r.period} onChange={(e) => update(r.key, { period: e.target.value as PolicyPeriod })} className="bg-surface sm:w-44">
-                        {(["base", "closed", "ytd"] as const).map((p) => <option key={p} value={p}>{POLICY_PERIOD_LABEL[p]}</option>)}
-                      </Select>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
-                    disabled={rows.length === 1}
-                    className="flex size-11 items-center justify-center self-end rounded-full text-muted transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:opacity-40 sm:self-auto"
-                  >
-                    <X size={18} strokeWidth={2} aria-hidden />
-                    <span className="sr-only">Quitar el criterio {i + 1}</span>
-                  </button>
+                <li key={r.key} className="flex flex-col gap-2 rounded-row bg-soft p-3">
+                  {/* Line 1: the KPI, and removing the criterion. */}
+                  <div className="flex items-center gap-2">
+                    <label className="sr-only" htmlFor={`metric-${r.key}`}>Indicador del criterio {i + 1}</label>
+                    <Select
+                      id={`metric-${r.key}`}
+                      value={r.metric}
+                      onChange={(e) => {
+                        const metric = e.target.value as PolicyMetric;
+                        update(r.key, { metric, op: defaultOp(metric) });
+                      }}
+                      className="min-w-0 grow bg-surface"
+                    >
+                      {POLICY_METRIC_GROUPS.map((g) => (
+                        <optgroup key={g.id} label={KPI_TILE_GROUP_LABEL[g.id]}>
+                          {g.metrics.map((m) => <option key={m} value={m}>{KPI_LABEL[m] ?? m}</option>)}
+                        </optgroup>
+                      ))}
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                      disabled={rows.length === 1}
+                      className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-soft-control hover:text-ink disabled:opacity-40"
+                    >
+                      <X size={18} strokeWidth={2} aria-hidden />
+                      <span className="sr-only">Quitar el criterio {i + 1}</span>
+                    </button>
+                  </div>
+                  {/* Line 2: condition, threshold and period; the selects take the width of their longest option. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="sr-only" htmlFor={`op-${r.key}`}>Condición del criterio {i + 1}</label>
+                    <Select id={`op-${r.key}`} value={r.op} onChange={(e) => update(r.key, { op: e.target.value as PolicyOp })} className="w-auto! shrink-0 bg-surface">
+                      {(["gte", "lte"] as const).map((op) => <option key={op} value={op}>{OP_LABEL[op]}</option>)}
+                    </Select>
+                    <span className="flex items-center gap-2">
+                      <label className="sr-only" htmlFor={`threshold-${r.key}`}>Umbral del criterio {i + 1}{unit ? ` (${unit})` : ""}</label>
+                      <input
+                        id={`threshold-${r.key}`}
+                        inputMode="decimal"
+                        value={r.threshold}
+                        onChange={(e) => update(r.key, { threshold: e.target.value })}
+                        placeholder="1,25"
+                        className={cx(fieldClass, "w-36! bg-surface font-mono tabular-nums")}
+                      />
+                      <span className="min-w-6 text-[13px] text-muted">{unit}</span>
+                    </span>
+                    {bank ? (
+                      <span className="text-[13px] text-muted">Últimos 12 meses de extractos</span>
+                    ) : (
+                      <>
+                        <label className="sr-only" htmlFor={`period-${r.key}`}>Periodo del criterio {i + 1}</label>
+                        <Select id={`period-${r.key}`} value={r.period} onChange={(e) => update(r.key, { period: e.target.value as PolicyPeriod })} className="w-auto! shrink-0 bg-surface">
+                          {(["base", "closed", "ytd"] as const).map((p) => <option key={p} value={p}>{POLICY_PERIOD_LABEL[p]}</option>)}
+                        </Select>
+                      </>
+                    )}
+                  </div>
                 </li>
               );
             })}
