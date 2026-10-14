@@ -451,8 +451,7 @@ function pdfModules(d: CaseViewData, pkg: CasePackage): Record<ModuleId, (o: Req
 }
 
 /**
- * The lender's credit policy applied to the case, under the first «Indicadores» (after the modules when the layout
- * has none), as in the case view. Informational: the thresholds are the lender's.
+ * The lender's credit policy applied to the case, above the modules, as in the case view. Informational: the thresholds are the lender's.
  */
 function Policy({ d }: { d: CaseViewData }) {
   const v = policyView(d);
@@ -508,7 +507,6 @@ function Conclusions({ d }: { d: CaseViewData }) {
 
 function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePackage; generatedAt: string; layout: Layout }) {
   const mods = pdfModules(d, pkg);
-  const policyHost = layout.modules.find((m) => m.id === "kpis");
   const { kase } = d;
   const amount = kase.amount ? formatFigure(kase.amount, "EUR") : null;
   const request = [kase.product ? productLabel(kase.product) : null, amount ? `${amount.number} ${amount.unit}` : null, kase.termMonths ? `${kase.termMonths} meses` : null, `CIF ${kase.cif}`].filter(Boolean).join(" · ");
@@ -529,12 +527,12 @@ function CasePdf({ d, pkg, generatedAt, layout }: { d: CaseViewData; pkg: CasePa
         <Text style={s.h1}>{kase.companyName}</Text>
         <Text style={s.request}>{request}</Text>
 
+        <Policy d={d} />
+
         {layout.modules.map((m) => {
           const content = mods[m.id](moduleSettings(m));
-          const policy = policyHost && moduleKey(m) === moduleKey(policyHost) ? <Policy d={d} /> : null;
-          return content || policy ? <Fragment key={moduleKey(m)}>{content}{policy}</Fragment> : null;
+          return content ? <Fragment key={moduleKey(m)}>{content}</Fragment> : null;
         })}
-        {!policyHost && <Policy d={d} />}
 
         <Conclusions d={d} />
 

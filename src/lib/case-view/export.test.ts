@@ -175,7 +175,7 @@ describe("exports", () => {
     expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).not.toContain("Conclusiones del analista");
   }, 30_000);
 
-  it("the applied credit policy travels in the JSON, an Excel sheet and the PDF, under «Indicadores»", async () => {
+  it("the applied credit policy travels in the JSON, an Excel sheet and the PDF, above the modules", async () => {
     const withPolicy = {
       ...sample,
       policy: {
@@ -209,9 +209,16 @@ describe("exports", () => {
     const { pdfText } = await import("../borme/fetch.ts");
     const text = await pdfText(new Uint8Array(await packagePdf(withPolicy, p, at, { version: 1, modules: [{ id: "kpis", width: "full" }, { id: "review", width: "full" }] })));
     expect(text).toContain("Fuera de la política");
+    expect(text.indexOf("Circulante pyme")).toBeLessThan(text.indexOf("DSCR"));
     expect(text.indexOf("Circulante pyme")).toBeLessThan(text.indexOf("Para revisar"));
     expect(text).toContain("≤ 0,5x");
-    // Without «Indicadores» in the layout it still prints, after the modules.
+    // No policy applied: nothing about policies in the PDF, nor an Excel sheet.
+    const none = await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)));
+    expect(none).not.toMatch(/Política|Informativo\. Compara/);
+    const wb0 = new ExcelJS.Workbook();
+    await wb0.xlsx.load((await packageXlsx(sample, pkg, at)) as unknown as ArrayBuffer);
+    expect(wb0.getWorksheet("Política")).toBeUndefined();
+    // Without «Indicadores» in the layout it still prints.
     expect(await pdfText(new Uint8Array(await packagePdf(withPolicy, p, at, { version: 1, modules: [{ id: "review", width: "full" }] })))).toContain("Circulante pyme");
   }, 30_000);
 

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * «Política» under the case's «Indicadores»: apply one of the lender's credit policies and see, criterion by
+ * «Política» at the top of the case view, above the modules: apply one of the lender's credit policies and see, criterion by
  * criterion, whether the case's KPIs fall inside its thresholds. Informational: the thresholds are the lender's and
  * the outcome is worded as what their policy would suggest, never as credIA's decision.
  */
