@@ -9,10 +9,12 @@
  */
 import * as z from "zod/v4";
 import { BANK_CATEGORY_LABEL, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
+import { OUTCOME_LABEL, POLICY_NOTE, STATUS_LABEL } from "../../content/policies.es.ts";
 import { PROVIDER_FIGURES_NOTE } from "../../content/solvency.es.ts";
 import { INFLOW_CATEGORIES, NEUTRAL_CATEGORIES, OUTFLOW_CATEGORIES } from "../bank/classify.ts";
 import type { CaseViewData } from "../case-view/load.ts";
 import type { CasePackage } from "../case-view/package.ts";
+import { policyView } from "../case-view/policy.ts";
 import { describeSource, sourceHref } from "../case-view/present.ts";
 import { statementTables, type TableRow } from "../case-view/tables.ts";
 import type { Kpi } from "../kpis/engine.ts";
@@ -80,6 +82,7 @@ export const TOOL_SCHEMAS = {
   get_debt_positions: z.object({}),
   get_registry: z.object({}),
   get_solvency_report: z.object({}),
+  get_credit_policy: z.object({}),
   compute: z.object({
     expression: z.string().min(1).max(300).describe("Arithmetic over the operand names: + - * / and parentheses, e.g. \"(a - b) / b * 100\"."),
     operands: z.record(z.string().regex(/^[a-z_][a-z0-9_]*$/i), z.string().regex(/^r[a-z0-9]{1,15}$/)).describe("Operand name → ref of a figure a tool returned in this conversation."),
@@ -105,6 +108,8 @@ const DESCRIPTIONS: Record<ToolName, string> = {
   get_registry: "Registro Mercantil (BORME) profile of the company, only if the lender confirmed the match: registry sheet, officers, capital and published acts.",
   get_solvency_report:
     "The latest commercial credit report (informe de solvencia) uploaded: payment incidents, judicial items, financial figures, and the provider's own rating / default probability / credit limit (attributed to the provider, never credIA's).",
+  get_credit_policy:
+    "The lender's own credit policy applied to this case, if any: each criterion (indicator, at least / at most, threshold, period), the case's value, whether it is met, not met or has no data, and the outcome worded as what the lender's policy would suggest. The thresholds are the lender's, not credIA's.",
   compute:
     "Evaluates arithmetic over figures that tools already returned (by their ref) and registers the result with its own ref. Use it for every derived number: differences, ratios, shares, growth, annualisation.",
 };
@@ -127,6 +132,7 @@ export const TOOL_STATUS: Record<ToolName, string> = {
   get_debt_positions: "Leyendo la CIRBE",
   get_registry: "Leyendo el Registro Mercantil",
   get_solvency_report: "Leyendo el informe de solvencia",
+  get_credit_policy: "Leyendo vuestra política",
   compute: "Calculando",
 };
 
@@ -422,6 +428,45 @@ function getSolvency(ctx: ToolContext, refs: string[]) {
   };
 }
 
+/**
+ * The lender's credit policy applied to the case, evaluated as the case view does. The case's value of each criterion
+ * carries the same ref as get_kpis gives that KPI; the threshold has its own ref, so a gap goes through `compute`.
+ */
+function getPolicy(ctx: ToolContext, refs: string[]) {
+  const v = policyView(ctx.data);
+  if (!v) return { note: "No hay ninguna política de la entidad aplicada a este caso. Se aplica desde el panel «Política» del caso." };
+  const { closed, ytd } = ctx.data.statements;
+  const b = ctx.data.bank;
+  const where = (src: "closed" | "ytd" | "bank") => (src === "closed" && closed ? periodLabel(closed) : src === "ytd" && ytd ? periodLabel(ytd) : b ? `bancos ${b.period.start}..${b.period.end}` : "");
+  const kpiPeriod = { closed: "closed_fy", ytd: "ytd", bank: "bank" } as const;
+  return {
+    note: POLICY_NOTE,
+    policy: v.name,
+    description: v.description,
+    outcome: v.result.outcome,
+    outcome_label: OUTCOME_LABEL[v.result.outcome],
+    statement: v.sentence,
+    criteria: v.result.results.map((r, i) => {
+      const c = r.criterion;
+      const label = KPI_LABEL[c.metric] ?? c.metric;
+      return {
+        indicator: c.metric,
+        label,
+        condition: c.op === "gte" ? "at_least" : "at_most",
+        threshold: { value: c.threshold, unit: r.unit, ref: reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:${c.threshold}`, label: `Umbral de vuestra política «${v.name}» · ${label} ${c.op === "gte" ? "mínimo" : "máximo"}`, value: c.threshold, unit: r.unit }) },
+        period_asked: c.period,
+        case_value:
+          r.value === null || !r.source
+            ? null
+            : { value: round(r.value, 4), unit: r.unit, period: r.source, ref: reg(ctx, refs, { id: `kpi:${kpiPeriod[r.source]}:${c.metric}`, label: `${label} · ${where(r.source)}`, value: r.value, unit: r.unit }) },
+        status: r.status,
+        status_label: STATUS_LABEL[r.status],
+        no_data_reason: r.status === "no_data" ? (r.note ?? "El caso no tiene esta cifra.") : null,
+      };
+    }),
+  };
+}
+
 function compute(ctx: ToolContext, input: z.infer<(typeof TOOL_SCHEMAS)["compute"]>, refs: string[]): ToolOutput {
   const values: Record<string, number> = {};
   const inputs: { name: string; label: string; value: number }[] = [];
@@ -456,6 +501,7 @@ export async function runTool(ctx: ToolContext, name: string, rawInput: unknown)
     case "get_debt_positions": return { ok: true, result: getDebt(ctx, refs), refs };
     case "get_registry": return { ok: true, result: getRegistry(ctx, refs), refs };
     case "get_solvency_report": return { ok: true, result: getSolvency(ctx, refs), refs };
+    case "get_credit_policy": return { ok: true, result: getPolicy(ctx, refs), refs };
     case "compute": return compute(ctx, input, refs);
   }
 }

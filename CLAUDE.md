@@ -229,7 +229,10 @@ view and every export: PDF `Policy` above the modules as on screen (nothing when
 **Template default** (0030, `case_templates.policy_id`, same-lender trigger, `on delete set null`): «Política por defecto»
 in the template form; `createCase` copies it onto the new case (`templatePolicyId`, audit detail `policy_id`), the new-case
 form says which policy will apply; the analyst can change it in the case; template edits never change existing cases.
-Not yet: policies in the analyst chat.
+**Analyst chat:** tool `get_credit_policy` (`tools.ts`): each criterion with the case's value (same ref as `get_kpis`) and
+the threshold (own ref, so gaps go through `compute`), status and the lender's sentence; prompt section «The lender's credit
+policy»: report it only attributed to the lender's policy, never as credIA's opinion, never suggest thresholds, another
+policy or what the company should do; snapshot line and a suggestion when a policy is applied.
 
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
