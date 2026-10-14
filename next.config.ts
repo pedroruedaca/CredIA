@@ -40,6 +40,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: baseHeaders },
       { source: "/casos/:path*", headers: lenderHeaders },
+      { source: "/admin", headers: lenderHeaders },
+      { source: "/admin/:path*", headers: lenderHeaders },
       { source: "/s", headers: tokenHeaders },
       { source: "/s/:path*", headers: tokenHeaders },
       { source: "/api/borrower/:path*", headers: tokenHeaders },
