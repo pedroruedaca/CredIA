@@ -219,11 +219,11 @@ percentages as 12,5; `parseThreshold` reads Spanish numbers), `normalizeCriteria
 Store `store.ts`; pages `/politicas`, `/politicas/nueva`, `/politicas/[id]` (`PolicyForm`, actions
 `src/app/politicas/actions.ts`, audit `policy.created/updated/deleted`); rail item «Políticas». A case points at the
 policy applied (`cases.policy_id`, `on delete set null`, lender-match trigger, column grant); `applyCasePolicy`
-(`src/app/casos/policy-actions.ts`, audit `policy.applied/removed`). The «Política» panel (`PolicyPanel`) sits under the
-first «Indicadores» module (after the modules if the layout has none): selector, outcome pill, the lender's sentence,
+(`src/app/casos/policy-actions.ts`, audit `policy.applied/removed`). The «Política» panel (`PolicyPanel`) sits at the very
+top of the case view, above every module (not a module; once there are figures): selector, outcome pill, the lender's sentence,
 each criterion with its value and source, and `POLICY_NOTE`. Copy `src/content/policies.es.ts`. Evaluated when the case
 is read (no reprocess); `CaseViewData.policy` (load.ts) → `policyView` (`src/lib/case-view/policy.ts`, pure) for the case
-view and every export: PDF `Policy` under the first «Indicadores» as on screen, Excel sheet «Política», JSON
+view and every export: PDF `Policy` above the modules as on screen (nothing when no policy is applied), Excel sheet «Política», JSON
 `credit_policy` (outcome, the lender's sentence, each criterion with value, status and `kpi_ref` into `kpis` /
 `bank_kpis`, `POLICY_NOTE`; also in «Descargar todo»'s paquete.json). Integration `tests/integration/policies.test.ts`.
 Not yet: a template's default policy, policies in the analyst chat.
