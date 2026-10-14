@@ -248,10 +248,6 @@ creation; template edits never change existing cases' documents.
 → the team's (`dashboard_layouts`) → `DEFAULT_LAYOUT`. The editor from a case saves to «Solo este caso» (default),
 «La plantilla …» or «Todo el equipo» (`saveLayout(target)` / `resetLayout(target)` in `src/app/casos/layout-actions.ts`);
 «Volver al diseño de la plantilla/del equipo» clears the case's own. Integration: `tests/integration/templates.test.ts`.
-**Team panel without a case:** «Panel estándar del equipo» at the top of `/plantillas` (modules, «Diseño del equipo» /
-«Diseño original», which templates use it and which have their own) and `/plantillas/panel` (the same `LayoutEditor`, target
-team, «Restaurar el diseño original»; owners/analysts). No separate «Paneles» rail section until dashboards become named,
-shared objects (several templates on one panel) or personal layouts.
 
 ## Bank movements (Norma 43)
 `parseNorma43` reads the fixed-width records; `classifyAccounts` (`src/lib/bank/classify.ts`, pure) gives every movement a
