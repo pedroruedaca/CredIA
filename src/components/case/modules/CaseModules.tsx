@@ -1,7 +1,7 @@
 /**
  * The case view's modules (see src/lib/case-view/modules.ts): one component per module, drawn in layout order by
  * CaseModules. Each module renders nothing when it has nothing to show, so it adds no gap. Nothing here scores or
- * recommends.
+ * recommends; the «Política» panel compares the KPIs with the lender's own thresholds, for information.
  */
 import Link from "next/link";
 import { Check, ChevronRight } from "lucide-react";
@@ -11,6 +11,7 @@ import { IdentitySection } from "@/components/case/IdentitySection";
 import { KpiRow } from "@/components/case/KpiRow";
 import { LenderDocumentsSection } from "@/components/case/LenderDocumentsSection";
 import { PnlSankey } from "@/components/case/PnlSankey";
+import { PolicyPanel, type CasePolicyView } from "@/components/case/PolicyPanel";
 import { RegistrySection } from "@/components/case/RegistrySection";
 import { SolvencySection } from "@/components/case/SolvencySection";
 import { cx } from "@/components/ui/cx";
@@ -25,7 +26,7 @@ import { pickTiles, sourceHref } from "@/lib/case-view/present";
 import { formatCompactEur, formatDate } from "@/lib/format";
 
 /** A module's own settings (defaults filled in) and width, next to the page context. */
-type ModuleProps = ModuleContext & { settings: Required<ModuleSettings>; width: ModuleWidth };
+type ModuleProps = ModuleContext & { settings: Required<ModuleSettings>; width: ModuleWidth; hostsPolicy?: boolean };
 
 /** Everything a module may need, computed once for the page. */
 export interface ModuleContext {
@@ -34,6 +35,8 @@ export interface ModuleContext {
   check: string | null;
   canEdit: boolean;
   hasFinancials: boolean;
+  /** Credit policies to apply and the one applied (null: not loaded, e.g. tests and previews). */
+  policy?: CasePolicyView | null;
 }
 
 function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
@@ -48,11 +51,20 @@ function SummaryModule({ data, hasFinancials, settings }: ModuleProps) {
   );
 }
 
-function KpisModule({ data, pkg, settings, width, canEdit }: ModuleProps) {
+function KpisModule({ data, pkg, settings, width, canEdit, hostsPolicy, policy, hasFinancials }: ModuleProps) {
   // Tiles exist only with data behind them: books tiles with a statement, bank tiles with bank files.
   const tiles = pickTiles(pkg.tiles, settings.tiles);
-  if (tiles.length === 0) return null;
-  return <KpiRow tiles={tiles} half={width === "half"} costHref={canEdit ? `/casos/${data.kase.id}/coste-de-ventas` : undefined} />;
+  // The first «Indicadores» carries the policy panel, once there are figures to compare.
+  const showPolicy = hostsPolicy && policy && (hasFinancials || data.bank !== null);
+  if (tiles.length === 0 && !showPolicy) return null;
+  const row = tiles.length > 0 && <KpiRow tiles={tiles} half={width === "half"} costHref={canEdit ? `/casos/${data.kase.id}/coste-de-ventas` : undefined} />;
+  if (!showPolicy) return row;
+  return (
+    <div className="flex flex-col gap-8">
+      {row}
+      <PolicyPanel caseId={data.kase.id} view={policy} canEdit={canEdit} />
+    </div>
+  );
 }
 
 function ReviewModule({ pkg, check, hasFinancials, settings }: ModuleProps) {
@@ -213,22 +225,26 @@ const MODULES: Record<ModuleId, (props: ModuleProps) => React.ReactNode> = {
  * (`empty:hidden`) and its partner takes the whole row; a row where neither draws anything is hidden too.
  */
 export function CaseModules({ layout, ctx }: { layout: Layout; ctx: ModuleContext }) {
+  // The policy panel goes with the first «Indicadores»; a layout without one shows it after the modules.
+  const policyHost = layout.modules.find((m) => m.id === "kpis");
+  const hosts = (m: { id: ModuleId; key?: string }) => !!policyHost && moduleKey(m) === moduleKey(policyHost);
   return (
     <>
       {layoutRows(layout.modules).map((row) => {
         if (row.length === 1 && row[0].width === "full") {
           const Module = MODULES[row[0].id];
-          return <Module key={moduleKey(row[0])} {...ctx} settings={moduleSettings(row[0])} width="full" />;
+          return <Module key={moduleKey(row[0])} {...ctx} settings={moduleSettings(row[0])} width="full" hostsPolicy={hosts(row[0])} />;
         }
         return (
           <div key={row.map(moduleKey).join("+")} className="flex flex-col gap-10 md:flex-row [&:not(:has(>:not(:empty)))]:hidden">
             {row.map((m) => {
               const Module = MODULES[m.id];
-              return <div key={moduleKey(m)} className="min-w-0 empty:hidden md:flex-1 md:basis-0"><Module {...ctx} settings={moduleSettings(m)} width={m.width} /></div>;
+              return <div key={moduleKey(m)} className="min-w-0 empty:hidden md:flex-1 md:basis-0"><Module {...ctx} settings={moduleSettings(m)} width={m.width} hostsPolicy={hosts(m)} /></div>;
             })}
           </div>
         );
       })}
+      {!policyHost && ctx.policy && (ctx.hasFinancials || ctx.data.bank !== null) && <PolicyPanel caseId={ctx.data.kase.id} view={ctx.policy} canEdit={ctx.canEdit} />}
     </>
   );
 }

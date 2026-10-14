@@ -327,6 +327,8 @@ export const AUDIT_LABEL: Record<string, string> = {
   "case.cost_of_sales_viewed": "Coste de ventas consultado",
   "cost_of_sales.saved": "Coste de ventas definido",
   "cost_of_sales.reset": "Coste de ventas quitado",
+  "policy.applied": "Política aplicada",
+  "policy.removed": "Política quitada",
   "borme.match_confirmed": "Empresa confirmada en el BORME",
   "borme.match_none": "Empresa no encontrada en el BORME",
   "borme.match_clear": "Empresa del BORME por confirmar de nuevo",

@@ -16,6 +16,11 @@ Iberinform…) are accepted as an **uploaded PDF**, by the company or by the len
 probability of default and recommended credit limit are extracted and shown **attributed to the provider**; credIA
 never computes, combines or uses them in checks. Still no bureau API integration.
 
+**Product decision (Oct 2026): credit policies («Políticas»).** The lender defines its own thresholds on the KPIs and
+applies one to a case from «Indicadores»; credIA compares and says, for information only, whether the case's figures
+fall inside that policy («según vuestra política… permitirían / no permitirían financiar»). The criteria are always the
+lender's; credIA ships no default thresholds, never combines criteria into a score, and the outcome never feeds checks.
+
 ## Stack
 Next.js (App Router) · TypeScript (strict) · Tailwind · Supabase (Postgres, Auth, Storage, RLS) ·
 Vercel · Zod · Vitest · Claude API (structured output) for PDF extraction only.
@@ -203,6 +208,22 @@ prompt forbids scores, approve/decline, rates, limits; provider rating/PD/limit 
   Excel sheet «Conclusiones» and JSON `analyst_conclusions` (text with `[n]`, sources with source_ref). Audit
   `conclusion.saved/removed`.
 - Not yet: checked against the live API (golden questions over the fixtures), portfolio questions across cases.
+
+## Credit policies («Políticas»)
+Lender-defined thresholds on the KPIs (`credit_policies`, 0029; members read, owners/analysts write; RLS by `lender_id`).
+Pure model `src/lib/policies/policy.ts`: criteria `[{ metric, op: gte|lte, threshold, period: base|closed|ytd }]` over
+every accounting KPI, the adjusted gross margin and every bank KPI (`POLICY_METRICS`; thresholds in the KPI's unit,
+percentages as 12,5; `parseThreshold` reads Spanish numbers), `normalizeCriteria`, `parsePolicyForm`, `evaluatePolicy`
+(each criterion met / not met / sin datos from the KPI of its period — base = closed year, else YTD; bank metrics from
+`cases.bank_kpis`; outcome `within` all met, `outside` any not met, `incomplete` none failed but some without data).
+Store `store.ts`; pages `/politicas`, `/politicas/nueva`, `/politicas/[id]` (`PolicyForm`, actions
+`src/app/politicas/actions.ts`, audit `policy.created/updated/deleted`); rail item «Políticas». A case points at the
+policy applied (`cases.policy_id`, `on delete set null`, lender-match trigger, column grant); `applyCasePolicy`
+(`src/app/casos/policy-actions.ts`, audit `policy.applied/removed`). The «Política» panel (`PolicyPanel`) sits under the
+first «Indicadores» module (after the modules if the layout has none): selector, outcome pill, the lender's sentence,
+each criterion with its value and source, and `POLICY_NOTE`. Copy `src/content/policies.es.ts`. Evaluated when the case
+is read (no reprocess). Integration `tests/integration/policies.test.ts`. Not yet: the PDF / JSON / Excel exports, a
+template's default policy, policies in the analyst chat.
 
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
