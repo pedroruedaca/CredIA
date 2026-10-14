@@ -234,6 +234,17 @@ the threshold (own ref, so gaps go through `compute`), status and the lender's s
 policy»: report it only attributed to the lender's policy, never as credIA's opinion, never suggest thresholds, another
 policy or what the company should do; snapshot line and a suggestion when a policy is applied.
 
+## Lender sign-in
+`/login` (`LoginForm`, pure rules and error mapping `src/lib/auth/login.ts`, copy `src/content/login.es.ts`): an email with a
+link **and** a code (`signInWithOtp`, `shouldCreateUser: false`; the code is typed on the page, `verifyOtp` type email,
+any device; the link only works in the browser that asked, PKCE), resend after `RESEND_AFTER_S` (60 s), and
+«Continuar con Google / Microsoft» (`signInWithOAuth`, providers from `CREDIA_AUTH_PROVIDERS`, each configured in
+Supabase first). Errors are specific: sending (`sendError`: rate limited, no access, invalid email), code (`codeError`),
+link/provider (`/auth/callback` → `?error=other_browser|expired|no_access|failed`, `linkError`, also Supabase's own
+`error_code` parameters; old `?error=1` = expired). Nobody signs up here: accounts come from «Ajustes» invitations or
+`/admin`. **Supabase settings it relies on:** the Magic Link email template shows `{{ .Token }}`; custom SMTP (Resend);
+«Allow new users to sign up» off so Google/Microsoft cannot create accounts.
+
 ## Platform admin («Administración de credIA»)
 credIA staff, not a lender role: emails in `CREDIA_ADMIN_EMAILS` (Vercel env, comma separated; empty = nobody; pure
 `src/lib/platform/admin.ts`, `isPlatformAdmin`, `parseNewLender`). `/admin` (404 for everyone else, `private, no-store`,

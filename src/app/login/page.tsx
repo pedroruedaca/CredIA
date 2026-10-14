@@ -1,5 +1,6 @@
 import { Logo } from "@/components/Logo";
-import { Pill } from "@/components/ui/Pill";
+import { LOGIN_COPY } from "@/content/login.es";
+import { authProviders, parseLinkError } from "@/lib/auth/login";
 import { safeNextPath } from "@/lib/safe-redirect";
 import { LoginForm } from "./LoginForm";
 
@@ -12,15 +13,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col gap-3">
           <Logo />
-          <h1 className="heading-page mt-4">Acceso para prestamistas</h1>
-          <p className="text-[17px] text-ink-2">Te enviaremos un enlace de acceso por correo. No necesitas contraseña.</p>
+          <h1 className="heading-page mt-4">{LOGIN_COPY.title}</h1>
+          <p className="text-[17px] text-ink-2">{LOGIN_COPY.intro}</p>
         </div>
-        {error && (
-          <p role="alert" className="flex items-center gap-2 text-sm text-ink-2">
-            <Pill tone="high">Enlace no válido</Pill> Ha caducado o ya se usó. Pide uno nuevo.
-          </p>
-        )}
-        <LoginForm next={safeNextPath(next)} />
+        <LoginForm next={safeNextPath(next)} providers={authProviders(process.env.CREDIA_AUTH_PROVIDERS)} problem={parseLinkError(error)} />
       </div>
     </main>
   );
