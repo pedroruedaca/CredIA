@@ -11,6 +11,7 @@ import { getTemplate } from "@/lib/cases/template-store";
 import { templateFormValues } from "@/lib/cases/templates";
 import { costFormValues } from "@/lib/kpis/cost-of-sales";
 import { requireLender } from "@/lib/lender";
+import { listPolicies } from "@/lib/policies/store";
 import { createClient } from "@/lib/supabase/server";
 import { TemplateForm } from "../TemplateForm";
 import { DeleteTemplate } from "./DeleteTemplate";
@@ -27,6 +28,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
   const t = await getTemplate(db, id);
   if (!t) notFound();
   const team = await loadTeamLayout(db, lender.lenderId);
+  const policies = (await listPolicies(db)).map((p) => ({ id: p.id, name: p.name }));
   const layout = t.layout ? normalizeLayout(t.layout) : team.layout;
   const back = `/plantillas/${t.id}`;
 
@@ -82,7 +84,8 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
         id={t.id}
         canEdit={canEdit}
         hasOwnPanel={!!t.layout}
-        initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements), ...costFormValues(t.costOfSales) }}
+        policies={policies}
+        initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements), ...costFormValues(t.costOfSales), policy: t.policyId ?? "" }}
       />
 
       {canEdit && (

@@ -15,6 +15,7 @@ const toTemplate = (r: Row): CaseTemplate & { updatedAt: string } => ({
   requirements: normalizeTemplateRequirements(r.requirements),
   layout: r.layout ?? null,
   costOfSales: null,
+  policyId: null,
   updatedAt: r.updated_at,
 });
 
@@ -27,11 +28,24 @@ export async function getTemplate(db: SupabaseClient, id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const { data } = await db.from("case_templates").select(COLUMNS).eq("id", id).maybeSingle();
   if (!data) return null;
-  return { ...toTemplate(data as Row), costOfSales: await templateCostOfSales(db, id) };
+  return { ...toTemplate(data as Row), costOfSales: await templateCostOfSales(db, id), policyId: await templatePolicyId(db, id) };
 }
 
 /** A template's default cost of sales (read on its own: before migration 0021 the column does not exist). */
 export async function templateCostOfSales(db: SupabaseClient, id: string) {
   const { data, error } = await db.from("case_templates").select("cost_of_sales").eq("id", id).maybeSingle();
   return error ? null : normalizeCostDefinition((data as { cost_of_sales: unknown } | null)?.cost_of_sales);
+}
+
+/** A template's default credit policy (read on its own: before migration 0030 the column does not exist). */
+export async function templatePolicyId(db: SupabaseClient, id: string): Promise<string | null> {
+  const { data, error } = await db.from("case_templates").select("policy_id").eq("id", id).maybeSingle();
+  return error ? null : ((data as { policy_id: string | null } | null)?.policy_id ?? null);
+}
+
+/** Every template's default policy, by template id (empty before migration 0030). */
+export async function templatePolicyIds(db: SupabaseClient): Promise<Record<string, string>> {
+  const { data, error } = await db.from("case_templates").select("id, policy_id").not("policy_id", "is", null);
+  if (error) return {};
+  return Object.fromEntries(((data ?? []) as { id: string; policy_id: string }[]).map((r) => [r.id, r.policy_id]));
 }

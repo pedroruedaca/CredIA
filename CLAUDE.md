@@ -226,7 +226,10 @@ is read (no reprocess); `CaseViewData.policy` (load.ts) → `policyView` (`src/l
 view and every export: PDF `Policy` above the modules as on screen (nothing when no policy is applied), Excel sheet «Política», JSON
 `credit_policy` (outcome, the lender's sentence, each criterion with value, status and `kpi_ref` into `kpis` /
 `bank_kpis`, `POLICY_NOTE`; also in «Descargar todo»'s paquete.json). Integration `tests/integration/policies.test.ts`.
-Not yet: a template's default policy, policies in the analyst chat.
+**Template default** (0030, `case_templates.policy_id`, same-lender trigger, `on delete set null`): «Política por defecto»
+in the template form; `createCase` copies it onto the new case (`templatePolicyId`, audit detail `policy_id`), the new-case
+form says which policy will apply; the analyst can change it in the case; template edits never change existing cases.
+Not yet: policies in the analyst chat.
 
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,

@@ -79,3 +79,21 @@ describe("cases and policies", () => {
     expect(must<{ policy_id: string | null }>(await admin.from("cases").select("policy_id").eq("id", kase.id).single()).policy_id).toBeNull();
   });
 });
+
+describe("templates and policies (0030)", () => {
+  const tpl = (lenderId: string, extra: Record<string, unknown> = {}) => ({ lender_id: lenderId, name: "Con política", requirements: [], ...extra });
+
+  it("a template's default policy is one of its own lender's", async () => {
+    const t = must<{ id: string }>(await A.db.from("case_templates").insert(tpl(A.lenderId, { policy_id: policyA })).select("id").single());
+    expect(must<{ policy_id: string }>(await A.db.from("case_templates").select("policy_id").eq("id", t.id).single()).policy_id).toBe(policyA);
+    expect((await A.db.from("case_templates").insert(tpl(A.lenderId, { policy_id: policyB }))).error).not.toBeNull();
+    expect((await A.db.from("case_templates").update({ policy_id: policyB }).eq("id", t.id)).error).not.toBeNull();
+  });
+
+  it("deleting the policy leaves the template without a default", async () => {
+    const p = must<{ id: string }>(await A.db.from("credit_policies").insert(pol(A.lenderId, "Para plantilla")).select("id").single());
+    const t = must<{ id: string }>(await A.db.from("case_templates").insert(tpl(A.lenderId, { policy_id: p.id })).select("id").single());
+    must(await A.db.from("credit_policies").delete().eq("id", p.id));
+    expect(must<{ policy_id: string | null }>(await admin.from("case_templates").select("policy_id").eq("id", t.id).single()).policy_id).toBeNull();
+  });
+});

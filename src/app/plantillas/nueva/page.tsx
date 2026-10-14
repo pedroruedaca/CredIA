@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireLender } from "@/lib/lender";
+import { listPolicies } from "@/lib/policies/store";
+import { createClient } from "@/lib/supabase/server";
 import { TemplateForm } from "../TemplateForm";
 
 export const metadata = { title: "Nueva plantilla · credIA" };
@@ -8,6 +10,7 @@ export const metadata = { title: "Nueva plantilla · credIA" };
 export default async function NuevaPlantillaPage() {
   const lender = await requireLender();
   if (lender.role === "viewer") redirect("/plantillas");
+  const policies = (await listPolicies(await createClient())).map((p) => ({ id: p.id, name: p.name }));
   return (
     <main className="w-full max-w-2xl px-4 py-10 sm:px-14 sm:py-12">
       <div className="mb-10 flex flex-col gap-3">
@@ -15,7 +18,7 @@ export default async function NuevaPlantillaPage() {
         <h1 className="heading-page">Nueva plantilla</h1>
         <p className="text-[15px] text-ink-2">Después de crearla podrás diseñar su panel del caso.</p>
       </div>
-      <TemplateForm id={null} initial={{}} canEdit />
+      <TemplateForm id={null} initial={{}} canEdit policies={policies} />
     </main>
   );
 }

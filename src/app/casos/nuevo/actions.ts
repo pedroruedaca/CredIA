@@ -4,7 +4,7 @@ import { appBaseUrl } from "@/lib/app-url";
 import type { FieldErrors } from "@/lib/cases/new-case";
 import { parseNewCase } from "@/lib/cases/new-case";
 import { REQUIREMENT_SPECS } from "@/lib/cases/requirements";
-import { templateCostOfSales } from "@/lib/cases/template-store";
+import { templateCostOfSales, templatePolicyId } from "@/lib/cases/template-store";
 import { requireLender } from "@/lib/lender";
 import { borrowerLink, generateMagicLinkToken, MAGIC_LINK_TTL_DAYS } from "@/lib/magic-link";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
@@ -81,12 +81,17 @@ export async function createCase(_prev: CreateCaseState, formData: FormData): Pr
     await supabase.from("case_cost_definitions").insert({ case_id: created.id, lender_id: lender.lenderId, preset: cost.preset, selectors: cost.selectors, source: "template", updated_by: lender.userId });
   }
 
+  // The template's default credit policy, applied to the case (the analyst can change or remove it there). A failure
+  // leaves the case without a policy rather than failing its creation.
+  const policyId = templateId ? await templatePolicyId(supabase, templateId) : null;
+  if (policyId) await supabase.from("cases").update({ policy_id: policyId }).eq("id", created.id);
+
   await supabase.from("audit_log").insert({
     lender_id: lender.lenderId,
     case_id: created.id,
     actor: lender.userId,
     action: "case.created",
-    detail: { requirements: c.requirements.map((r) => r.kind), by_lender: c.requirements.filter((r) => r.source === "lender").map((r) => r.kind), link_expires_at: expiresAt },
+    detail: { requirements: c.requirements.map((r) => r.kind), by_lender: c.requirements.filter((r) => r.source === "lender").map((r) => r.kind), link_expires_at: expiresAt, ...(policyId ? { policy_id: policyId } : {}) },
   });
 
   const link = borrowerLink(await appBaseUrl(), token);

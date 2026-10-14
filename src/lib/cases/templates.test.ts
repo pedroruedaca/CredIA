@@ -17,6 +17,7 @@ describe("process templates", () => {
           { kind: "tgss_cert", level: "optional", maxAgeDays: 60 },
         ],
         panel: "team",
+        policyId: null,
         costOfSales: null,
       },
     });
@@ -26,6 +27,14 @@ describe("process templates", () => {
     const base = { name: "Servicios profesionales", req_cirbe: "required" };
     expect(parseTemplateForm({ ...base, cos_preset: "services" })).toMatchObject({ ok: true, data: { costOfSales: { preset: "services" } } });
     expect(parseTemplateForm({ ...base, cos_preset: "custom", "cos:line:cogs": "on", "cos:642": "on" })).toMatchObject({ ok: true, data: { costOfSales: { preset: "custom", selectors: ["line:cogs", "642"] } } });
+  });
+
+  it("reads the default policy: a policy id, or none", () => {
+    const base = { name: "Préstamo", req_cirbe: "required" };
+    const id = "7d0c6a4e-3f1b-4c55-9a52-0e2b6c1d9f10";
+    expect(parseTemplateForm({ ...base, policy: id })).toMatchObject({ ok: true, data: { policyId: id } });
+    expect(parseTemplateForm({ ...base, policy: "" })).toMatchObject({ ok: true, data: { policyId: null } });
+    expect(parseTemplateForm({ ...base, policy: "x; drop" })).toMatchObject({ ok: false, errors: { policy: expect.any(String) } });
   });
 
   it("reads the panel choice: the team's standard panel unless «custom»", () => {

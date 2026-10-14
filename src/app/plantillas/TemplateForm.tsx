@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Name, description, default product, documents, default cost of sales and panel of a template. The panel is the team's standard one or the
+ * Name, description, default product, documents, default cost of sales, default credit policy and panel of a template. The panel is the team's standard one or the
  * template's own: choosing «personalizado» opens the panel designer right after saving (the first time).
  */
 import Link from "next/link";
@@ -16,7 +16,7 @@ import { Pill } from "@/components/ui/Pill";
 import { PRODUCTS } from "@/content/products.es";
 import { saveTemplate, type TemplateFormState } from "./actions";
 
-export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false }: { id: string | null; initial: Record<string, string>; canEdit: boolean; hasOwnPanel?: boolean }) {
+export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false, policies = [] }: { id: string | null; initial: Record<string, string>; canEdit: boolean; hasOwnPanel?: boolean; policies?: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<TemplateFormState, FormData>(saveTemplate.bind(null, id), { status: "idle" });
   const values = state.status === "idle" ? initial : state.values;
   const errors = state.status === "invalid" ? state.errors : {};
@@ -44,6 +44,22 @@ export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false }: { id
         </section>
         <RequirementsPicker values={values} error={errors.requirements} legend="Documentos que pide" />
         <CostOfSalesTemplateField values={values} />
+
+        <section className="flex flex-col gap-3">
+          <h2 className="heading-section">Política</h2>
+          {policies.length > 0 ? (
+            <Field id="policy" label="Política por defecto (opcional)" hint="Se aplica a cada caso creado con esta plantilla; el analista puede cambiarla en el caso." error={errors.policy}>
+              <Select id="policy" name="policy" defaultValue={values.policy ?? ""}>
+                <option value="">Sin política</option>
+                {policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+            </Field>
+          ) : (
+            <p className="text-[15px] text-ink-2">
+              Aún no hay políticas. <Link href="/politicas/nueva">Crea una</Link> para aplicarla por defecto a los casos de esta plantilla.
+            </p>
+          )}
+        </section>
 
         <fieldset className="flex flex-col gap-3">
           <legend className="heading-section mb-1">Panel del caso</legend>
