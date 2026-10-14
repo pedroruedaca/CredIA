@@ -17,16 +17,17 @@ export default async function PoliticasPage() {
   const policies = await listPolicies(await createClient());
   return (
     <main className="w-full max-w-4xl px-4 py-10 sm:px-14 sm:py-12">
-      <div className="mb-10 flex flex-wrap items-end gap-4">
-        <div className="grow">
-          <h1 className="heading-page">Políticas</h1>
-          <p className="mt-3 max-w-[640px] text-[17px] text-ink-2">{POLICIES_INTRO}</p>
+      <div className="mb-10 flex flex-col gap-3">
+        {/* Title and the create button on one line; the intro below them. */}
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="heading-page grow">Políticas</h1>
+          {canEdit && (
+            <ButtonLink href="/politicas/nueva">
+              <Plus size={18} strokeWidth={2} aria-hidden /> Nueva política
+            </ButtonLink>
+          )}
         </div>
-        {canEdit && (
-          <ButtonLink href="/politicas/nueva">
-            <Plus size={18} strokeWidth={2} aria-hidden /> Nueva política
-          </ButtonLink>
-        )}
+        <p className="max-w-[640px] text-[17px] text-ink-2">{POLICIES_INTRO}</p>
       </div>
       {policies.length === 0 ? (
         <div className="rounded-panel bg-soft px-8 py-14 text-center">

@@ -18,18 +18,19 @@ export default async function PlantillasPage() {
   const templates = await listTemplates(await createClient());
   return (
     <main className="w-full max-w-4xl px-4 py-10 sm:px-14 sm:py-12">
-      <div className="mb-10 flex flex-wrap items-end gap-4">
-        <div className="grow">
-          <h1 className="heading-page">Plantillas</h1>
-          <p className="mt-3 max-w-[640px] text-[17px] text-ink-2">
-            Procesos guardados: qué documentos se piden y cómo se ve el panel del caso. Al crear un caso eliges una y puedes ajustarla.
-          </p>
+      <div className="mb-10 flex flex-col gap-3">
+        {/* Title and the create button on one line; the intro below them. */}
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="heading-page grow">Plantillas</h1>
+          {canEdit && (
+            <ButtonLink href="/plantillas/nueva">
+              <Plus size={18} strokeWidth={2} aria-hidden /> Nueva plantilla
+            </ButtonLink>
+          )}
         </div>
-        {canEdit && (
-          <ButtonLink href="/plantillas/nueva">
-            <Plus size={18} strokeWidth={2} aria-hidden /> Nueva plantilla
-          </ButtonLink>
-        )}
+        <p className="max-w-[640px] text-[17px] text-ink-2">
+          Procesos guardados: qué documentos se piden y cómo se ve el panel del caso. Al crear un caso eliges una y puedes ajustarla.
+        </p>
       </div>
       {templates.length === 0 ? (
         <div className="rounded-panel bg-soft px-8 py-14 text-center">
