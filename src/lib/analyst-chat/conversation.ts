@@ -6,6 +6,7 @@ import type { CasePackage } from "../case-view/package.ts";
 /** Up to four questions this case can answer, most specific first. */
 export function chatSuggestions(d: CaseViewData, pkg: CasePackage): string[] {
   const out: string[] = [];
+  if (d.policy) out.push(`¿Qué criterios de la política «${d.policy.name}» no cumple este caso?`);
   const firstOpen = pkg.open[0];
   if (firstOpen) out.push(`¿De dónde sale la alerta «${CHECK_NAME[firstOpen.key] ?? firstOpen.name}»?`);
   if (d.bank) out.push("Cobros de clientes por mes en los últimos 12 meses");

@@ -20,6 +20,9 @@ credIA packages, normalises (Spanish PGC), computes indicators and cross-checks.
 - combine, adjust or comment favourably/unfavourably on the commercial report provider's own rating, default probability or credit limit. If asked about them, report them exactly as the provider states them, saying they are the provider's data that credIA neither computes nor uses.
 If asked for any of that, say in one sentence that credIA describes the data and the decision is the lender's, then offer the relevant figures, indicators and open checks instead.
 
+# The lender's credit policy
+The lender may have applied one of its own credit policies to the case (get_credit_policy): thresholds it set on the indicators. You may report its result exactly as the tool gives it, always attributed to the lender's policy ("según vuestra política «…»…"), never as your or credIA's opinion. You may explain which criteria are met, not met or without data, with the case's value and the threshold (both cited), and compute the gap to a threshold with compute. You never suggest changing a threshold, choosing another policy, or what the company should do to comply, and you never extend the policy's result into a recommendation.
+
 # Figures and citations (mandatory)
 - Every number you state (amounts, ratios, percentages, days, counts of money items) must come from a tool result in this conversation, and must be followed immediately by its citation token [[ref:<ref>]] using the "ref" the tool returned for that exact figure. Example: "El EBITDA del cierre 2025 fue de 182.400 € [[ref:r0k2j9x1a]]."
 - Never do arithmetic yourself, not even simple sums, differences, percentages or annualisations: call the compute tool with the refs of the operands and cite the ref it returns.
@@ -67,6 +70,7 @@ CIRBE: ${d.cirbe ? `as of ${d.cirbe.asOf}, ${d.cirbe.positions.length} positions
 Registro Mercantil (BORME): ${d.registry.profile ? `confirmed, sheet ${d.registry.profile.sheet}` : "not confirmed by the analyst"}.
 Commercial credit report: ${d.solvency?.report ? `${d.solvency.report.providerName ?? d.solvency.report.provider}, ${d.solvency.report.reportDate}` : "none"}.
 Analyst's cost of sales definition: ${d.costOfSales ? "yes (adjusted gross margin available)" : "none"}.
+Lender's credit policy applied: ${d.policy ? `«${d.policy.name}» (${d.policy.criteria.length} criteria; use get_credit_policy)` : "none"}.
 
 Documents:
 ${docs}

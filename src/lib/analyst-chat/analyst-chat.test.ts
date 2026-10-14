@@ -178,6 +178,46 @@ describe("tools", () => {
   });
 });
 
+describe("credit policy tool", () => {
+  const withPolicy = {
+    ...data,
+    policy: {
+      id: "pol-1",
+      name: "Circulante pyme",
+      description: null,
+      criteria: [
+        { metric: "dscr" as const, op: "gte" as const, threshold: 1.25, period: "base" as const },
+        { metric: "debtToEquity" as const, op: "lte" as const, threshold: 0.5, period: "closed" as const },
+        { metric: "dscr" as const, op: "gte" as const, threshold: 1, period: "ytd" as const },
+      ],
+    },
+  };
+  const ctxP = (): ToolContext => ({ data: withPolicy, pkg: buildPackage(withPolicy), registry: new RefRegistry(), bankRows: async () => [] });
+
+  it("returns each criterion with the case's value and the threshold, both citable, and the lender's outcome", async () => {
+    const ctx = ctxP();
+    const r = (await ok(ctx, "get_credit_policy")) as { outcome: string; statement: string; note: string; criteria: { label: string; status: string; threshold: { value: number; ref: string }; case_value: { value: number; ref: string } | null }[] };
+    expect(r.outcome).toBe("outside");
+    expect(r.statement).toMatch(/Según vuestra política «Circulante pyme»/);
+    expect(r.note).toMatch(/no es una puntuación ni una decisión de credIA/);
+    expect(r.criteria.map((c) => [c.label, c.status, c.case_value?.value ?? null])).toEqual([["DSCR", "met", 1.59], ["Deuda / patrimonio", "not_met", 0.72], ["DSCR", "met", 2.24]]);
+    // The case's value carries the same ref as get_kpis gives the KPI, so answers cite one source for it.
+    const kpis = (await ok(ctx, "get_kpis", { period: "closed_fy" })) as { closed_fy: { kpis: { key: string; ref: string }[] } };
+    expect(r.criteria[1].case_value!.ref).toBe(kpis.closed_fy.kpis.find((k) => k.key === "debtToEquity")!.ref);
+    // The gap to the threshold goes through compute.
+    const gap = await runTool(ctx, "compute", { expression: "a - b", operands: { a: r.criteria[1].case_value!.ref, b: r.criteria[1].threshold.ref }, label: "Exceso sobre el máximo de deuda/patrimonio", unit: "x" });
+    expect(gap).toMatchObject({ ok: true, result: { value: 0.22 } });
+  });
+
+  it("says so when no policy is applied, and the snapshot, prompt and suggestions know about it", async () => {
+    expect(await ok(makeCtx(), "get_credit_policy")).toMatchObject({ note: expect.stringMatching(/No hay ninguna política/) });
+    expect(caseSnapshot(withPolicy, buildPackage(withPolicy), new RefRegistry(), "2026-10-14")).toContain("Lender's credit policy applied: «Circulante pyme»");
+    expect(caseSnapshot(data, pkg, new RefRegistry(), "2026-10-14")).toContain("Lender's credit policy applied: none");
+    expect(stableInstructions()).toMatch(/attributed to the lender's policy/);
+    expect(chatSuggestions(withPolicy, buildPackage(withPolicy))[0]).toBe("¿Qué criterios de la política «Circulante pyme» no cumple este caso?");
+  });
+});
+
 describe("prompt", () => {
   it("forbids scoring and recommendations and requires a citation for every figure", () => {
     const p = stableInstructions();
