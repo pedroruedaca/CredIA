@@ -234,6 +234,15 @@ the threshold (own ref, so gaps go through `compute`), status and the lender's s
 policy»: report it only attributed to the lender's policy, never as credIA's opinion, never suggest thresholds, another
 policy or what the company should do; snapshot line and a suggestion when a policy is applied.
 
+## Platform admin («Administración de credIA»)
+credIA staff, not a lender role: emails in `CREDIA_ADMIN_EMAILS` (Vercel env, comma separated; empty = nobody; pure
+`src/lib/platform/admin.ts`, `isPlatformAdmin`, `parseNewLender`). `/admin` (404 for everyone else, `private, no-store`,
+noindex; linked from the account menu for admins): «Nueva entidad» (name + first owner's email → `createLenderWithOwner`
+in `src/lib/platform/store.ts`, service role: finds or creates the user like team invitations, refuses an email already in
+a lender, lender + owner all or nothing; audit `lender.created` on the new lender; team invitation email) and the list of
+lenders (owners, members, cases, since). Replaces `npm run seed:lender` / SQL for onboarding; the lender's own team is
+invited from «Ajustes».
+
 ## Process templates («Plantillas»)
 A template = name, description, optional default product, document choices (`[{kind, level: required|optional|lender,
 maxAgeDays}]`) and optionally its own case-view layout (`case_templates`, 0019; members read, owners/analysts write).

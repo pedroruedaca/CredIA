@@ -65,7 +65,7 @@ function RailItem({ item, pathname, badge = 0 }: { item: Item; pathname: string;
   );
 }
 
-export function LenderRail({ email, lenderName, inboxCount = 0 }: { email: string; lenderName: string; inboxCount?: number }) {
+export function LenderRail({ email, lenderName, inboxCount = 0, platformAdmin = false }: { email: string; lenderName: string; inboxCount?: number; platformAdmin?: boolean }) {
   const pathname = usePathname() ?? "";
   return (
     <nav
@@ -78,13 +78,13 @@ export function LenderRail({ email, lenderName, inboxCount = 0 }: { email: strin
       {MAIN.map((i) => <RailItem key={i.label} item={i} pathname={pathname} badge={i.href === "/bandeja" ? inboxCount : 0} />)}
       <div className="grow" />
       <RailItem item={SETTINGS} pathname={pathname} />
-      <AccountMenu email={email} lenderName={lenderName} />
+      <AccountMenu email={email} lenderName={lenderName} platformAdmin={platformAdmin} />
     </nav>
   );
 }
 
 /** Account popover: opens from the avatar; closes on Esc, a click outside, or moving to another page. */
-function AccountMenu({ email, lenderName }: { email: string; lenderName: string }) {
+function AccountMenu({ email, lenderName, platformAdmin }: { email: string; lenderName: string; platformAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -109,6 +109,10 @@ function AccountMenu({ email, lenderName }: { email: string; lenderName: string 
         <div id="account-menu" className="absolute right-0 top-full z-30 mt-2 w-64 rounded-[20px] bg-surface p-3 text-sm shadow-float sm:bottom-0 sm:left-full sm:right-auto sm:top-auto sm:ml-3 sm:mt-0">
           <p className="truncate px-1 font-medium text-ink">{lenderName}</p>
           <p className="truncate px-1 text-muted">{email}</p>
+          {/* credIA staff only (CREDIA_ADMIN_EMAILS): create lenders and their first owner. */}
+          {platformAdmin && (
+            <Link href="/admin" className="mt-3 flex min-h-11 items-center rounded-row px-1 text-[15px] font-medium">Administración de credIA</Link>
+          )}
           <form action="/auth/salir" method="post" className="mt-3">
             <Button type="submit" variant="secondary" size="sm" className="w-full">Cerrar sesión</Button>
           </form>
