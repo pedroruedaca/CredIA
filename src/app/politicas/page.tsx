@@ -2,6 +2,7 @@
 import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { ListRowLink } from "@/components/ui/ListRow";
+import { Pill } from "@/components/ui/Pill";
 import { KPI_LABEL } from "@/content/case-view.es";
 import { POLICIES_INTRO, POLICY_NOTE } from "@/content/policies.es";
 import { requireLender } from "@/lib/lender";
@@ -12,10 +13,10 @@ import { PolicyTabs } from "./PolicyTabs";
 export const metadata = { title: "Políticas · credIA" };
 export const dynamic = "force-dynamic";
 
-export default async function PoliticasPage() {
+export default async function PoliticasPage({ searchParams }: { searchParams: Promise<{ guardada?: string }> }) {
   const lender = await requireLender();
   const canEdit = lender.role !== "viewer";
-  const policies = await listPolicies(await createClient());
+  const [policies, { guardada }] = await Promise.all([listPolicies(await createClient()), searchParams]);
   return (
     <main className="w-full max-w-4xl px-4 py-10 sm:px-14 sm:py-12">
       <div className="mb-10 flex flex-col gap-3">
@@ -30,6 +31,7 @@ export default async function PoliticasPage() {
         </div>
         <PolicyTabs current="policies" />
         <p className="max-w-[640px] text-[17px] text-ink-2">{POLICIES_INTRO}</p>
+        {guardada && <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="ok">Guardada</Pill>La política se ha guardado.</p>}
       </div>
       {policies.length === 0 ? (
         <div className="rounded-panel bg-soft px-8 py-14 text-center">

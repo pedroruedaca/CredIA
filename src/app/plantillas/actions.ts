@@ -40,7 +40,8 @@ export async function saveTemplate(id: string | null, _prev: TemplateFormState, 
   if (error || !data) return { status: "failed", message: "No hemos podido guardar la plantilla. Inténtalo de nuevo.", values };
   await supabase.from("audit_log").insert({ lender_id: lender.lenderId, actor: lender.userId, action: id ? "template.updated" : "template.created", detail: { template_id: data.id, name: parsed.data.name } });
   revalidatePath("/plantillas");
-  redirect(panel === "custom" && !hadOwnPanel ? `/plantillas/${data.id}?panel=1` : `/plantillas/${data.id}?guardada=1`);
+  // Choosing «Panel personalizado» for the first time opens its designer; otherwise back to the list.
+  redirect(panel === "custom" && !hadOwnPanel ? `/plantillas/${data.id}?panel=1` : "/plantillas?guardada=1");
 }
 
 export async function deleteTemplate(id: string): Promise<{ ok: false; message: string } | never> {

@@ -158,6 +158,8 @@ export function PolicyForm({ id, initial, canEdit, parameters = [] }: { id: stri
                         placeholder={viaRef ? "1" : "1,25"}
                         className={cx(fieldClass, viaRef ? "w-20! bg-surface font-mono tabular-nums" : "w-36! bg-surface font-mono tabular-nums")}
                       />
+                      {/* «2 × EBITDA»: the factor multiplies the KPI or parameter chosen next. */}
+                      {viaRef && <span aria-hidden className="px-0.5 text-[22px] font-medium leading-none text-ink">×</span>}
                       <label className="sr-only" htmlFor={`ref-${r.key}`}>Comparar con un número, otro indicador o un parámetro, criterio {i + 1}</label>
                       <Select
                         id={`ref-${r.key}`}
@@ -165,18 +167,18 @@ export function PolicyForm({ id, initial, canEdit, parameters = [] }: { id: stri
                         onChange={(e) => update(r.key, { ref: e.target.value, threshold: e.target.value && !r.ref ? "1" : !e.target.value && r.ref ? "" : r.threshold })}
                         className="w-auto! min-w-0 max-w-full bg-surface"
                       >
-                        <option value="">{unit || "número"}</option>
+                        <option value="">{unit ? `${unit} (valor fijo)` : "Valor fijo"}</option>
                         {kpis.some((g) => g.metrics.length) && (
                           <optgroup label={THRESHOLD_GROUP_LABEL.kpi}>
-                            {kpis.flatMap((g) => g.metrics).map((m) => <option key={m} value={`kpi:${m}`}>× {KPI_LABEL[m] ?? m}</option>)}
+                            {kpis.flatMap((g) => g.metrics).map((m) => <option key={m} value={`kpi:${m}`}>{KPI_LABEL[m] ?? m}</option>)}
                           </optgroup>
                         )}
                         {usable.length > 0 && (
                           <optgroup label={THRESHOLD_GROUP_LABEL.parameter}>
-                            {usable.map((p) => <option key={p.id} value={`param:${p.id}`}>× {p.name}</option>)}
+                            {usable.map((p) => <option key={p.id} value={`param:${p.id}`}>{p.name}</option>)}
                           </optgroup>
                         )}
-                        {stale && <option value={r.ref}>× {r.ref.startsWith("param:") ? "parámetro eliminado" : "indicador en otra unidad"}</option>}
+                        {stale && <option value={r.ref}>{r.ref.startsWith("param:") ? "Parámetro eliminado" : "Indicador en otra unidad"}</option>}
                       </Select>
                     </span>
                     {bank ? (
