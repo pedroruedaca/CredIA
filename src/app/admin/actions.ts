@@ -4,6 +4,8 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { appBaseUrl } from "@/lib/app-url";
+import { SIGN_IN_LINK_HOURS } from "@/lib/auth/login";
+import { createSignInLink } from "@/lib/auth/sign-in-link";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
 import { confirmsLenderName, isPlatformAdmin, parseNewLender, type NewLenderErrors } from "@/lib/platform/admin";
 import { createLenderWithOwner, deleteLenderEverything } from "@/lib/platform/store";
@@ -28,7 +30,9 @@ export async function createLender(_prev: NewLenderState, fd: FormData): Promise
   if (!r.ok) return { status: "failed", message: r.message, values };
   await createAdminClient().from("audit_log").insert({ lender_id: r.lenderId, case_id: null, actor: user.id, action: "lender.created", detail: { by_platform_admin: user.email, owner_email: ownerEmail, user_created: r.userCreated } });
 
-  const { sent } = await getNotifier().sendLenderWelcome({ to: ownerEmail, lenderName: name, loginUrl: `${await appBaseUrl()}/login` });
+  const base = await appBaseUrl();
+  const signInUrl = await createSignInLink(ownerEmail, base);
+  const { sent } = await getNotifier().sendLenderWelcome({ to: ownerEmail, lenderName: name, loginUrl: `${base}/login`, signIn: signInUrl ? { url: signInUrl, hours: SIGN_IN_LINK_HOURS } : undefined });
   revalidatePath("/admin");
   return {
     status: "created",

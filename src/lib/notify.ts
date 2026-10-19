@@ -51,6 +51,8 @@ export interface TeamInvite {
   invitedBy: string;
   role: "owner" | "analyst" | "viewer";
   loginUrl: string;
+  /** Direct sign-in button (a secret, like a borrower link): /auth/entrar#t=…, valid `hours`. Without it, loginUrl. */
+  signIn?: { url: string; hours: number };
 }
 
 /** credIA staff created the lender (/admin): welcome to its first owner. They sign in at loginUrl with their email. */
@@ -58,6 +60,8 @@ export interface LenderWelcome {
   to: string;
   lenderName: string;
   loginUrl: string;
+  /** As in TeamInvite. */
+  signIn?: { url: string; hours: number };
 }
 
 /** Closed cases of one lender whose deletion was just announced (retention purge, 14 days ahead). Owners only. */

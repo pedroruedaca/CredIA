@@ -44,3 +44,13 @@ export const LINK_ERROR: Record<LinkError, { pill: string; text: string }> = {
   no_access: { pill: "Sin acceso", text: "Esa cuenta no tiene acceso a credIA. Pide a la persona administradora de tu entidad que te invite desde «Ajustes»." },
   failed: { pill: "No se pudo entrar", text: "Algo ha fallado al entrar. Vuelve a intentarlo." },
 };
+
+/** /auth/entrar: the sign-in button of welcome and invitation emails lands here. */
+export const ENTER_COPY = {
+  title: "Entrar en credIA",
+  intro: "Pulsa «Entrar» para acceder con tu cuenta. No necesitas contraseña.",
+  enter: "Entrar",
+  entering: "Entrando…",
+  noToken: "Este enlace no es válido.",
+  toLogin: "Entra con tu correo",
+} as const;

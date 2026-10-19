@@ -39,6 +39,21 @@ ${o.note ? `<p style="margin:0 0 16px;padding:14px 16px;border-radius:14px;backg
 </table></td></tr></table></body></html>`;
 }
 
+/** How to get in, for the lender emails: the direct sign-in button when there is one, otherwise the login page. */
+function access(loginUrl: string, signIn?: { url: string; hours: number }) {
+  return signIn
+    ? {
+        url: signIn.url,
+        html: `Pulsa «Entrar en credIA» para acceder directamente, sin contraseña. El botón funciona durante ${signIn.hours} horas; después, entra con este correo en <a href="${esc(loginUrl)}" style="color:#0E5A61">${esc(loginUrl.replace(/^https?:\/\//, ""))}</a> y te enviaremos un código.`,
+        text: `Entra directamente (el enlace funciona durante ${signIn.hours} horas): ${signIn.url}\nDespués, entra con este correo en ${loginUrl} y te enviaremos un código.`,
+      }
+    : {
+        url: loginUrl,
+        html: "Entra con este correo: te enviaremos un enlace y un código de acceso, sin contraseña.",
+        text: `Entra con este correo en ${loginUrl}: te enviaremos un enlace y un código de acceso, sin contraseña.`,
+      };
+}
+
 const text = (lines: (string | null | undefined)[]) => lines.filter((l) => l !== null && l !== undefined).join("\n\n");
 
 const FOOTER_BORROWER = (lender: string) =>
@@ -118,8 +133,9 @@ export function documentRequestEmail(r: { lenderName: string; companyName: strin
 
 // ------------------------------------------------------------------------------------------------ lender
 
-export function teamInviteEmail(i: { lenderName: string; invitedBy: string; loginUrl: string; role: "owner" | "analyst" | "viewer" }): Email {
+export function teamInviteEmail(i: { lenderName: string; invitedBy: string; loginUrl: string; role: "owner" | "analyst" | "viewer"; signIn?: { url: string; hours: number } }): Email {
   const role = { owner: "administrador", analyst: "analista", viewer: "consulta" }[i.role];
+  const a = access(i.loginUrl, i.signIn);
   return {
     subject: oneLine(`Te han invitado a ${i.lenderName} en credIA`),
     html: layout({
@@ -127,18 +143,19 @@ export function teamInviteEmail(i: { lenderName: string; invitedBy: string; logi
       heading: `Te han invitado a ${i.lenderName}`,
       paragraphs: [
         `${esc(i.invitedBy)} te ha dado acceso a credIA como <b style="color:#111315">${role}</b> de ${esc(i.lenderName)}.`,
-        "Entra con este correo: te enviaremos un enlace y un código de acceso, sin contraseña.",
+        a.html,
       ],
-      button: { label: "Entrar en credIA", url: i.loginUrl },
+      button: { label: "Entrar en credIA", url: a.url },
       footer: "credIA prepara paquetes de datos de crédito para prestamistas. Si no esperabas esta invitación, puedes ignorar este correo.",
     }),
-    text: text([`${i.invitedBy} te ha dado acceso a credIA como ${role} de ${i.lenderName}.`, `Entra con este correo en ${i.loginUrl}`]),
+    text: text([`${i.invitedBy} te ha dado acceso a credIA como ${role} de ${i.lenderName}.`, a.text]),
   };
 }
 
 /** credIA staff created the lender (/admin): the first owner's welcome. No staff email in it, no token. */
-export function lenderWelcomeEmail(w: { lenderName: string; loginUrl: string }): Email {
+export function lenderWelcomeEmail(w: { lenderName: string; loginUrl: string; signIn?: { url: string; hours: number } }): Email {
   const lender = esc(w.lenderName);
+  const a = access(w.loginUrl, w.signIn);
   return {
     subject: oneLine(`Bienvenido a credIA: ${w.lenderName} ya tiene acceso`),
     html: layout({
@@ -146,15 +163,15 @@ export function lenderWelcomeEmail(w: { lenderName: string; loginUrl: string }):
       heading: "Bienvenido a credIA",
       paragraphs: [
         `Hemos dado de alta a <b style="color:#111315">${lender}</b> en credIA y te hemos hecho <b style="color:#111315">administrador</b>.`,
-        "Entra con este correo: te enviaremos un enlace y un código de acceso, sin contraseña. Después seguirás conectado en ese navegador.",
+        `${a.html} Después seguirás conectado en ese navegador.`,
         "Para empezar, crea tu primer caso desde «Casos» e invita a tu equipo desde «Ajustes».",
       ],
-      button: { label: "Entrar en credIA", url: w.loginUrl },
-      footer: "credIA prepara paquetes de datos de crédito para prestamistas. Si no esperabas este correo, puedes ignorarlo.",
+      button: { label: "Entrar en credIA", url: a.url },
+      footer: "credIA prepara paquetes de datos de crédito para prestamistas. El botón es personal: no reenvíes este correo. Si no lo esperabas, puedes ignorarlo.",
     }),
     text: text([
       `Hemos dado de alta a ${w.lenderName} en credIA y te hemos hecho administrador.`,
-      `Entra con este correo en ${w.loginUrl}: te enviaremos un enlace y un código de acceso, sin contraseña.`,
+      a.text,
       "Para empezar, crea tu primer caso desde «Casos» e invita a tu equipo desde «Ajustes».",
     ]),
   };
