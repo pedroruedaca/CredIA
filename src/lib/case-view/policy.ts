@@ -33,15 +33,15 @@ export function policyFigure(v: number | null, unit: Kpi["unit"], exact = false)
 }
 
 /**
- * The threshold side of a criterion: «1,25x», or «4 × Importe solicitado (1.000.000 €)» / «DSCR mínimo (1,25x)» when it
- * comes from a parameter (its value for this case, or «falta»).
+ * The threshold side of a criterion: «1,25x», «3 × EBITDA (547.200 €)» from another KPI, or «4 × Importe solicitado
+ * (1.000.000 €)» from a parameter (its value for this case, or «falta»).
  */
 export function thresholdPhrase(r: CriterionResult): string {
   const c = r.criterion;
-  if (!c.parameter) return policyFigure(c.threshold, r.unit, true);
-  const name = r.parameter?.name ?? "parámetro eliminado";
-  const factor = c.parameter.factor === 1 ? "" : `${policyFigure(c.parameter.factor, "count", true)} × `;
-  return `${factor}${name} (${r.limit === null ? "falta" : policyFigure(r.limit, r.unit)})`;
+  const ref = c.against ? { factor: c.against.factor, name: KPI_LABEL[c.against.metric] ?? c.against.metric } : c.parameter ? { factor: c.parameter.factor, name: r.parameter?.name ?? "parámetro eliminado" } : null;
+  if (!ref) return policyFigure(c.threshold ?? null, r.unit, true);
+  const factor = ref.factor === 1 ? "" : `${policyFigure(ref.factor, "count", true)} × `;
+  return `${factor}${ref.name} (${r.limit === null ? (c.against ? "sin datos" : "falta") : policyFigure(r.limit, r.unit)})`;
 }
 
 /** One criterion, worded for the PDF and Excel: label, condition, where the figure comes from, status. */

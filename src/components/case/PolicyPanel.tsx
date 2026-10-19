@@ -117,20 +117,21 @@ export function PolicyPanel({ caseId, view, canEdit }: { caseId: string; view: C
   );
 }
 
-/** «≥ 1,25x», or «≥ 4 × Importe solicitado = 1.000.000 €» when the threshold comes from a parameter. */
+/** «≥ 1,25x», «≤ 3 × EBITDA = 547.200 €» from another KPI, or «≥ 4 × Importe solicitado = 1.000.000 €» from a parameter. */
 function Threshold({ r }: { r: CriterionResult }) {
   const c = r.criterion;
-  if (!c.parameter) return <Figure value={c.threshold} unit={r.unit} decimals={decimals(r.unit, c.threshold, true)} />;
-  const factor = c.parameter.factor === 1 ? "" : `${String(c.parameter.factor).replace(".", ",")} × `;
+  const ref = c.against ? { factor: c.against.factor, name: KPI_LABEL[c.against.metric] ?? c.against.metric } : c.parameter ? { factor: c.parameter.factor, name: r.parameter?.name ?? "parámetro eliminado" } : null;
+  if (!ref) return <Figure value={c.threshold} unit={r.unit} decimals={decimals(r.unit, c.threshold ?? null, true)} />;
+  const factor = ref.factor === 1 ? "" : `${String(ref.factor).replace(".", ",")} × `;
   return (
     <>
-      {factor}{r.parameter?.name ?? "parámetro eliminado"}
+      {factor}{ref.name}
       {r.limit !== null && <> = <Figure value={r.limit} unit={r.unit} decimals={decimals(r.unit, r.limit)} /></>}
     </>
   );
 }
 
-/** The case's per-case parameter values; those the applied policy uses come first, missing ones marked. */
+/** The case's parameter values; those the applied policy uses come first, missing ones marked. */
 function CaseParameters({ caseId, params, used, canEdit }: { caseId: string; params: ResolvedParameter[]; used: Set<string>; canEdit: boolean }) {
   const initial = Object.fromEntries(params.map((p) => [`param_${p.id}`, parameterValueText(p.value)]));
   const [values, setValues] = useState<Record<string, string>>(initial);

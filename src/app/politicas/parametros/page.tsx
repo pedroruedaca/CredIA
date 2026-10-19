@@ -1,10 +1,9 @@
 /** «Parámetros»: values the lender's policies compare the KPIs with, fixed for every case or entered per case. */
 import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
-import { Figure } from "@/components/ui/Figure";
 import { ListRowLink } from "@/components/ui/ListRow";
 import { Pill } from "@/components/ui/Pill";
-import { PARAMETERS_INTRO, PARAMETER_SCOPE_LABEL } from "@/content/policies.es";
+import { PARAMETERS_INTRO, PARAMETER_UNIT_LABEL } from "@/content/policies.es";
 import { requireLender } from "@/lib/lender";
 import { listParameters } from "@/lib/policies/parameter-store";
 import { listPolicies } from "@/lib/policies/store";
@@ -51,10 +50,9 @@ export default async function ParametrosPage({ searchParams }: { searchParams: P
                   <span className="flex min-w-0 grow flex-col gap-0.5">
                     <span className="truncate text-[17px] font-medium">{p.name}</span>
                     <span className="truncate text-sm text-muted">
-                      {[PARAMETER_SCOPE_LABEL[p.scope], n ? `en ${n} ${n === 1 ? "política" : "políticas"}` : "sin usar", p.description].filter(Boolean).join(" · ")}
+                      {[PARAMETER_UNIT_LABEL[p.unit], n ? `en ${n} ${n === 1 ? "política" : "políticas"}` : "sin usar", p.description].filter(Boolean).join(" · ")}
                     </span>
                   </span>
-                  {p.scope === "fixed" && <Figure value={p.value} unit={p.unit} className="text-[17px]" />}
                 </ListRowLink>
               </li>
             );

@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toParameter, type PolicyParameter } from "./parameters.ts";
 
-const COLUMNS = "id, name, description, unit, scope, value";
+const COLUMNS = "id, name, description, unit";
 
 /** The lender's parameters by name (none before migration 0031). */
 export async function listParameters(db: SupabaseClient): Promise<PolicyParameter[]> {

@@ -14,8 +14,8 @@ export default async function NuevoCasoPage({ searchParams }: { searchParams: Pr
   const db = await createClient();
   const [templates, policyOf, policies, parameters] = await Promise.all([listTemplates(db), templatePolicyIds(db), listPolicies(db), listParameters(db)]);
   const policyFor = (templateId: string) => policies.find((p) => p.id === policyOf[templateId]) ?? null;
-  const caseParameters = parameters.filter((p) => p.scope === "case");
-  // Per-case parameters the template's policy uses: the form requires them.
+  const caseParameters = parameters;
+  // Parameters the template's policy uses: the form requires them.
   const required = (templateId: string) => {
     const ids = criteriaParameterIds(policyFor(templateId)?.criteria ?? []);
     return caseParameters.filter((p) => ids.includes(p.id)).map((p) => p.id);

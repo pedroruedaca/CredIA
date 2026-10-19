@@ -1,6 +1,6 @@
 "use server";
 
-/** Policy parameters: create, edit, delete. Owners and analysts; viewers cannot. Unit and scope never change. */
+/** Policy parameters: create, edit, delete. Owners and analysts; viewers cannot. The unit never changes. */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireLender } from "@/lib/lender";
@@ -34,7 +34,7 @@ export async function saveParameter(id: string | null, _prev: ParameterFormState
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, values };
   const now = new Date().toISOString();
   const { data, error } = id
-    ? await supabase.from("policy_parameters").update({ name: parsed.data.name, description: parsed.data.description, value: parsed.data.value, updated_by: lender.userId, updated_at: now }).eq("id", id).select("id").maybeSingle()
+    ? await supabase.from("policy_parameters").update({ name: parsed.data.name, description: parsed.data.description, updated_by: lender.userId, updated_at: now }).eq("id", id).select("id").maybeSingle()
     : await supabase.from("policy_parameters").insert({ ...parsed.data, lender_id: lender.lenderId, created_by: lender.userId, updated_by: lender.userId }).select("id").single();
   if (error?.code === "23505") return { status: "invalid", errors: { name: "Ya hay un parámetro con ese nombre." }, values };
   if (error || !data) return { status: "failed", message: "No hemos podido guardar el parámetro. Inténtalo de nuevo.", values };
@@ -48,7 +48,7 @@ export async function saveParameter(id: string | null, _prev: ParameterFormState
   redirect("/politicas/parametros?guardado=1");
 }
 
-/** Refused while a policy uses it (its criteria would lose their threshold); per-case values go with it. */
+/** Refused while a policy uses it (its criteria would lose their threshold); the cases' values go with it. */
 export async function deleteParameter(id: string): Promise<{ ok: false; message: string } | never> {
   const lender = await requireLender();
   if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar." };
