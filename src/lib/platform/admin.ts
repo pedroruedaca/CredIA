@@ -32,3 +32,17 @@ export function parseNewLender(v: Record<string, string | undefined>): { ok: tru
   }
   return { ok: false, errors };
 }
+
+/** «Eliminar entidad»: the admin confirms by typing the lender's name (case and repeated spaces ignored). */
+export function confirmsLenderName(typed: string, name: string): boolean {
+  const norm = (s: string) => (s ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+  return norm(typed).length > 0 && norm(typed) === norm(name);
+}
+
+/**
+ * Sign-in accounts to remove with a deleted lender: its members, except platform admins and anyone still in a lender
+ * (a person belongs to one lender, but never remove an account another lender still uses).
+ */
+export function accountsToRemove(members: readonly { userId: string; email: string | null }[], stillMembers: ReadonlySet<string>, raw: string | undefined = process.env.CREDIA_ADMIN_EMAILS): string[] {
+  return [...new Set(members.filter((m) => !stillMembers.has(m.userId) && !isPlatformAdmin(m.email, raw)).map((m) => m.userId))];
+}

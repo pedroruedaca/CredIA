@@ -1,7 +1,9 @@
 /** Platform admin reads and writes across lenders, with the service role. Callers must check isPlatformAdmin first. */
 import "server-only";
+import { removeCaseFiles } from "../cases/case-files.ts";
 import { createAdminClient } from "../supabase/admin.ts";
 import { findOrCreateUser } from "../team.ts";
+import { accountsToRemove } from "./admin.ts";
 
 export interface LenderSummary {
   id: string;
@@ -49,4 +51,56 @@ export async function createLenderWithOwner(name: string, ownerEmail: string): P
     return { ok: false, message: "No hemos podido dar acceso a la persona administradora. No se ha creado nada." };
   }
   return { ok: true, lenderId: lender.id, userCreated: user.created };
+}
+
+export type DeleteLenderResult =
+  | { ok: true; name: string; cases: number; filesRemoved: number; accountsRemoved: number; accountsKept: number }
+  | { ok: false; message: string };
+
+/**
+ * «Eliminar entidad»: a lender and everything in it, for good. Files of every case first (as «Eliminar caso»); if any
+ * cannot be removed, no row is deleted and the admin can try again. Then the lender row: team, cases and everything
+ * under them, templates, policies and its audit rows go with it (every table cascades from lenders). Then the
+ * members' sign-in accounts (accountsToRemove). Callers check isPlatformAdmin, the typed name and the admin's own lender.
+ */
+export async function deleteLenderEverything(lenderId: string): Promise<DeleteLenderResult> {
+  const db = createAdminClient();
+  const { data: lender } = await db.from("lenders").select("id, name").eq("id", lenderId).maybeSingle();
+  if (!lender) return { ok: false, message: "Esa entidad ya no existe." };
+
+  const [cases, docs, memos, members] = await Promise.all([
+    db.from("cases").select("id").eq("lender_id", lenderId),
+    db.from("documents").select("case_id, storage_path").eq("lender_id", lenderId),
+    db.from("memos").select("case_id, storage_path").eq("lender_id", lenderId),
+    db.from("lender_members").select("user_id").eq("lender_id", lenderId),
+  ]);
+  if (cases.error || docs.error || memos.error || members.error) return { ok: false, message: "No hemos podido preparar el borrado. No se ha borrado nada." };
+
+  let filesRemoved = 0;
+  for (const { id: caseId } of cases.data ?? []) {
+    const named = [...(docs.data ?? []), ...(memos.data ?? [])].filter((r) => r.case_id === caseId).map((r) => r.storage_path as string | null);
+    const files = await removeCaseFiles(db, caseId, named);
+    if (!files.ok) {
+      return {
+        ok: false,
+        message: filesRemoved === 0 && files.reason === "list_failed"
+          ? "No hemos podido leer los archivos de la entidad. No se ha borrado nada."
+          : "No hemos podido borrar todos los archivos de la entidad. Vuelve a intentarlo; sus datos siguen intactos.",
+      };
+    }
+    filesRemoved += files.removed;
+  }
+
+  const { data: deleted, error } = await db.from("lenders").delete().eq("id", lenderId).select("id");
+  if (error || !deleted?.length) return { ok: false, message: "Se han borrado los archivos, pero no los datos de la entidad. Vuelve a intentarlo." };
+
+  // Accounts: the lender's members, once their membership is gone with it.
+  const ids = [...new Set((members.data ?? []).map((m) => m.user_id as string))];
+  const people = await Promise.all(ids.map(async (userId) => ({ userId, email: (await db.auth.admin.getUserById(userId)).data.user?.email ?? null })));
+  const { data: still } = ids.length ? await db.from("lender_members").select("user_id").in("user_id", ids) : { data: [] };
+  const remove = accountsToRemove(people, new Set((still ?? []).map((m) => m.user_id as string)));
+  let accountsRemoved = 0;
+  for (const userId of remove) if (!(await db.auth.admin.deleteUser(userId)).error) accountsRemoved++;
+
+  return { ok: true, name: lender.name, cases: cases.data?.length ?? 0, filesRemoved, accountsRemoved, accountsKept: ids.length - accountsRemoved };
 }
