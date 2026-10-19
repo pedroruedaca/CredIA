@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseAmountEs, parseNewCase } from "./new-case.ts";
+import type { PolicyParameter } from "../policies/parameters.ts";
+import { parseNewCase } from "./new-case.ts";
 
 const base = {
   cif: "b-00000000",
   name: "Distribuciones Ejemplo SL",
-  amount: "250.000",
-  product: "poliza_circulante",
-  termMonths: "24",
   fiscalYearEnd: "2025-12-31",
   borrowerEmail: " Admin@Ejemplo.ES ",
   req_trial_balance: "required",
@@ -22,8 +20,7 @@ describe("parseNewCase", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.cif).toBe("B00000000");
-    expect(r.data.amount).toBe(250000);
-    expect(r.data.termMonths).toBe(24);
+    expect(r.data.parameterValues).toEqual([]);
     expect(r.data.borrowerEmail).toBe("admin@ejemplo.es");
     expect(r.data.requirements).toEqual([
       { kind: "trial_balance", required: true, maxAgeDays: null, source: "borrower" },
@@ -47,13 +44,11 @@ describe("parseNewCase", () => {
   });
 
   it("returns Spanish field errors", () => {
-    const r = parseNewCase({ ...base, cif: "B00000001", amount: "0", borrowerEmail: "x", termMonths: "2.5" });
+    const r = parseNewCase({ ...base, cif: "B00000001", borrowerEmail: "x" });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.errors.cif).toMatch(/CIF no es válido/);
-    expect(r.errors.amount).toMatch(/mayor que 0/);
     expect(r.errors.borrowerEmail).toMatch(/correo/);
-    expect(r.errors.termMonths).toMatch(/entero/);
   });
 
   it("rejects a future fiscal year end", () => {
@@ -62,7 +57,7 @@ describe("parseNewCase", () => {
   });
 
   it("requires at least one requested document", () => {
-    const r = parseNewCase({ cif: base.cif, name: base.name, amount: base.amount, product: base.product, termMonths: "12", fiscalYearEnd: base.fiscalYearEnd, borrowerEmail: "a@b.es" });
+    const r = parseNewCase({ cif: base.cif, name: base.name, fiscalYearEnd: base.fiscalYearEnd, borrowerEmail: "a@b.es" });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.requirements).toMatch(/al menos un documento/);
   });
@@ -74,14 +69,27 @@ describe("parseNewCase", () => {
   });
 });
 
-describe("parseAmountEs", () => {
-  it("reads dots in groups of three as thousands separators", () => {
-    expect(parseAmountEs("250.000")).toBe(250000);
-    expect(parseAmountEs("1.250.000,50 €")).toBe(1250000.5);
+describe("per-case parameters on the new case", () => {
+  const AMOUNT = "11111111-1111-4111-8111-111111111111";
+  const TERM = "22222222-2222-4222-8222-222222222222";
+  const FIXED = "33333333-3333-4333-8333-333333333333";
+  const params: PolicyParameter[] = [
+    { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR", scope: "case", value: null },
+    { id: TERM, name: "Plazo", description: null, unit: "count", scope: "case", value: null },
+    { id: FIXED, name: "DSCR mínimo", description: null, unit: "x", scope: "fixed", value: 1.25 },
+  ];
+
+  it("reads Spanish amounts and skips empty optional ones and fixed parameters", () => {
+    const r = parseNewCase({ ...base, [`param_${AMOUNT}`]: "250.000", [`param_${TERM}`]: "", [`param_${FIXED}`]: "9" }, params);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.parameterValues).toEqual([{ parameterId: AMOUNT, value: 250000 }]);
   });
-  it("falls back to toNumber for other formats", () => {
-    expect(parseAmountEs("250000")).toBe(250000);
-    expect(parseAmountEs("250000,75")).toBe(250000.75);
-    expect(parseAmountEs("1.5")).toBe(1.5);
+
+  it("requires the ones the template's policy uses, and numbers", () => {
+    const r = parseNewCase({ ...base, [`param_${AMOUNT}`]: "", [`param_${TERM}`]: "doce" }, params, new Set([AMOUNT]));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.errors[`param_${AMOUNT}`]).toMatch(/Importe solicitado.*política/);
+    expect(r.errors[`param_${TERM}`]).toMatch(/número/);
   });
 });

@@ -1,18 +1,12 @@
-/** Validation for the "Nuevo caso" form. Pure: takes plain form values, returns data or Spanish field errors. */
+/**
+ * Validation for the "Nuevo caso" form. Pure: takes plain form values, returns data or Spanish field errors.
+ * No product, amount or term (Oct 2026): what a case is measured against comes from the lender's policy parameters
+ * (`param_<id>`, parameters.ts), required when the template's policy uses them.
+ */
 import { z } from "zod";
-import { PRODUCTS } from "../../content/products.es.ts";
 import { isValidCif, normalizeCif } from "../cif.ts";
-import { toNumber } from "../types.ts";
+import { parseCaseParameterFields, type PolicyParameter } from "../policies/parameters.ts";
 import { REQUIREMENT_KINDS, REQUIREMENT_SPECS, type RequirementKind, type RequirementSource } from "./requirements.ts";
-
-/** Amounts typed by Spanish users: "250.000" is two hundred fifty thousand, not 250. */
-export function parseAmountEs(raw: string): number {
-  const s = raw.trim().replace(/[\s€]/g, "");
-  if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(s)) return Number(s.replace(/\./g, "").replace(",", "."));
-  return toNumber(s);
-}
-
-const productValues = PRODUCTS.map((p) => p.value) as [string, ...string[]];
 
 export const newCaseSchema = z.object({
   cif: z
@@ -20,17 +14,6 @@ export const newCaseSchema = z.object({
     .transform(normalizeCif)
     .refine(isValidCif, "El CIF no es válido. Revisa la letra inicial y el dígito de control."),
   name: z.string().trim().min(2, "Indica la razón social.").max(200),
-  amount: z
-    .string()
-    .transform(parseAmountEs)
-    .refine((n) => n > 0, "Indica un importe mayor que 0.")
-    .refine((n) => n <= 1_000_000_000, "El importe es demasiado alto."),
-  product: z.enum(productValues, { message: "Elige un producto." }),
-  termMonths: z.coerce
-    .number({ message: "Indica el plazo en meses." })
-    .int("El plazo debe ser un número entero de meses.")
-    .min(1, "El plazo mínimo es 1 mes.")
-    .max(360, "El plazo máximo es 360 meses."),
   fiscalYearEnd: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Indica la fecha de cierre del último ejercicio.")
@@ -40,23 +23,23 @@ export const newCaseSchema = z.object({
 
 export type NewCase = z.infer<typeof newCaseSchema> & {
   requirements: { kind: RequirementKind; required: boolean; maxAgeDays: number | null; source: RequirementSource }[];
+  /** Values of the lender's per-case parameters given on the form. */
+  parameterValues: { parameterId: string; value: number }[];
 };
 
-export type FieldErrors = Partial<Record<keyof z.input<typeof newCaseSchema> | "requirements", string>>;
+export type FieldErrors = Partial<Record<keyof z.input<typeof newCaseSchema> | "requirements" | `param_${string}`, string>>;
 
 type FormValues = Record<string, string | undefined>;
 
 /**
- * Validates the whole form; the document choices go through parseRequirementFields.
+ * Validates the whole form; the document choices go through parseRequirementFields, the per-case parameter values
+ * through parseCaseParameterFields (`required`: those the template's policy uses).
  */
-export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | { ok: false; errors: FieldErrors } {
+export function parseNewCase(values: FormValues, parameters: readonly PolicyParameter[] = [], required: ReadonlySet<string> = new Set()): { ok: true; data: NewCase } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const parsed = newCaseSchema.safeParse({
     cif: values.cif ?? "",
     name: values.name ?? "",
-    amount: values.amount ?? "",
-    product: values.product ?? "",
-    termMonths: values.termMonths ?? "",
     fiscalYearEnd: values.fiscalYearEnd ?? "",
     borrowerEmail: values.borrowerEmail ?? "",
   });
@@ -71,8 +54,12 @@ export function parseNewCase(values: FormValues): { ok: true; data: NewCase } | 
   const requirements = req.requirements;
   if (req.error) errors.requirements ??= req.error;
 
-  if (!parsed.success || Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, data: { ...parsed.data, requirements } };
+  const params = parseCaseParameterFields(values, parameters, required);
+  if (!params.ok) Object.assign(errors, params.errors);
+
+  if (!parsed.success || !params.ok || Object.keys(errors).length > 0) return { ok: false, errors };
+  const parameterValues = params.values.filter((v): v is { parameterId: string; value: number } => v.value !== null);
+  return { ok: true, data: { ...parsed.data, requirements, parameterValues } };
 }
 
 /**

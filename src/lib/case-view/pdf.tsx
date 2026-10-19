@@ -471,8 +471,8 @@ function Policy({ d }: { d: CaseViewData }) {
           <View key={i} style={s.tableRow} wrap={false}>
             <View style={[s.dot, { backgroundColor: dot[r.status], marginRight: 8 }]} />
             <Text style={{ flex: 1 }}>{l.label}</Text>
-            <Text style={[s.mono, s.muted, { width: 86 }]}>{l.condition}</Text>
-            <Text style={[s.muted, { width: 90 }]}>{l.source}</Text>
+            <Text style={[s.mono, s.muted, { width: 150, paddingRight: 6 }]}>{l.condition}</Text>
+            <Text style={[s.muted, { width: 76 }]}>{l.source}</Text>
             <Text style={[s.mono, { width: 70, textAlign: "right" }]}>{l.value}</Text>
             <Text style={{ width: 56, textAlign: "right", color: C.ink2 }}>{l.status}</Text>
           </View>

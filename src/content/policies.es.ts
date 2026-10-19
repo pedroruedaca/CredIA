@@ -1,4 +1,5 @@
 /** «Políticas» copy (Spanish): the lender's thresholds on the KPIs and the informational outcome in the case view. */
+import type { ParameterScope, ParameterUnit } from "../lib/policies/parameters.ts";
 import type { CriterionStatus, PolicyOp, PolicyOutcome, PolicyPeriod } from "../lib/policies/policy.ts";
 
 export const OP_LABEL: Record<PolicyOp, string> = { gte: "Como mínimo", lte: "Como máximo" };
@@ -34,3 +35,28 @@ export const POLICY_NOTE =
 
 export const POLICIES_INTRO =
   "Los umbrales de vuestra entidad sobre los indicadores: DSCR mínimo, apalancamiento máximo, días de cobro… Desde el panel del caso aplicas una y ves qué criterios cumplen sus cifras.";
+
+// ------------------------------------------------------------------------------------------------ parameters (0031)
+
+export const PARAMETER_SCOPE_LABEL: Record<ParameterScope, string> = { fixed: "Fijo", case: "Por caso" };
+export const PARAMETER_SCOPE_HINT: Record<ParameterScope, string> = {
+  fixed: "Un valor para todos los casos de la entidad (por ejemplo, DSCR mínimo 1,25).",
+  case: "Se introduce en cada caso (por ejemplo, el importe solicitado): al crearlo o desde su panel «Política».",
+};
+/** Units as the parameter form offers them (the KPIs' units). */
+export const PARAMETER_UNIT_LABEL: Record<ParameterUnit, string> = { EUR: "Euros (€)", x: "Veces (x)", "%": "Porcentaje (%)", days: "Días", count: "Número" };
+/** Short unit after a figure in forms. */
+export const UNIT_TEXT: Record<ParameterUnit, string> = { EUR: "€", x: "x", "%": "%", days: "días", count: "" };
+
+export const PARAMETERS_INTRO =
+  "Valores que vuestras políticas comparan con los indicadores: fijos para toda la entidad, o introducidos en cada caso (importe solicitado, plazo…). En un criterio: «Ingresos ≥ 4 × Importe solicitado».";
+
+export const CASE_PARAMETERS_COPY = {
+  title: "Parámetros de este caso",
+  missing: (n: number) => (n === 1 ? "Falta un valor que usa la política aplicada." : `Faltan ${n} valores que usa la política aplicada.`),
+  usedBy: "Lo usa la política",
+  save: "Guardar valores",
+  saving: "Guardando…",
+  saved: "Guardado",
+  empty: "Sin valor",
+} as const;

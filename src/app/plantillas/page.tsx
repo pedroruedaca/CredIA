@@ -3,7 +3,6 @@ import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { ListRowLink } from "@/components/ui/ListRow";
 import { Pill } from "@/components/ui/Pill";
-import { productLabel } from "@/content/products.es";
 import { listTemplates } from "@/lib/cases/template-store";
 import { templateSummary } from "@/lib/cases/templates";
 import { requireLender } from "@/lib/lender";
@@ -46,7 +45,7 @@ export default async function PlantillasPage() {
                 <span className="flex min-w-0 grow flex-col gap-0.5">
                   <span className="truncate text-[17px] font-medium">{t.name}</span>
                   <span className="truncate text-sm text-muted">
-                    {[t.product ? productLabel(t.product) : null, templateSummary(t.requirements), t.description].filter(Boolean).join(" · ")}
+                    {[templateSummary(t.requirements), t.description].filter(Boolean).join(" · ")}
                   </span>
                 </span>
                 <Pill tone={t.layout ? "accent" : "neutral"} className="hidden sm:inline-flex">{t.layout ? "Panel propio" : "Panel del equipo"}</Pill>

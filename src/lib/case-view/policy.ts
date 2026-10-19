@@ -18,9 +18,9 @@ export interface PolicyView {
   sentence: string;
 }
 
-export function policyView(d: Pick<CaseViewData, "policy" | "kpis" | "bank">): PolicyView | null {
+export function policyView(d: Pick<CaseViewData, "policy" | "kpis" | "bank"> & { parameters?: CaseViewData["parameters"] }): PolicyView | null {
   if (!d.policy) return null;
-  const result = evaluatePolicy(d.policy.criteria, { closed: d.kpis.closed, ytd: d.kpis.ytd, bank: d.bank });
+  const result = evaluatePolicy(d.policy.criteria, { closed: d.kpis.closed, ytd: d.kpis.ytd, bank: d.bank }, d.parameters ?? []);
   return { id: d.policy.id, name: d.policy.name, description: d.policy.description, result, sentence: outcomeSentence(result.outcome, d.policy.name, result) };
 }
 
@@ -32,12 +32,24 @@ export function policyFigure(v: number | null, unit: Kpi["unit"], exact = false)
   return unit === "x" ? `${f.number}x` : f.unit ? `${f.number} ${f.unit}` : f.number;
 }
 
+/**
+ * The threshold side of a criterion: «1,25x», or «4 × Importe solicitado (1.000.000 €)» / «DSCR mínimo (1,25x)» when it
+ * comes from a parameter (its value for this case, or «falta»).
+ */
+export function thresholdPhrase(r: CriterionResult): string {
+  const c = r.criterion;
+  if (!c.parameter) return policyFigure(c.threshold, r.unit, true);
+  const name = r.parameter?.name ?? "parámetro eliminado";
+  const factor = c.parameter.factor === 1 ? "" : `${policyFigure(c.parameter.factor, "count", true)} × `;
+  return `${factor}${name} (${r.limit === null ? "falta" : policyFigure(r.limit, r.unit)})`;
+}
+
 /** One criterion, worded for the PDF and Excel: label, condition, where the figure comes from, status. */
 export function criterionLine(r: CriterionResult) {
   const c = r.criterion;
   return {
     label: KPI_LABEL[c.metric] ?? c.metric,
-    condition: `${OP_SYMBOL[c.op]} ${policyFigure(c.threshold, r.unit, true)}`,
+    condition: `${OP_SYMBOL[c.op]} ${thresholdPhrase(r)}`,
     value: policyFigure(r.value, r.unit),
     source: r.source ? SOURCE_LABEL[r.source] : c.period !== "base" ? POLICY_PERIOD_LABEL[c.period] : "",
     status: STATUS_LABEL[r.status],

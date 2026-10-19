@@ -3,7 +3,8 @@ import { tbSmallSl } from "../__fixtures__/tb-small-sl.ts";
 import { computeKpis, type Kpi } from "../kpis/engine.ts";
 import type { BankKpiSet } from "../kpis/bank.ts";
 import { buildStatement } from "../pgc/mapping.ts";
-import { evaluatePolicy, metricUnit, normalizeCriteria, parsePolicyForm, parseThreshold, type PolicyCriterion } from "./policy.ts";
+import type { PolicyParameter, ResolvedParameter } from "./parameters.ts";
+import { criteriaToStored, evaluatePolicy, metricUnit, missingCaseParameters, normalizeCriteria, parsePolicyForm, parseThreshold, type PolicyCriterion } from "./policy.ts";
 
 // tb-small-sl (hand-checked): DSCR 1,59x, cobertura 12,22x, liquidez 1,91x, deuda/patrimonio 0,72x, margen EBITDA 11 %, DSO 45 días.
 const closed = computeKpis(buildStatement(tbSmallSl, { kind: "closed_fy", start: "2025-01-01", end: "2025-12-31" }).data);
@@ -106,5 +107,48 @@ describe("evaluatePolicy", () => {
     expect(metricUnit("overdraftDays")).toBe("count");
     expect(metricUnit("daysCashOnHand")).toBe("days");
     expect(metricUnit("revenue")).toBe("EUR");
+  });
+});
+
+describe("thresholds from parameters", () => {
+  const AMOUNT = "11111111-1111-4111-8111-111111111111";
+  const DSCR = "22222222-2222-4222-8222-222222222222";
+  const revenue = closed.find((k) => k.key === "revenue")!.value!;
+  const k = { closed, ytd: [] as Kpi[], bank: null };
+  const amount = (value: number | null): ResolvedParameter => ({ id: AMOUNT, name: "Importe solicitado", unit: "EUR", scope: "case", value, sourceRef: value === null ? null : `case_param:c:${AMOUNT}` });
+  const dscrMin: ResolvedParameter = { id: DSCR, name: "DSCR mínimo", unit: "x", scope: "fixed", value: 1.25, sourceRef: `param:${DSCR}` };
+  const viaAmount: PolicyCriterion = { metric: "revenue", op: "gte", period: "base", parameter: { id: AMOUNT, factor: 4 } };
+
+  it("stores and reads a criterion on a parameter (factor 1 when empty, never ≤ 0)", () => {
+    expect(normalizeCriteria(criteriaToStored([viaAmount]))).toEqual([viaAmount]);
+    expect(normalizeCriteria([{ metric: "dscr", op: "gte", parameter_id: DSCR, factor: "" }])).toEqual([{ metric: "dscr", op: "gte", period: "base", parameter: { id: DSCR, factor: 1 } }]);
+    expect(normalizeCriteria([{ metric: "dscr", op: "gte", parameter_id: DSCR, factor: "-2" }])).toEqual([]);
+  });
+
+  it("compares the KPI with factor × the parameter's value for the case", () => {
+    const met = evaluatePolicy([viaAmount], k, [amount(revenue / 4)]);
+    expect(met.results[0]).toMatchObject({ status: "met", limit: revenue, parameter: { name: "Importe solicitado", factor: 4 } });
+    expect(evaluatePolicy([viaAmount], k, [amount(revenue / 4 + 1)]).outcome).toBe("outside");
+    expect(evaluatePolicy([{ metric: "dscr", op: "gte", period: "base", parameter: { id: DSCR, factor: 1 } }], k, [dscrMin]).results[0]).toMatchObject({ status: "met", limit: 1.25 });
+  });
+
+  it("a per-case value the case lacks, or a deleted parameter, is «sin datos» with the reason", () => {
+    const missing = evaluatePolicy([viaAmount], k, [amount(null)]);
+    expect(missing.outcome).toBe("incomplete");
+    expect(missing.results[0]).toMatchObject({ status: "no_data", limit: null, note: "Falta «Importe solicitado» en este caso." });
+    expect(missingCaseParameters([viaAmount], [amount(null), dscrMin]).map((p) => p.id)).toEqual([AMOUNT]);
+    expect(evaluatePolicy([viaAmount], k, []).results[0]).toMatchObject({ status: "no_data", note: "El parámetro de este criterio ya no existe." });
+  });
+
+  it("the form refuses a parameter in another unit, an unknown one and a non-positive factor", () => {
+    const lenderParams: PolicyParameter[] = [
+      { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR", scope: "case", value: null },
+      { id: DSCR, name: "DSCR mínimo", description: null, unit: "x", scope: "fixed", value: 1.25 },
+    ];
+    const form = (rows: unknown[]) => parsePolicyForm({ name: "Circulante", criteria: JSON.stringify(rows) }, lenderParams);
+    expect(form([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "4" }])).toMatchObject({ ok: true });
+    expect(form([{ metric: "dscr", op: "gte", parameter_id: AMOUNT, factor: "1" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/misma unidad/) } });
+    expect(form([{ metric: "revenue", op: "gte", parameter_id: "33333333-3333-4333-8333-333333333333", factor: "1" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/ya no existe/) } });
+    expect(form([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "0" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/factor/) } });
   });
 });

@@ -44,9 +44,6 @@ test("lender pages load under the CSP with no violation", async ({ page }) => {
   await page.getByLabel("Razón social").fill(company);
   await page.getByLabel("Correo de la persona de contacto").fill("csp@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("100000");
-  await page.getByLabel("Plazo (meses)").fill("12");
   const pill = page.getByRole("button", { name: "Contabilidad", exact: true });
   if ((await pill.getAttribute("aria-pressed")) !== "true") await pill.click();
   await page.getByRole("button", { name: "Crear caso" }).click();

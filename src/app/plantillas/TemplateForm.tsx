@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Name, description, default product, documents, default cost of sales, default credit policy and panel of a template. The panel is the team's standard one or the
+ * Name, description, documents, default cost of sales, default credit policy and panel of a template. The panel is the team's standard one or the
  * template's own: choosing «personalizado» opens the panel designer right after saving (the first time).
  */
 import Link from "next/link";
@@ -13,7 +13,6 @@ import { RequirementsPicker } from "@/components/RequirementsPicker";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Input";
 import { Pill } from "@/components/ui/Pill";
-import { PRODUCTS } from "@/content/products.es";
 import { saveTemplate, type TemplateFormState } from "./actions";
 
 export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false, policies = [] }: { id: string | null; initial: Record<string, string>; canEdit: boolean; hasOwnPanel?: boolean; policies?: { id: string; name: string }[] }) {
@@ -34,12 +33,6 @@ export function TemplateForm({ id, initial, canEdit, hasOwnPanel = false, polici
           </Field>
           <Field id="description" label="Descripción (opcional)" error={errors.description}>
             <Textarea id="description" name="description" rows={2} maxLength={300} defaultValue={values.description ?? ""} />
-          </Field>
-          <Field id="product" label="Producto (opcional)" hint="Se preselecciona al crear el caso." error={errors.product}>
-            <Select id="product" name="product" defaultValue={values.product ?? ""}>
-              <option value="">Sin producto</option>
-              {PRODUCTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </Select>
           </Field>
         </section>
         <RequirementsPicker values={values} error={errors.requirements} legend="Documentos que pide" />

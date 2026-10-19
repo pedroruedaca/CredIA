@@ -59,5 +59,6 @@ export const caseViewSample: CaseViewData = {
   registeredName: "Talleres Demo Levante, S.L.",
   conclusions: [],
   policy: null,
+  parameters: [],
 };
 

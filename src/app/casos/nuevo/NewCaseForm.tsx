@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { PRODUCTS } from "@/content/products.es";
+import { UNIT_TEXT } from "@/content/policies.es";
+import type { ParameterUnit } from "@/lib/policies/parameters";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Pill } from "@/components/ui/Pill";
@@ -19,13 +20,22 @@ export interface TemplateOption {
   id: string;
   name: string;
   description: string | null;
-  product: string | null;
   requirements: TemplateRequirement[];
   /** The template's default credit policy, applied to the case when it is created. */
   policyName?: string | null;
+  /** Per-case parameters that policy uses: required on the form. */
+  requiredParameterIds?: string[];
 }
 
-export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templates?: TemplateOption[]; initialTemplateId?: string }) {
+/** A per-case policy parameter the form can take a value for. */
+export interface CaseParameterOption {
+  id: string;
+  name: string;
+  unit: ParameterUnit;
+  description: string | null;
+}
+
+export function NewCaseForm({ templates = [], initialTemplateId = "", caseParameters = [] }: { templates?: TemplateOption[]; initialTemplateId?: string; caseParameters?: CaseParameterOption[] }) {
   const [state, action, pending] = useActionState<CreateCaseState, FormData>(createCase, { status: "idle" });
   const [templateId, setTemplateId] = useState(initialTemplateId);
 
@@ -70,9 +80,12 @@ export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templa
     );
   }
 
-  // A template fills product and documents (still editable); after a validation error, what was posted wins.
+  // A template fills the documents (still editable); after a validation error, what was posted wins.
   const template = templates.find((t) => t.id === templateId) ?? null;
-  const fromTemplate: Record<string, string> = template ? { product: template.product ?? "", ...templateFormValues(template.requirements) } : {};
+  const fromTemplate: Record<string, string> = template ? templateFormValues(template.requirements) : {};
+  // The template's policy's per-case parameters first (required), then the rest (optional).
+  const requiredIds = new Set(template?.requiredParameterIds ?? []);
+  const orderedParameters = [...caseParameters].sort((a, b) => Number(requiredIds.has(b.id)) - Number(requiredIds.has(a.id)));
   const values = state.status === "idle" || state.values.template_id !== templateId ? { ...(state.status === "idle" ? {} : state.values), ...fromTemplate } : state.values;
   // Remount the fields a template fills when it changes, so they take its values.
   const fillKey = `${templateId}:${state.status}`;
@@ -95,7 +108,7 @@ export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templa
 
       {templates.length > 0 && (
         <section className="flex flex-col gap-3">
-          <Field id="template_id" label="Plantilla" hint="Rellena el producto y los documentos; puedes cambiarlos.">
+          <Field id="template_id" label="Plantilla" hint="Rellena los documentos y aplica su política; puedes cambiarlos.">
             <Select id="template_id" name="template_id" value={templateId} onChange={(e) => setTemplateId(e.target.value)} aria-describedby="template_id-hint">
               <option value="">Sin plantilla</option>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -122,23 +135,29 @@ export function NewCaseForm({ templates = [], initialTemplateId = "" }: { templa
         </Field>
       </section>
 
-      <section className="flex flex-col gap-5">
-        <h2 className="heading-section">Solicitud</h2>
-        <Field id="product" label="Producto" error={err("product")}>
-          <Select key={fillKey} id="product" name="product" required defaultValue={values.product ?? ""} {...a11y("product")}>
-            <option value="" disabled>Elige…</option>
-            {PRODUCTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-          </Select>
-        </Field>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field id="amount" label="Importe (€)" error={err("amount")}>
-            <Input id="amount" name="amount" inputMode="decimal" required defaultValue={v("amount")} className="font-mono" {...a11y("amount")} />
-          </Field>
-          <Field id="termMonths" label="Plazo (meses)" error={err("termMonths")}>
-            <Input id="termMonths" name="termMonths" type="number" min={1} max={360} step={1} required defaultValue={v("termMonths")} className="font-mono" {...a11y("termMonths")} />
-          </Field>
-        </div>
-      </section>
+      {orderedParameters.length > 0 && (
+        <section className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="heading-section">Parámetros</h2>
+            <p className="text-[15px] text-ink-2">
+              {requiredIds.size
+                ? `La política «${template?.policyName}» necesita los marcados como obligatorios. Los demás son opcionales; puedes añadirlos o cambiarlos después desde el caso.`
+                : "Opcionales: los valores de este caso que vuestras políticas comparan con sus indicadores. Puedes añadirlos o cambiarlos después desde el caso."}
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            {orderedParameters.map((p) => {
+              const key = `param_${p.id}` as const;
+              const unit = UNIT_TEXT[p.unit];
+              return (
+                <Field key={`${fillKey}:${p.id}`} id={key} label={`${p.name}${unit ? ` (${unit})` : ""}${requiredIds.has(p.id) ? "" : " · opcional"}`} hint={p.description ?? undefined} error={err(key)}>
+                  <Input id={key} name={key} inputMode="decimal" required={requiredIds.has(p.id)} defaultValue={v(key)} className="font-mono" {...a11y(key, !!p.description)} />
+                </Field>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <RequirementsPicker key={fillKey} values={values} error={errors.requirements} />
 

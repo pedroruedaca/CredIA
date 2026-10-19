@@ -72,9 +72,10 @@ export function CaseView({
   const company = [
     { label: "Razón social", value: kase.companyName },
     { label: "CIF", value: kase.cif, mono: true },
-    { label: "Producto", value: kase.product ? productLabel(kase.product) : "—" },
-    { label: "Importe", value: amount ? `${amount.number} ${amount.unit}` : "—" },
-    { label: "Plazo", value: kase.termMonths ? `${kase.termMonths} meses` : "—" },
+    // Only cases created before policy parameters (Oct 2026) carry product, amount and term.
+    ...(kase.product ? [{ label: "Producto", value: productLabel(kase.product) }] : []),
+    ...(amount ? [{ label: "Importe", value: `${amount.number} ${amount.unit}` }] : []),
+    ...(kase.termMonths ? [{ label: "Plazo", value: `${kase.termMonths} meses` }] : []),
     { label: "Cierre del ejercicio", value: formatDate(kase.fiscalYearEnd) },
     { label: "Correo de la empresa", value: kase.borrowerEmail ?? "—" },
     {

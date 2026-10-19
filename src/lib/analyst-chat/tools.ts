@@ -10,6 +10,7 @@
 import * as z from "zod/v4";
 import { BANK_CATEGORY_LABEL, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
 import { OUTCOME_LABEL, POLICY_NOTE, STATUS_LABEL } from "../../content/policies.es.ts";
+import type { CriterionResult } from "../policies/policy.ts";
 import { PROVIDER_FIGURES_NOTE } from "../../content/solvency.es.ts";
 import { INFLOW_CATEGORIES, NEUTRAL_CATEGORIES, OUTFLOW_CATEGORIES } from "../bank/classify.ts";
 import type { CaseViewData } from "../case-view/load.ts";
@@ -429,6 +430,30 @@ function getSolvency(ctx: ToolContext, refs: string[]) {
 }
 
 /**
+ * A criterion's threshold with its ref. From a parameter: the parameter's value for this case has its own ref (fixed
+ * for the lender or entered for this case), and the threshold is factor × that value.
+ */
+function thresholdOf(ctx: ToolContext, refs: string[], v: NonNullable<ReturnType<typeof policyView>>, i: number, r: CriterionResult, label: string) {
+  const c = r.criterion;
+  const bound = `${label} ${c.op === "gte" ? "mínimo" : "máximo"}`;
+  if (!c.parameter) {
+    return { value: c.threshold, unit: r.unit, ref: reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:${c.threshold}`, label: `Umbral de vuestra política «${v.name}» · ${bound}`, value: c.threshold, unit: r.unit }) };
+  }
+  const p = r.parameter;
+  const parameter = p
+    ? {
+        name: p.name,
+        scope: p.scope === "fixed" ? "fixed_for_the_lender" : "entered_for_this_case",
+        factor: c.parameter.factor,
+        value: p.value === null ? null : { value: p.value, unit: p.unit, ref: reg(ctx, refs, { id: p.sourceRef ?? `param:${p.id}`, label: `Parámetro «${p.name}»${p.scope === "fixed" ? " (fijo de vuestra entidad)" : " (de este caso)"}`, value: p.value, unit: p.unit }) },
+      }
+    : { name: null, scope: "deleted", factor: c.parameter.factor, value: null };
+  if (r.limit === null) return { value: null, unit: r.unit, parameter, missing: r.note };
+  const ref = reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:param:${c.parameter.id}:${c.parameter.factor}:${r.limit}`, label: `Umbral de vuestra política «${v.name}» · ${bound} = ${c.parameter.factor} × «${p?.name}»`, value: r.limit, unit: r.unit });
+  return { value: round(r.limit, 4), unit: r.unit, ref, parameter };
+}
+
+/**
  * The lender's credit policy applied to the case, evaluated as the case view does. The case's value of each criterion
  * carries the same ref as get_kpis gives that KPI; the threshold has its own ref, so a gap goes through `compute`.
  */
@@ -453,7 +478,7 @@ function getPolicy(ctx: ToolContext, refs: string[]) {
         indicator: c.metric,
         label,
         condition: c.op === "gte" ? "at_least" : "at_most",
-        threshold: { value: c.threshold, unit: r.unit, ref: reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:${c.threshold}`, label: `Umbral de vuestra política «${v.name}» · ${label} ${c.op === "gte" ? "mínimo" : "máximo"}`, value: c.threshold, unit: r.unit }) },
+        threshold: thresholdOf(ctx, refs, v, i, r, label),
         period_asked: c.period,
         case_value:
           r.value === null || !r.source

@@ -20,6 +20,8 @@ never computes, combines or uses them in checks. Still no bureau API integration
 applies one to a case from «Indicadores»; credIA compares and says, for information only, whether the case's figures
 fall inside that policy («según vuestra política… permitirían / no permitirían financiar»). The criteria are always the
 lender's; credIA ships no default thresholds, never combines criteria into a score, and the outcome never feeds checks.
+Thresholds can come from the lender's **parameters** (fixed, or entered per case such as an amount requested), which
+replace the product, amount and term the new-case form used to ask for; credIA ships no default parameters either.
 
 ## Stack
 Next.js (App Router) · TypeScript (strict) · Tailwind · Supabase (Postgres, Auth, Storage, RLS) ·
@@ -233,6 +235,22 @@ form says which policy will apply; the analyst can change it in the case; templa
 the threshold (own ref, so gaps go through `compute`), status and the lender's sentence; prompt section «The lender's credit
 policy»: report it only attributed to the lender's policy, never as credIA's opinion, never suggest thresholds, another
 policy or what the company should do; snapshot line and a suggestion when a policy is applied.
+**Parameters** («Políticas» → «Parámetros», 0031; pure `src/lib/policies/parameters.ts`, store `parameter-store.ts`, pages
+`/politicas/parametros`, actions `src/app/politicas/parametros/actions.ts`, tabs `PolicyTabs`): named values a criterion
+compares a KPI with, **KPI ≥/≤ factor × parameter** (stored as `{ metric, op, period, parameter_id, factor }`, factor > 0;
+a plain number still works). `policy_parameters` (members read, owners/analysts write): unit = a KPI unit, scope `fixed`
+(one value for the lender) or `case` (entered per case); unit and scope never change; a parameter in use by a policy
+cannot be deleted. `case_parameter_values` (one per case and parameter; lender-match trigger + `case_parameter_matches`:
+only per-case parameters of the case's lender; in `CASE_ROWS`). A criterion only takes a parameter in its KPI's unit
+(`parsePolicyForm(v, parameters)`). `evaluatePolicy(criteria, kpis, resolved)` gives each result `limit` (the threshold
+applied) and `parameter`; a per-case value the case lacks, or a deleted parameter, is «sin datos» with the reason.
+`CaseViewData.parameters` (`resolveParameters`) carries every parameter with its value for the case and source_ref
+(`param:<id>` / `case_param:<case>:<id>`). **New case:** no product, amount or term any more (old cases keep and show
+theirs; templates no longer set a product); per-case parameters are fields `param_<id>`, required when the template's
+policy uses them, optional otherwise. The «Política» panel lists «Parámetros de este caso» (missing ones marked) and
+saves them (`saveCaseParameters`, audit `case_parameters.saved`). Exports: JSON `threshold_from` per criterion and
+`policy_parameters`; Excel/PDF condition «≥ 4 × Importe solicitado (1.000.000 €)» (`thresholdPhrase`); the chat cites
+the parameter's value and the resulting threshold. Integration `tests/integration/parameters.test.ts`.
 
 ## Lender sign-in
 `/login` (`LoginForm`, pure rules and error mapping `src/lib/auth/login.ts`, copy `src/content/login.es.ts`): an email with a

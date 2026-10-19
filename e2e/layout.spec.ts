@@ -11,9 +11,6 @@ test("personalise the case view for the team, then restore it", async ({ page })
   await page.getByLabel("Razón social").fill(`Paneles E2E ${Date.now()}, S.L.`);
   await page.getByLabel("Correo de la persona de contacto").fill("paneles@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("50000");
-  await page.getByLabel("Plazo (meses)").fill("12");
   await page.getByRole("button", { name: "Contabilidad", exact: true }).click();
   await page.getByRole("button", { name: "Crear caso" }).click();
   await page.getByRole("link", { name: "Ir al caso" }).click();

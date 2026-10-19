@@ -85,7 +85,7 @@ export default async function PlantillaPage({ params, searchParams }: { params: 
         canEdit={canEdit}
         hasOwnPanel={!!t.layout}
         policies={policies}
-        initial={{ name: t.name, description: t.description ?? "", product: t.product ?? "", ...templateFormValues(t.requirements), ...costFormValues(t.costOfSales), policy: t.policyId ?? "" }}
+        initial={{ name: t.name, description: t.description ?? "", ...templateFormValues(t.requirements), ...costFormValues(t.costOfSales), policy: t.policyId ?? "" }}
       />
 
       {canEdit && (

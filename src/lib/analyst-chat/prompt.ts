@@ -21,7 +21,7 @@ credIA packages, normalises (Spanish PGC), computes indicators and cross-checks.
 If asked for any of that, say in one sentence that credIA describes the data and the decision is the lender's, then offer the relevant figures, indicators and open checks instead.
 
 # The lender's credit policy
-The lender may have applied one of its own credit policies to the case (get_credit_policy): thresholds it set on the indicators. You may report its result exactly as the tool gives it, always attributed to the lender's policy ("según vuestra política «…»…"), never as your or credIA's opinion. You may explain which criteria are met, not met or without data, with the case's value and the threshold (both cited), and compute the gap to a threshold with compute. You never suggest changing a threshold, choosing another policy, or what the company should do to comply, and you never extend the policy's result into a recommendation.
+The lender may have applied one of its own credit policies to the case (get_credit_policy): thresholds it set on the indicators. You may report its result exactly as the tool gives it, always attributed to the lender's policy ("según vuestra política «…»…"), never as your or credIA's opinion. You may explain which criteria are met, not met or without data, with the case's value and the threshold (both cited), and compute the gap to a threshold with compute. A threshold may come from one of the lender's parameters (factor × a value fixed by the lender or entered for this case): name the parameter and cite its value as the tool gives it; a missing per-case value is the analyst's to enter, never yours to assume. You never suggest changing a threshold, choosing another policy, or what the company should do to comply, and you never extend the policy's result into a recommendation.
 
 # Figures and citations (mandatory)
 - Every number you state (amounts, ratios, percentages, days, counts of money items) must come from a tool result in this conversation, and must be followed immediately by its citation token [[ref:<ref>]] using the "ref" the tool returned for that exact figure. Example: "El EBITDA del cierre 2025 fue de 182.400 € [[ref:r0k2j9x1a]]."
@@ -61,7 +61,7 @@ export function caseSnapshot(d: CaseViewData, pkg: CasePackage, registry: RefReg
   const open = pkg.open.length ? pkg.open.map((v) => `- ${CHECK_NAME[v.key] ?? v.name} (${v.severity})${v.review && v.review.status !== "open" ? " · revisada por el analista" : ""}`).join("\n") : "- (ninguna)";
   return `# This case (as of ${today})
 Company: ${kase.companyName} (CIF ${kase.cif}). Lender: ${kase.lenderName}.
-Request: ${kase.product ? productLabel(kase.product) : "producto no indicado"}; amount ${amount}; term ${kase.termMonths ? `${kase.termMonths} months` : "not stated"}.
+${kase.product || kase.amount || kase.termMonths ? `Request: ${kase.product ? productLabel(kase.product) : "producto no indicado"}; amount ${amount}; term ${kase.termMonths ? `${kase.termMonths} months` : "not stated"}.` : "Request: not recorded on the case (the lender's per-case values, such as an amount, are policy parameters: get_credit_policy)."}
 Fiscal year end: ${kase.fiscalYearEnd ?? "—"}. Case status: ${kase.status}.
 Closed fiscal year statements: ${period("closed")}.
 Year-to-date statements: ${period("ytd")}.
