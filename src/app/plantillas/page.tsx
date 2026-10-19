@@ -11,10 +11,10 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata = { title: "Plantillas · credIA" };
 export const dynamic = "force-dynamic";
 
-export default async function PlantillasPage() {
+export default async function PlantillasPage({ searchParams }: { searchParams: Promise<{ guardada?: string }> }) {
   const lender = await requireLender();
   const canEdit = lender.role !== "viewer";
-  const templates = await listTemplates(await createClient());
+  const [templates, { guardada }] = await Promise.all([listTemplates(await createClient()), searchParams]);
   return (
     <main className="w-full max-w-4xl px-4 py-10 sm:px-14 sm:py-12">
       <div className="mb-10 flex flex-col gap-3">
@@ -30,6 +30,7 @@ export default async function PlantillasPage() {
         <p className="max-w-[640px] text-[17px] text-ink-2">
           Procesos guardados: qué documentos se piden y cómo se ve el panel del caso. Al crear un caso eliges una y puedes ajustarla.
         </p>
+        {guardada && <p role="status" className="flex items-center gap-2 text-[15px] text-ink-2"><Pill tone="ok">Guardada</Pill>La plantilla se ha guardado.</p>}
       </div>
       {templates.length === 0 ? (
         <div className="rounded-panel bg-soft px-8 py-14 text-center">

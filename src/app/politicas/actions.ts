@@ -20,7 +20,7 @@ const formValues = (fd: FormData) => {
 };
 const isId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 
-/** Create (no id) or update a policy from the form; back to the policy on success. */
+/** Create (no id) or update a policy from the form; back to the list on success. */
 export async function savePolicy(id: string | null, _prev: PolicyFormState, fd: FormData): Promise<PolicyFormState> {
   const lender = await requireLender();
   const values = formValues(fd);
@@ -41,7 +41,7 @@ export async function savePolicy(id: string | null, _prev: PolicyFormState, fd: 
     detail: { policy_id: data.id, name: parsed.data.name, criteria: row.criteria },
   });
   revalidatePath("/politicas");
-  redirect(`/politicas/${data.id}?guardada=1`);
+  redirect("/politicas?guardada=1");
 }
 
 export async function deletePolicy(id: string): Promise<{ ok: false; message: string } | never> {
