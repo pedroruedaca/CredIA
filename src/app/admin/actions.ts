@@ -28,12 +28,12 @@ export async function createLender(_prev: NewLenderState, fd: FormData): Promise
   if (!r.ok) return { status: "failed", message: r.message, values };
   await createAdminClient().from("audit_log").insert({ lender_id: r.lenderId, case_id: null, actor: user.id, action: "lender.created", detail: { by_platform_admin: user.email, owner_email: ownerEmail, user_created: r.userCreated } });
 
-  const { sent } = await getNotifier().sendTeamInvite({ to: ownerEmail, lenderName: name, invitedBy: user.email ?? "credIA", role: "owner", loginUrl: `${await appBaseUrl()}/login` });
+  const { sent } = await getNotifier().sendLenderWelcome({ to: ownerEmail, lenderName: name, loginUrl: `${await appBaseUrl()}/login` });
   revalidatePath("/admin");
   return {
     status: "created",
     message: sent
-      ? `«${name}» creada. Hemos enviado la invitación a ${ownerEmail}.`
+      ? `«${name}» creada. Hemos enviado la bienvenida a ${ownerEmail}.`
       : `«${name}» creada y ${ownerEmail} ya tiene acceso, pero ${isEmailConfigured() ? "no se ha podido enviar el correo" : "no hay correo configurado"}: avísale tú de que entre en credIA con ese correo.`,
   };
 }

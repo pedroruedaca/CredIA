@@ -127,12 +127,36 @@ export function teamInviteEmail(i: { lenderName: string; invitedBy: string; logi
       heading: `Te han invitado a ${i.lenderName}`,
       paragraphs: [
         `${esc(i.invitedBy)} te ha dado acceso a credIA como <b style="color:#111315">${role}</b> de ${esc(i.lenderName)}.`,
-        "Entra con este correo: te enviaremos un enlace de acceso, sin contraseña.",
+        "Entra con este correo: te enviaremos un enlace y un código de acceso, sin contraseña.",
       ],
       button: { label: "Entrar en credIA", url: i.loginUrl },
       footer: "credIA prepara paquetes de datos de crédito para prestamistas. Si no esperabas esta invitación, puedes ignorar este correo.",
     }),
     text: text([`${i.invitedBy} te ha dado acceso a credIA como ${role} de ${i.lenderName}.`, `Entra con este correo en ${i.loginUrl}`]),
+  };
+}
+
+/** credIA staff created the lender (/admin): the first owner's welcome. No staff email in it, no token. */
+export function lenderWelcomeEmail(w: { lenderName: string; loginUrl: string }): Email {
+  const lender = esc(w.lenderName);
+  return {
+    subject: oneLine(`Bienvenido a credIA: ${w.lenderName} ya tiene acceso`),
+    html: layout({
+      preheader: `Ya puedes entrar en credIA como administrador de ${w.lenderName}.`,
+      heading: "Bienvenido a credIA",
+      paragraphs: [
+        `Hemos dado de alta a <b style="color:#111315">${lender}</b> en credIA y te hemos hecho <b style="color:#111315">administrador</b>.`,
+        "Entra con este correo: te enviaremos un enlace y un código de acceso, sin contraseña. Después seguirás conectado en ese navegador.",
+        "Para empezar, crea tu primer caso desde «Casos» e invita a tu equipo desde «Ajustes».",
+      ],
+      button: { label: "Entrar en credIA", url: w.loginUrl },
+      footer: "credIA prepara paquetes de datos de crédito para prestamistas. Si no esperabas este correo, puedes ignorarlo.",
+    }),
+    text: text([
+      `Hemos dado de alta a ${w.lenderName} en credIA y te hemos hecho administrador.`,
+      `Entra con este correo en ${w.loginUrl}: te enviaremos un enlace y un código de acceso, sin contraseña.`,
+      "Para empezar, crea tu primer caso desde «Casos» e invita a tu equipo desde «Ajustes».",
+    ]),
   };
 }
 
