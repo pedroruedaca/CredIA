@@ -3,7 +3,8 @@
 /** Credit policies: create, edit, delete. Owners and analysts; viewers cannot. */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { parsePolicyForm, type PolicyFieldErrors } from "@/lib/policies/policy";
+import { criteriaToStored, parsePolicyForm, type PolicyFieldErrors } from "@/lib/policies/policy";
+import { listParameters } from "@/lib/policies/parameter-store";
 import { requireLender } from "@/lib/lender";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,10 +26,10 @@ export async function savePolicy(id: string | null, _prev: PolicyFormState, fd: 
   const values = formValues(fd);
   if (lender.role === "viewer") return { status: "failed", message: "Tu rol solo permite consultar.", values };
   if (id !== null && !isId(id)) return { status: "failed", message: "Política no encontrada.", values };
-  const parsed = parsePolicyForm(values);
-  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, values };
   const supabase = await createClient();
-  const row = { ...parsed.data, updated_by: lender.userId, updated_at: new Date().toISOString() };
+  const parsed = parsePolicyForm(values, await listParameters(supabase));
+  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, values };
+  const row = { ...parsed.data, criteria: criteriaToStored(parsed.data.criteria), updated_by: lender.userId, updated_at: new Date().toISOString() };
   const { data, error } = id
     ? await supabase.from("credit_policies").update(row).eq("id", id).select("id").maybeSingle()
     : await supabase.from("credit_policies").insert({ ...row, lender_id: lender.lenderId, created_by: lender.userId }).select("id").single();
@@ -37,7 +38,7 @@ export async function savePolicy(id: string | null, _prev: PolicyFormState, fd: 
     lender_id: lender.lenderId,
     actor: lender.userId,
     action: id ? "policy.updated" : "policy.created",
-    detail: { policy_id: data.id, name: parsed.data.name, criteria: parsed.data.criteria },
+    detail: { policy_id: data.id, name: parsed.data.name, criteria: row.criteria },
   });
   revalidatePath("/politicas");
   redirect(`/politicas/${data.id}?guardada=1`);

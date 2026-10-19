@@ -3,25 +3,34 @@
 /**
  * «Política» at the top of the case view, above the modules: apply one of the lender's credit policies and see, criterion by
  * criterion, whether the case's KPIs fall inside its thresholds. Informational: the thresholds are the lender's and
- * the outcome is worded as what their policy would suggest, never as credIA's decision.
+ * the outcome is worded as what their policy would suggest, never as credIA's decision. Below the criteria, the case's
+ * values of the lender's per-case parameters (0031): the ones the applied policy needs and lacks are marked, and owners
+ * and analysts fill or change them here.
  */
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { applyCasePolicy } from "@/app/casos/policy-actions";
+import { applyCasePolicy, saveCaseParameters } from "@/app/casos/policy-actions";
+import { Button } from "@/components/ui/Button";
+import { cx } from "@/components/ui/cx";
+import { fieldClass } from "@/components/ui/Input";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Figure } from "@/components/ui/Figure";
 import { Select } from "@/components/ui/Input";
 import { Pill } from "@/components/ui/Pill";
 import { SeverityDot, type Tone } from "@/components/ui/SeverityDot";
 import { KPI_LABEL } from "@/content/case-view.es";
-import { OP_SYMBOL, OUTCOME_LABEL, POLICY_NOTE, POLICY_PERIOD_LABEL, SOURCE_LABEL, STATUS_LABEL, outcomeSentence } from "@/content/policies.es";
-import type { CriterionStatus, PolicyOutcome, PolicyResult } from "@/lib/policies/policy";
+import { CASE_PARAMETERS_COPY, OP_SYMBOL, OUTCOME_LABEL, POLICY_NOTE, POLICY_PERIOD_LABEL, SOURCE_LABEL, STATUS_LABEL, UNIT_TEXT, outcomeSentence } from "@/content/policies.es";
+import { parameterValueText, type ResolvedParameter } from "@/lib/policies/parameters";
+import type { CriterionResult, CriterionStatus, PolicyOutcome, PolicyResult } from "@/lib/policies/policy";
 
 export interface CasePolicyView {
   /** The lender's policies, to choose from. */
   options: { id: string; name: string }[];
   /** The policy applied to this case and its result, or null. */
   applied: { id: string; name: string; result: PolicyResult } | null;
+  /** The lender's per-case parameters with this case's values, and which of them the applied policy uses. */
+  caseParameters?: ResolvedParameter[];
+  usedParameterIds?: string[];
 }
 
 const OUTCOME_TONE: Record<PolicyOutcome, Tone> = { within: "ok", outside: "high", incomplete: "warn" };
@@ -86,7 +95,7 @@ export function PolicyPanel({ caseId, view, canEdit }: { caseId: string; view: C
                   <span className="flex min-w-0 grow flex-col">
                     <span className="text-[15px] font-medium">{KPI_LABEL[c.metric] ?? c.metric}</span>
                     <span className="text-[13px] text-muted">
-                      {OP_SYMBOL[c.op]} <Figure value={c.threshold} unit={r.unit} decimals={decimals(r.unit, c.threshold, true)} />
+                      {OP_SYMBOL[c.op]} <Threshold r={r} />
                       {where ? ` · ${where}` : ""}
                       {r.status === "no_data" && r.note ? ` · ${r.note}` : ""}
                     </span>
@@ -101,6 +110,89 @@ export function PolicyPanel({ caseId, view, canEdit }: { caseId: string; view: C
         </>
       )}
       {error && <ErrorLine message={error} />}
+      {(view.caseParameters?.length ?? 0) > 0 && (
+        <CaseParameters caseId={caseId} params={view.caseParameters!} used={new Set(applied ? view.usedParameterIds ?? [] : [])} canEdit={canEdit} />
+      )}
     </section>
+  );
+}
+
+/** «≥ 1,25x», or «≥ 4 × Importe solicitado = 1.000.000 €» when the threshold comes from a parameter. */
+function Threshold({ r }: { r: CriterionResult }) {
+  const c = r.criterion;
+  if (!c.parameter) return <Figure value={c.threshold} unit={r.unit} decimals={decimals(r.unit, c.threshold, true)} />;
+  const factor = c.parameter.factor === 1 ? "" : `${String(c.parameter.factor).replace(".", ",")} × `;
+  return (
+    <>
+      {factor}{r.parameter?.name ?? "parámetro eliminado"}
+      {r.limit !== null && <> = <Figure value={r.limit} unit={r.unit} decimals={decimals(r.unit, r.limit)} /></>}
+    </>
+  );
+}
+
+/** The case's per-case parameter values; those the applied policy uses come first, missing ones marked. */
+function CaseParameters({ caseId, params, used, canEdit }: { caseId: string; params: ResolvedParameter[]; used: Set<string>; canEdit: boolean }) {
+  const initial = Object.fromEntries(params.map((p) => [`param_${p.id}`, parameterValueText(p.value)]));
+  const [values, setValues] = useState<Record<string, string>>(initial);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const ordered = [...params].sort((a, b) => Number(used.has(b.id)) - Number(used.has(a.id)) || a.name.localeCompare(b.name, "es"));
+  const missing = ordered.filter((p) => used.has(p.id) && p.value === null).length;
+  const changed = ordered.some((p) => (values[`param_${p.id}`] ?? "") !== initial[`param_${p.id}`]);
+
+  const save = () =>
+    start(async () => {
+      setError(null);
+      setSaved(false);
+      const r = await saveCaseParameters(caseId, values);
+      if (r.ok) setSaved(true);
+      else setError(r.message);
+    });
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <h4 className="text-[13px] font-semibold">{CASE_PARAMETERS_COPY.title}</h4>
+        {missing > 0 && <Pill tone="warn">{CASE_PARAMETERS_COPY.missing(missing)}</Pill>}
+        {saved && !changed && <Pill tone="ok">{CASE_PARAMETERS_COPY.saved}</Pill>}
+      </div>
+      <ul className="flex flex-col">
+        {ordered.map((p) => {
+          const key = `param_${p.id}`;
+          const lacks = used.has(p.id) && p.value === null;
+          return (
+            <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-hairline py-2 last:border-b-0">
+              <span className="flex min-w-0 grow flex-col">
+                <label htmlFor={`case-${key}`} className="text-[15px]">{p.name}</label>
+                {used.has(p.id) && <span className="text-[13px] text-muted">{CASE_PARAMETERS_COPY.usedBy}</span>}
+              </span>
+              {canEdit ? (
+                <span className="flex items-center gap-2">
+                  <input
+                    id={`case-${key}`}
+                    inputMode="decimal"
+                    value={values[key] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                    placeholder={CASE_PARAMETERS_COPY.empty}
+                    aria-invalid={lacks || undefined}
+                    className={cx(fieldClass, "w-40! font-mono tabular-nums", lacks && "ring-2 ring-warn-dot/50")}
+                  />
+                  <span className="min-w-8 text-[13px] text-muted">{UNIT_TEXT[p.unit]}</span>
+                </span>
+              ) : p.value === null ? (
+                <span className="text-[13px] text-muted">{CASE_PARAMETERS_COPY.empty}</span>
+              ) : (
+                <Figure value={p.value} unit={p.unit} className="text-[15px]" />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {canEdit && changed && (
+        <Button size="sm" onClick={save} disabled={pending} className="w-fit">{pending ? CASE_PARAMETERS_COPY.saving : CASE_PARAMETERS_COPY.save}</Button>
+      )}
+      {error && <ErrorLine message={error} />}
+    </div>
   );
 }

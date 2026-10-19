@@ -94,6 +94,8 @@ export function packageJson(d: CaseViewData, pkg: CasePackage, generatedAt: stri
         }
       : null,
     credit_policy: policyJson(d),
+    // The lender's policy parameters as they apply to this case: fixed ones and the values entered for this case.
+    policy_parameters: (d.parameters ?? []).map((p) => ({ id: p.id, name: p.name, unit: p.unit, scope: p.scope, value: p.value, source_ref: p.sourceRef })),
     bank_kpis: d.bank
       ? {
           period: d.bank.period,
@@ -269,7 +271,13 @@ function policyJson(d: CaseViewData) {
       metric: r.criterion.metric,
       label: KPI_LABEL[r.criterion.metric] ?? r.criterion.metric,
       op: r.criterion.op,
-      threshold: r.criterion.threshold,
+      // The threshold applied: the criterion's number, or factor × the parameter's value for this case.
+      threshold: r.limit,
+      threshold_from: r.parameter
+        ? { parameter_id: r.parameter.id, name: r.parameter.name, scope: r.parameter.scope, factor: r.parameter.factor, value: r.parameter.value, source_ref: r.parameter.sourceRef }
+        : r.criterion.parameter
+          ? { parameter_id: r.criterion.parameter.id, name: null, scope: null, factor: r.criterion.parameter.factor, value: null, source_ref: null }
+          : null,
       unit: r.unit,
       period: r.criterion.period,
       value: r.value,

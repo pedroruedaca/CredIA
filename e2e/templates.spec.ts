@@ -9,11 +9,10 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   const name = `Factoring E2E ${Date.now()}`;
   const footer = page.locator('footer[aria-label="Fuentes"]');
 
-  // 1. The template: factoring, accounting from the company, CIRBE uploaded by the analyst.
+  // 1. The template: accounting from the company, CIRBE uploaded by the analyst.
   await page.goto("/plantillas");
   await page.getByRole("link", { name: "Nueva plantilla" }).click();
   await page.getByLabel("Nombre").fill(name);
-  await page.getByLabel("Producto (opcional)").selectOption("factoring");
   await page.getByRole("button", { name: "Contabilidad", exact: true }).click();
   await page.getByRole("button", { name: "Informe CIRBE", exact: true }).click();
   await page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" }).click();
@@ -30,10 +29,9 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await expect(page.getByText("Diseño propio")).toBeVisible();
   await expect(page.getByRole("radio", { name: /Panel personalizado/ })).toBeChecked();
 
-  // 3. A case from it: product and documents pre-filled; the analyst adds Norma 43.
+  // 3. A case from it: documents pre-filled; the analyst adds Norma 43.
   await page.getByRole("link", { name: "Crear caso con esta plantilla" }).click();
   await expect(page.getByLabel("Plantilla", { exact: true })).toHaveValue(/[0-9a-f-]{36}/);
-  await expect(page.getByLabel("Producto", { exact: true })).toHaveValue("factoring");
   await expect(page.getByRole("button", { name: "Contabilidad", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Extractos bancarios (Norma 43)", exact: true }).click();
@@ -41,8 +39,6 @@ test("template: documents and dashboard pre-set a new case, which can still chan
   await page.getByLabel("Razón social").fill(`Plantilla E2E ${Date.now()}, S.L.`);
   await page.getByLabel("Correo de la persona de contacto").fill("plantilla@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Importe (€)").fill("80000");
-  await page.getByLabel("Plazo (meses)").fill("6");
   await page.getByRole("button", { name: "Crear caso" }).click();
   await page.getByRole("link", { name: "Ir al caso" }).click();
   await expect(page).toHaveURL(/\/casos\/[0-9a-f-]{36}$/);

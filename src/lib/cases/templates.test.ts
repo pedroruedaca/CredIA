@@ -4,13 +4,12 @@ import { parseNewCase } from "./new-case.ts";
 
 describe("process templates", () => {
   it("parses the template form into stored document choices", () => {
-    const r = parseTemplateForm({ name: "  Factoring pyme ", description: "", product: "", req_trial_balance: "required", req_cirbe: "lender", req_tgss_cert: "optional", age_tgss_cert: "60" });
+    const r = parseTemplateForm({ name: "  Factoring pyme ", description: "", req_trial_balance: "required", req_cirbe: "lender", req_tgss_cert: "optional", age_tgss_cert: "60" });
     expect(r).toEqual({
       ok: true,
       data: {
         name: "Factoring pyme",
         description: null,
-        product: null,
         requirements: [
           { kind: "trial_balance", level: "required", maxAgeDays: null },
           { kind: "cirbe", level: "lender", maxAgeDays: null },
@@ -44,10 +43,10 @@ describe("process templates", () => {
     expect(parseTemplateForm({ ...base, panel: "anything" })).toMatchObject({ ok: true, data: { panel: "team" } });
   });
 
-  it("asks for a name and at least one document, and a known product", () => {
-    const r = parseTemplateForm({ name: "x", product: "bitcoin" });
+  it("asks for a name and at least one document", () => {
+    const r = parseTemplateForm({ name: "x" });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["name", "product", "requirements"]);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(["name", "requirements"]);
   });
 
   it("round-trips: a template fills the case form with the same documents", () => {

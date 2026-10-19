@@ -12,9 +12,6 @@ test("analyst-only case: no invitation, «Te toca subir», filter, and the case 
   await page.getByLabel("Razón social").fill(company);
   await page.getByLabel("Correo de la persona de contacto").fill("analista@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("100000");
-  await page.getByLabel("Plazo (meses)").fill("12");
   await page.getByRole("button", { name: "Informe CIRBE", exact: true }).click();
   await page.getByRole("group", { name: /^Informe CIRBE:/ }).getByRole("button", { name: "Lo subo yo" }).click();
   await page.getByRole("button", { name: "Crear caso" }).click();

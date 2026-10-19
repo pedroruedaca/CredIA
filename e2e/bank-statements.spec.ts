@@ -13,9 +13,6 @@ async function bankCase(page: Page, company: string) {
   await page.getByLabel("Razón social").fill(company);
   await page.getByLabel("Correo de la persona de contacto").fill("banco@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("60000");
-  await page.getByLabel("Plazo (meses)").fill("12");
   await page.getByRole("button", { name: "Extractos bancarios (Norma 43)", exact: true }).click();
   await page.getByRole("group", { name: /^Extractos bancarios/ }).getByRole("button", { name: "Lo subo yo" }).click();
   await page.getByRole("button", { name: "Crear caso" }).click();
@@ -67,9 +64,6 @@ test("a CSV bank export is read, reconciled and gives the bank KPIs", async ({ p
   await page.getByLabel("Razón social").fill(company);
   await page.getByLabel("Correo de la persona de contacto").fill("banco@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("60000");
-  await page.getByLabel("Plazo (meses)").fill("12");
   await page.getByRole("button", { name: "Extractos bancarios (Norma 43)", exact: true }).click();
   await page.getByRole("group", { name: /^Extractos bancarios/ }).getByRole("button", { name: "Lo subo yo" }).click();
   await page.getByRole("button", { name: "Crear caso" }).click();

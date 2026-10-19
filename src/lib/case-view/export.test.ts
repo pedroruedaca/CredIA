@@ -175,6 +175,25 @@ describe("exports", () => {
     expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).not.toContain("Conclusiones del analista");
   }, 30_000);
 
+  it("a threshold from a parameter says which, with its value for the case and source_ref, in every export", async () => {
+    const P = "11111111-1111-4111-8111-111111111111";
+    const withParam = {
+      ...sample,
+      policy: { id: "pol-2", name: "Circulante", description: null, criteria: [{ metric: "dscr" as const, op: "gte" as const, period: "base" as const, parameter: { id: P, factor: 1 } }] },
+      parameters: [{ id: P, name: "DSCR mínimo", unit: "x" as const, scope: "fixed" as const, value: 1.25, sourceRef: `param:${P}` }],
+    };
+    const p = buildPackage(withParam);
+    const j = packageJson(withParam, p, at);
+    expect(j.credit_policy!.criteria[0]).toMatchObject({ threshold: 1.25, status: "met", threshold_from: { name: "DSCR mínimo", scope: "fixed", factor: 1, value: 1.25, source_ref: `param:${P}` } });
+    expect(j.policy_parameters).toEqual([{ id: P, name: "DSCR mínimo", unit: "x", scope: "fixed", value: 1.25, source_ref: `param:${P}` }]);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await packageXlsx(withParam, p, at)) as unknown as ArrayBuffer);
+    expect(wb.getWorksheet("Política")!.getCell("B5").value).toBe("≥ DSCR mínimo (1,25x)");
+    const { pdfText } = await import("../borme/fetch.ts");
+    const text = await pdfText(new Uint8Array(await packagePdf(withParam, p, at, { version: 1, modules: [{ id: "kpis", width: "full" }] })));
+    expect(text).toContain("DSCR mínimo");
+  });
+
   it("the applied credit policy travels in the JSON, an Excel sheet and the PDF, above the modules", async () => {
     const withPolicy = {
       ...sample,

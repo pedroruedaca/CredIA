@@ -7,6 +7,7 @@ import { POLICIES_INTRO, POLICY_NOTE } from "@/content/policies.es";
 import { requireLender } from "@/lib/lender";
 import { listPolicies } from "@/lib/policies/store";
 import { createClient } from "@/lib/supabase/server";
+import { PolicyTabs } from "./PolicyTabs";
 
 export const metadata = { title: "Políticas · credIA" };
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function PoliticasPage() {
             </ButtonLink>
           )}
         </div>
+        <PolicyTabs current="policies" />
         <p className="max-w-[640px] text-[17px] text-ink-2">{POLICIES_INTRO}</p>
       </div>
       {policies.length === 0 ? (

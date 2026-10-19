@@ -18,9 +18,6 @@ test("lender creates a case, company uploads, lender sees the package", async ({
   await page.getByLabel("Razón social").fill("Distribuciones E2E, S.L.");
   await page.getByLabel("Correo de la persona de contacto").fill("empresa@e2e.test");
   await page.getByLabel("Cierre del último ejercicio").fill("2025-12-31");
-  await page.getByLabel("Producto").selectOption("poliza_circulante");
-  await page.getByLabel("Importe (€)").fill("250000");
-  await page.getByLabel("Plazo (meses)").fill("24");
   for (const label of ["Contabilidad", "Extractos bancarios (Norma 43)"]) {
     const pill = page.getByRole("button", { name: label, exact: true });
     if ((await pill.getAttribute("aria-pressed")) !== "true") await pill.click();

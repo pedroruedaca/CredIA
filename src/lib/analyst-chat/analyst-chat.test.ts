@@ -209,6 +209,24 @@ describe("credit policy tool", () => {
     expect(gap).toMatchObject({ ok: true, result: { value: 0.22 } });
   });
 
+  it("a threshold from a parameter cites the parameter's value and the resulting threshold; a missing per-case value is said", async () => {
+    const P = "11111111-1111-4111-8111-111111111111";
+    const revenue = data.kpis.closed.find((k) => k.key === "revenue")!.value!;
+    const criteria = [{ metric: "revenue" as const, op: "gte" as const, period: "base" as const, parameter: { id: P, factor: 4 } }];
+    const param = (value: number | null) => [{ id: P, name: "Importe solicitado", unit: "EUR" as const, scope: "case" as const, value, sourceRef: value === null ? null : `case_param:c:${P}` }];
+    const ctxWith = (value: number | null): ToolContext => {
+      const d = { ...data, policy: { id: "pol-3", name: "Circulante", description: null, criteria }, parameters: param(value) };
+      return { data: d, pkg: buildPackage(d), registry: new RefRegistry(), bankRows: async () => [] };
+    };
+    const ctx = ctxWith(revenue / 8);
+    const r = (await ok(ctx, "get_credit_policy")) as { criteria: { status: string; threshold: { value: number; ref: string; parameter: { name: string; scope: string; factor: number; value: { value: number; ref: string } } } }[] };
+    expect(r.criteria[0].status).toBe("met");
+    expect(r.criteria[0].threshold).toMatchObject({ value: revenue / 2, parameter: { name: "Importe solicitado", scope: "entered_for_this_case", factor: 4, value: { value: revenue / 8 } } });
+    expect(ctx.registry.get(r.criteria[0].threshold.parameter.value.ref)).toMatchObject({ value: revenue / 8, label: "Parámetro «Importe solicitado» (de este caso)" });
+    const missing = (await ok(ctxWith(null), "get_credit_policy")) as { criteria: { status: string; threshold: { value: null; missing: string } }[] };
+    expect(missing.criteria[0]).toMatchObject({ status: "no_data", threshold: { value: null, missing: "Falta «Importe solicitado» en este caso." } });
+  });
+
   it("says so when no policy is applied, and the snapshot, prompt and suggestions know about it", async () => {
     expect(await ok(makeCtx(), "get_credit_policy")).toMatchObject({ note: expect.stringMatching(/No hay ninguna política/) });
     expect(caseSnapshot(withPolicy, buildPackage(withPolicy), new RefRegistry(), "2026-10-14")).toContain("Lender's credit policy applied: «Circulante pyme»");
