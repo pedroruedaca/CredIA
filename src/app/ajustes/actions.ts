@@ -8,6 +8,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/app-url";
+import { SIGN_IN_LINK_HOURS } from "@/lib/auth/login";
+import { createSignInLink } from "@/lib/auth/sign-in-link";
 import { parseRetentionInput } from "@/lib/cases/closing";
 import { requireLender, type LenderContext } from "@/lib/lender";
 import { getNotifier, isEmailConfigured } from "@/lib/notify";
@@ -87,7 +89,9 @@ export async function inviteMember(input: z.input<typeof InviteInput>): Promise<
   if (error) return { ok: false, message: "No hemos podido añadirlo al equipo." };
   await audit(lender, "member.invited", { user_id: user.userId, role });
 
-  const { sent } = await getNotifier().sendTeamInvite({ to: email, lenderName: lender.lenderName, invitedBy: lender.email, role, loginUrl: `${await appBaseUrl()}/login` });
+  const base = await appBaseUrl();
+  const signInUrl = await createSignInLink(email, base);
+  const { sent } = await getNotifier().sendTeamInvite({ to: email, lenderName: lender.lenderName, invitedBy: lender.email, role, loginUrl: `${base}/login`, signIn: signInUrl ? { url: signInUrl, hours: SIGN_IN_LINK_HOURS } : undefined });
   revalidatePath("/ajustes");
   return {
     ok: true,

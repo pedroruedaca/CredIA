@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resendNotifier } from "../notify.ts";
 import { sendWithResend } from "./resend.ts";
-import { borrowerInviteEmail, documentRequestEmail, lenderNoticeEmail, lenderWelcomeEmail } from "./templates.ts";
+import { borrowerInviteEmail, documentRequestEmail, lenderNoticeEmail, lenderWelcomeEmail, teamInviteEmail } from "./templates.ts";
 
 const LINK = "https://cred-ia.vercel.app/s/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd";
 
@@ -40,6 +40,22 @@ describe("templates", () => {
     expect(e.html).toContain('href="https://www.getcredia.com/login"');
     expect(e.text).toContain("https://www.getcredia.com/login");
     expect(e.html).not.toContain("@");
+  });
+
+  it("welcome and team invitation: the button signs in directly when there is a sign-in link, with its expiry", () => {
+    const signIn = { url: "https://www.getcredia.com/auth/entrar#t=abcdefabcdefabcdef", hours: 24 };
+    for (const e of [
+      lenderWelcomeEmail({ lenderName: "Fondo", loginUrl: "https://www.getcredia.com/login", signIn }),
+      teamInviteEmail({ lenderName: "Fondo", invitedBy: "ana@fondo.es", role: "analyst", loginUrl: "https://www.getcredia.com/login", signIn }),
+    ]) {
+      expect(e.html).toContain(`href="${signIn.url}"`);
+      expect(e.html).toContain("durante 24 horas");
+      expect(e.html).toContain('href="https://www.getcredia.com/login"');
+      expect(e.text).toContain(signIn.url);
+    }
+    const plain = teamInviteEmail({ lenderName: "Fondo", invitedBy: "ana@fondo.es", role: "viewer", loginUrl: "https://www.getcredia.com/login" });
+    expect(plain.html).toContain('href="https://www.getcredia.com/login"');
+    expect(plain.html).not.toContain("/auth/entrar");
   });
 });
 

@@ -73,3 +73,20 @@ export function cleanCode(raw: string): { code: string; complete: boolean } {
   const code = raw.replace(/\D/g, "").slice(0, 10);
   return { code, complete: code.length >= 6 };
 }
+
+/**
+ * Sign-in button in the welcome and team-invitation emails: a Supabase magic-link token made by the server
+ * (auth.admin.generateLink), carried in the fragment of /auth/entrar so it never reaches server logs or Referer
+ * headers, and spent only when the person presses «Entrar» (email scanners open links but do not press buttons).
+ */
+export const SIGN_IN_LINK_HOURS = 24; // Supabase → Authentication → Email → Email OTP Expiration = 86400 s.
+
+export function signInLinkUrl(baseUrl: string, tokenHash: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/auth/entrar#t=${encodeURIComponent(tokenHash)}`;
+}
+
+/** The token from /auth/entrar's fragment (`#t=…`), or null. */
+export function tokenFromFragment(hash: string): string | null {
+  const t = new URLSearchParams(hash.replace(/^#/, "")).get("t")?.trim();
+  return t && /^[A-Za-z0-9_-]{16,256}$/.test(t) ? t : null;
+}

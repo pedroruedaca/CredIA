@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authProviders, cleanCode, codeError, linkError, parseLinkError, sendError } from "./login.ts";
+import { authProviders, cleanCode, codeError, linkError, parseLinkError, sendError, signInLinkUrl, tokenFromFragment } from "./login.ts";
 
 describe("login providers", () => {
   it("reads google and microsoft from the setting, once each", () => {
@@ -35,5 +35,19 @@ describe("login errors", () => {
   it("keeps only the digits of the code", () => {
     expect(cleanCode(" 123 456 ")).toEqual({ code: "123456", complete: true });
     expect(cleanCode("12-34")).toEqual({ code: "1234", complete: false });
+  });
+});
+
+describe("sign-in link in the welcome email", () => {
+  it("puts the token in the fragment of /auth/entrar and reads it back", () => {
+    const url = signInLinkUrl("https://www.getcredia.com/", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8");
+    expect(url).toBe("https://www.getcredia.com/auth/entrar#t=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8");
+    expect(tokenFromFragment(new URL(url).hash)).toBe("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8");
+  });
+  it("ignores a missing or malformed token", () => {
+    expect(tokenFromFragment("")).toBeNull();
+    expect(tokenFromFragment("#t=")).toBeNull();
+    expect(tokenFromFragment("#t=short")).toBeNull();
+    expect(tokenFromFragment("#t=<script>alert(1)</script>xxxxxxxx")).toBeNull();
   });
 });
