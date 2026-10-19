@@ -6,7 +6,7 @@
  */
 import { lenderRecipients } from "./email/recipients.ts";
 import { sendWithResend } from "./email/resend.ts";
-import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail, purgeNoticeEmail, teamInviteEmail } from "./email/templates.ts";
+import { borrowerInviteEmail, delegateInviteEmail, documentRequestEmail, lenderNoticeEmail, lenderWelcomeEmail, purgeNoticeEmail, teamInviteEmail } from "./email/templates.ts";
 import { normaliseBaseUrl } from "./base-url.ts";
 import { MAGIC_LINK_TTL_DAYS } from "./magic-link.ts";
 
@@ -53,6 +53,13 @@ export interface TeamInvite {
   loginUrl: string;
 }
 
+/** credIA staff created the lender (/admin): welcome to its first owner. They sign in at loginUrl with their email. */
+export interface LenderWelcome {
+  to: string;
+  lenderName: string;
+  loginUrl: string;
+}
+
 /** Closed cases of one lender whose deletion was just announced (retention purge, 14 days ahead). Owners only. */
 export interface PurgeNotice {
   lenderId: string;
@@ -61,6 +68,7 @@ export interface PurgeNotice {
 
 export interface Notifier {
   sendTeamInvite(invite: TeamInvite): Promise<{ sent: boolean }>;
+  sendLenderWelcome(welcome: LenderWelcome): Promise<{ sent: boolean }>;
   sendBorrowerInvite(invite: BorrowerInvite): Promise<{ sent: boolean }>;
   sendDocumentRequest(request: DocumentRequest): Promise<{ sent: boolean }>;
   sendDelegateInvite(invite: DelegateInvite): Promise<{ sent: boolean }>;
@@ -71,6 +79,10 @@ export interface Notifier {
 const devConsoleNotifier: Notifier = {
   async sendTeamInvite(i) {
     console.info(`[notify:dev] Invitación al equipo de ${i.lenderName} para ${i.to} (${i.role}), por ${i.invitedBy}: ${i.loginUrl}`);
+    return { sent: true };
+  },
+  async sendLenderWelcome(w) {
+    console.info(`[notify:dev] Bienvenida a ${w.lenderName} para ${w.to}: ${w.loginUrl}`);
     return { sent: true };
   },
   async sendDocumentRequest(r) {
@@ -98,6 +110,10 @@ const devConsoleNotifier: Notifier = {
 const noopNotifier: Notifier = {
   async sendTeamInvite() {
     console.warn("[notify] Sin proveedor de correo configurado: invitación al equipo no enviada.");
+    return { sent: false };
+  },
+  async sendLenderWelcome() {
+    console.warn("[notify] Sin proveedor de correo configurado: bienvenida no enviada.");
     return { sent: false };
   },
   async sendDocumentRequest() {
@@ -131,6 +147,7 @@ export function resendNotifier(apiKey: string, env: { from?: string; replyTo?: s
   const caseUrl = (caseId: string) => appPath(`/casos/${caseId}`);
   return {
     sendTeamInvite: (i) => sendWithResend(teamInviteEmail(i), { ...base, to: i.to, kind: "team_invite" }),
+    sendLenderWelcome: (w) => sendWithResend(lenderWelcomeEmail(w), { ...base, to: w.to, kind: "lender_welcome" }),
     sendBorrowerInvite: (i) =>
       sendWithResend(borrowerInviteEmail({ ...i, expiresInDays: MAGIC_LINK_TTL_DAYS }), { ...base, to: i.to, kind: "borrower_invite" }),
     sendDelegateInvite: (i) => sendWithResend(delegateInviteEmail(i), { ...base, to: i.to, kind: "delegate_invite" }),

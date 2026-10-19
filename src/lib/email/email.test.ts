@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resendNotifier } from "../notify.ts";
 import { sendWithResend } from "./resend.ts";
-import { borrowerInviteEmail, documentRequestEmail, lenderNoticeEmail } from "./templates.ts";
+import { borrowerInviteEmail, documentRequestEmail, lenderNoticeEmail, lenderWelcomeEmail } from "./templates.ts";
 
 const LINK = "https://cred-ia.vercel.app/s/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd";
 
@@ -30,6 +30,16 @@ describe("templates", () => {
     expect(e.html).toContain('href="https://x/casos/1"');
     expect(e.html).toContain("No encuentro el CIRBE");
     expect(lenderNoticeEmail({ event: "documents_submitted", companyName: "T", caseUrl: null }).text).toContain("Entra en credIA");
+  });
+
+  it("lender welcome: names the lender and the owner role, links to login, no staff email", () => {
+    const e = lenderWelcomeEmail({ lenderName: "Fondo <Ejemplo>", loginUrl: "https://www.getcredia.com/login" });
+    expect(e.subject).toBe("Bienvenido a credIA: Fondo <Ejemplo> ya tiene acceso");
+    expect(e.html).toContain("Fondo &lt;Ejemplo&gt;");
+    expect(e.html).toContain("administrador");
+    expect(e.html).toContain('href="https://www.getcredia.com/login"');
+    expect(e.text).toContain("https://www.getcredia.com/login");
+    expect(e.html).not.toContain("@");
   });
 });
 
