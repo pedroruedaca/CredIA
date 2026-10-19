@@ -87,3 +87,20 @@ export const DELETE_CASE_COPY = {
   deleting: "Eliminando…",
   failed: "No hemos podido eliminar el caso. Inténtalo de nuevo.",
 } as const;
+
+/** Platform admin («Administración de credIA»): delete a lender and everything in it. */
+export const DELETE_LENDER_COPY = {
+  button: "Eliminar",
+  confirmTitle: (name: string) => `¿Eliminar ${name}?`,
+  explain: "Se borrará para siempre:",
+  whatGoes: (cases: number, members: number) => [
+    `Sus ${cases} ${cases === 1 ? "caso" : "casos"}, con todos sus documentos, archivos y datos.`,
+    `Su equipo (${members} ${members === 1 ? "persona" : "personas"}) y sus cuentas de acceso a credIA, salvo las de administración de credIA.`,
+    "Sus plantillas, políticas, ajustes y su registro de auditoría.",
+  ],
+  notReversible: "No se puede deshacer. Solo queda una línea en el registro de credIA con quién la eliminó y cuándo.",
+  typeName: (name: string) => `Escribe el nombre de la entidad (${name}) para confirmar`,
+  confirm: "Eliminar para siempre",
+  deleting: "Eliminando…",
+  failed: "No hemos podido eliminar la entidad. Inténtalo de nuevo.",
+} as const;
