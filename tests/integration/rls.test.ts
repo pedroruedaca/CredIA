@@ -51,7 +51,7 @@ beforeAll(async () => {
   const kase = must(await admin.from("cases").insert({ lender_id: A.lenderId, borrower_cif: "B12345674", borrower_name: "Empresa A", fiscal_year_end: "2025-12-31", borrower_token_hash: `hash-${crypto.randomUUID()}` }).select("id").single()) as { id: string };
   ids.case = kase.id;
   const base = { case_id: kase.id, lender_id: A.lenderId };
-  ids.parameter = (must(await admin.from("policy_parameters").insert({ lender_id: A.lenderId, name: "Importe solicitado", unit: "EUR", scope: "case" }).select("id").single()) as { id: string }).id;
+  ids.parameter = (must(await admin.from("policy_parameters").insert({ lender_id: A.lenderId, name: "Importe solicitado", unit: "EUR" }).select("id").single()) as { id: string }).id;
   for (const [table, row] of Object.entries(CASE_ROWS)) {
     const extra = unique(table, A.userId);
     ids[table] = String((must(await admin.from(table).insert({ ...base, ...row, ...extra }).select("id").single()) as { id: string | number }).id);

@@ -10,7 +10,7 @@
 import * as z from "zod/v4";
 import { BANK_CATEGORY_LABEL, KPI_LABEL, REVIEW_LABEL, SEVERITY_LABEL, VALUE_LABEL } from "../../content/case-view.es.ts";
 import { OUTCOME_LABEL, POLICY_NOTE, STATUS_LABEL } from "../../content/policies.es.ts";
-import type { CriterionResult } from "../policies/policy.ts";
+import { metricUnit, type CriterionResult, type PolicyMetric } from "../policies/policy.ts";
 import { PROVIDER_FIGURES_NOTE } from "../../content/solvency.es.ts";
 import { INFLOW_CATEGORIES, NEUTRAL_CATEGORIES, OUTFLOW_CATEGORIES } from "../bank/classify.ts";
 import type { CaseViewData } from "../case-view/load.ts";
@@ -430,12 +430,20 @@ function getSolvency(ctx: ToolContext, refs: string[]) {
 }
 
 /**
- * A criterion's threshold with its ref. From a parameter: the parameter's value for this case has its own ref (fixed
- * for the lender or entered for this case), and the threshold is factor × that value.
+ * A criterion's threshold with its ref. From another KPI: that KPI's value carries the same ref as get_kpis gives it;
+ * from a parameter: its value for this case has its own ref. The threshold is factor × that value, with its own ref.
  */
-function thresholdOf(ctx: ToolContext, refs: string[], v: NonNullable<ReturnType<typeof policyView>>, i: number, r: CriterionResult, label: string) {
+function thresholdOf(ctx: ToolContext, refs: string[], v: NonNullable<ReturnType<typeof policyView>>, i: number, r: CriterionResult, label: string, kpiRef: (metric: string, src: "closed" | "ytd" | "bank", value: number) => string) {
   const c = r.criterion;
   const bound = `${label} ${c.op === "gte" ? "mínimo" : "máximo"}`;
+  if (c.against) {
+    const a = r.against;
+    const otherLabel = KPI_LABEL[c.against.metric] ?? c.against.metric;
+    const other = { indicator: c.against.metric, label: otherLabel, factor: c.against.factor, value: a && a.value !== null && a.source ? { value: round(a.value, 4), unit: r.unit, ref: kpiRef(c.against.metric, a.source, a.value) } : null };
+    if (r.limit === null) return { value: null, unit: r.unit, other_indicator: other, missing: r.note };
+    const ref = reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:kpi:${c.against.metric}:${c.against.factor}:${r.limit}`, label: `Umbral de vuestra política «${v.name}» · ${bound} = ${c.against.factor} × ${otherLabel}`, value: r.limit, unit: r.unit });
+    return { value: round(r.limit, 4), unit: r.unit, ref, other_indicator: other };
+  }
   if (!c.parameter) {
     return { value: c.threshold, unit: r.unit, ref: reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:${c.threshold}`, label: `Umbral de vuestra política «${v.name}» · ${bound}`, value: c.threshold, unit: r.unit }) };
   }
@@ -443,11 +451,10 @@ function thresholdOf(ctx: ToolContext, refs: string[], v: NonNullable<ReturnType
   const parameter = p
     ? {
         name: p.name,
-        scope: p.scope === "fixed" ? "fixed_for_the_lender" : "entered_for_this_case",
         factor: c.parameter.factor,
-        value: p.value === null ? null : { value: p.value, unit: p.unit, ref: reg(ctx, refs, { id: p.sourceRef ?? `param:${p.id}`, label: `Parámetro «${p.name}»${p.scope === "fixed" ? " (fijo de vuestra entidad)" : " (de este caso)"}`, value: p.value, unit: p.unit }) },
+        value: p.value === null ? null : { value: p.value, unit: p.unit, ref: reg(ctx, refs, { id: p.sourceRef ?? `case_param:${p.id}`, label: `Parámetro «${p.name}» (de este caso)`, value: p.value, unit: p.unit }) },
       }
-    : { name: null, scope: "deleted", factor: c.parameter.factor, value: null };
+    : { name: null, deleted: true, factor: c.parameter.factor, value: null };
   if (r.limit === null) return { value: null, unit: r.unit, parameter, missing: r.note };
   const ref = reg(ctx, refs, { id: `policy:${v.id}:${i}:${c.metric}:${c.op}:param:${c.parameter.id}:${c.parameter.factor}:${r.limit}`, label: `Umbral de vuestra política «${v.name}» · ${bound} = ${c.parameter.factor} × «${p?.name}»`, value: r.limit, unit: r.unit });
   return { value: round(r.limit, 4), unit: r.unit, ref, parameter };
@@ -464,6 +471,9 @@ function getPolicy(ctx: ToolContext, refs: string[]) {
   const b = ctx.data.bank;
   const where = (src: "closed" | "ytd" | "bank") => (src === "closed" && closed ? periodLabel(closed) : src === "ytd" && ytd ? periodLabel(ytd) : b ? `bancos ${b.period.start}..${b.period.end}` : "");
   const kpiPeriod = { closed: "closed_fy", ytd: "ytd", bank: "bank" } as const;
+  // A KPI's value with the same ref get_kpis gives it, so answers cite one source for it.
+  const kpiRef = (metric: string, src: "closed" | "ytd" | "bank", value: number) =>
+    reg(ctx, refs, { id: `kpi:${kpiPeriod[src]}:${metric}`, label: `${KPI_LABEL[metric] ?? metric} · ${where(src)}`, value, unit: metricUnit(metric as PolicyMetric) });
   return {
     note: POLICY_NOTE,
     policy: v.name,
@@ -478,12 +488,12 @@ function getPolicy(ctx: ToolContext, refs: string[]) {
         indicator: c.metric,
         label,
         condition: c.op === "gte" ? "at_least" : "at_most",
-        threshold: thresholdOf(ctx, refs, v, i, r, label),
+        threshold: thresholdOf(ctx, refs, v, i, r, label, kpiRef),
         period_asked: c.period,
         case_value:
           r.value === null || !r.source
             ? null
-            : { value: round(r.value, 4), unit: r.unit, period: r.source, ref: reg(ctx, refs, { id: `kpi:${kpiPeriod[r.source]}:${c.metric}`, label: `${label} · ${where(r.source)}`, value: r.value, unit: r.unit }) },
+            : { value: round(r.value, 4), unit: r.unit, period: r.source, ref: kpiRef(c.metric, r.source, r.value) },
         status: r.status,
         status_label: STATUS_LABEL[r.status],
         no_data_reason: r.status === "no_data" ? (r.note ?? "El caso no tiene esta cifra.") : null,

@@ -30,16 +30,15 @@ export async function applyCasePolicy(caseId: string, policyId: string | null): 
 }
 
 /**
- * The case's values of the lender's per-case parameters («Política» panel), posted as `param_<id>`: a number sets it,
- * an empty field removes it. Owners and analysts; the database checks the role, the lender and that each parameter is
- * a per-case one of this lender (0031).
+ * The case's values of the lender's parameters («Política» panel), posted as `param_<id>`: a number sets it, an empty
+ * field removes it. Owners and analysts; the database checks the role and that each parameter is this lender's.
  */
 export async function saveCaseParameters(caseId: string, posted: Record<string, string>): Promise<PolicyActionResult> {
   const lender = await requireLender();
   if (lender.role === "viewer") return { ok: false, message: "Tu rol solo permite consultar casos." };
   if (!isId(caseId) || typeof posted !== "object" || posted === null) return { ok: false, message: "Caso no encontrado." };
   const supabase = await createClient();
-  const params = (await listParameters(supabase)).filter((p) => p.scope === "case");
+  const params = await listParameters(supabase);
   const fields: Record<string, string> = {};
   for (const p of params) if (typeof posted[`param_${p.id}`] === "string") fields[`param_${p.id}`] = posted[`param_${p.id}`];
   const parsed = parseCaseParameterFields(fields, params);

@@ -1,5 +1,5 @@
 /** «Políticas» copy (Spanish): the lender's thresholds on the KPIs and the informational outcome in the case view. */
-import type { ParameterScope, ParameterUnit } from "../lib/policies/parameters.ts";
+import type { ParameterUnit } from "../lib/policies/parameters.ts";
 import type { CriterionStatus, PolicyOp, PolicyOutcome, PolicyPeriod } from "../lib/policies/policy.ts";
 
 export const OP_LABEL: Record<PolicyOp, string> = { gte: "Como mínimo", lte: "Como máximo" };
@@ -38,18 +38,17 @@ export const POLICIES_INTRO =
 
 // ------------------------------------------------------------------------------------------------ parameters (0031)
 
-export const PARAMETER_SCOPE_LABEL: Record<ParameterScope, string> = { fixed: "Fijo", case: "Por caso" };
-export const PARAMETER_SCOPE_HINT: Record<ParameterScope, string> = {
-  fixed: "Un valor para todos los casos de la entidad (por ejemplo, DSCR mínimo 1,25).",
-  case: "Se introduce en cada caso (por ejemplo, el importe solicitado): al crearlo o desde su panel «Política».",
-};
+export const PARAMETER_HINT = "El analista lo introduce en cada caso, al crearlo o desde su panel «Política».";
 /** Units as the parameter form offers them (the KPIs' units). */
 export const PARAMETER_UNIT_LABEL: Record<ParameterUnit, string> = { EUR: "Euros (€)", x: "Veces (x)", "%": "Porcentaje (%)", days: "Días", count: "Número" };
 /** Short unit after a figure in forms. */
 export const UNIT_TEXT: Record<ParameterUnit, string> = { EUR: "€", x: "x", "%": "%", days: "días", count: "" };
 
 export const PARAMETERS_INTRO =
-  "Valores que vuestras políticas comparan con los indicadores: fijos para toda la entidad, o introducidos en cada caso (importe solicitado, plazo…). En un criterio: «Ingresos ≥ 4 × Importe solicitado».";
+  "Datos de cada operación que el analista introduce en el caso (importe solicitado, plazo…) y que vuestras políticas comparan con los indicadores: «Ingresos ≥ 4 × Importe solicitado». Los valores fijos van en la propia política.";
+
+/** The threshold selector of a criterion: a number, another KPI or a parameter. */
+export const THRESHOLD_GROUP_LABEL = { kpi: "Otro indicador", parameter: "Parámetro del caso" } as const;
 
 export const CASE_PARAMETERS_COPY = {
   title: "Parámetros de este caso",

@@ -51,7 +51,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const policy = {
     options: (await listPolicies(db)).map((p) => ({ id: p.id, name: p.name })),
     applied: applied ? { id: applied.id, name: applied.name, result: applied.result } : null,
-    caseParameters: data.parameters.filter((p) => p.scope === "case"),
+    caseParameters: data.parameters,
     usedParameterIds: data.policy ? criteriaParameterIds(data.policy.criteria) : [],
   };
   const busy = stuck || data.kase.status === "processing" || data.documents.some((d) => d.status === "parsing" || (d.status === "uploaded" && !d.summary));

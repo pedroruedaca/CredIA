@@ -112,43 +112,76 @@ describe("evaluatePolicy", () => {
 
 describe("thresholds from parameters", () => {
   const AMOUNT = "11111111-1111-4111-8111-111111111111";
-  const DSCR = "22222222-2222-4222-8222-222222222222";
+  const TERM = "22222222-2222-4222-8222-222222222222";
   const revenue = closed.find((k) => k.key === "revenue")!.value!;
   const k = { closed, ytd: [] as Kpi[], bank: null };
-  const amount = (value: number | null): ResolvedParameter => ({ id: AMOUNT, name: "Importe solicitado", unit: "EUR", scope: "case", value, sourceRef: value === null ? null : `case_param:c:${AMOUNT}` });
-  const dscrMin: ResolvedParameter = { id: DSCR, name: "DSCR mínimo", unit: "x", scope: "fixed", value: 1.25, sourceRef: `param:${DSCR}` };
+  const amount = (value: number | null): ResolvedParameter => ({ id: AMOUNT, name: "Importe solicitado", unit: "EUR", value, sourceRef: value === null ? null : `case_param:c:${AMOUNT}` });
   const viaAmount: PolicyCriterion = { metric: "revenue", op: "gte", period: "base", parameter: { id: AMOUNT, factor: 4 } };
 
   it("stores and reads a criterion on a parameter (factor 1 when empty, never ≤ 0)", () => {
     expect(normalizeCriteria(criteriaToStored([viaAmount]))).toEqual([viaAmount]);
-    expect(normalizeCriteria([{ metric: "dscr", op: "gte", parameter_id: DSCR, factor: "" }])).toEqual([{ metric: "dscr", op: "gte", period: "base", parameter: { id: DSCR, factor: 1 } }]);
-    expect(normalizeCriteria([{ metric: "dscr", op: "gte", parameter_id: DSCR, factor: "-2" }])).toEqual([]);
+    expect(normalizeCriteria([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "" }])).toEqual([{ metric: "revenue", op: "gte", period: "base", parameter: { id: AMOUNT, factor: 1 } }]);
+    expect(normalizeCriteria([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "-2" }])).toEqual([]);
   });
 
   it("compares the KPI with factor × the parameter's value for the case", () => {
     const met = evaluatePolicy([viaAmount], k, [amount(revenue / 4)]);
-    expect(met.results[0]).toMatchObject({ status: "met", limit: revenue, parameter: { name: "Importe solicitado", factor: 4 } });
+    expect(met.results[0]).toMatchObject({ status: "met", limit: revenue, parameter: { name: "Importe solicitado", factor: 4 }, against: null });
     expect(evaluatePolicy([viaAmount], k, [amount(revenue / 4 + 1)]).outcome).toBe("outside");
-    expect(evaluatePolicy([{ metric: "dscr", op: "gte", period: "base", parameter: { id: DSCR, factor: 1 } }], k, [dscrMin]).results[0]).toMatchObject({ status: "met", limit: 1.25 });
   });
 
-  it("a per-case value the case lacks, or a deleted parameter, is «sin datos» with the reason", () => {
+  it("a value the case lacks, or a deleted parameter, is «sin datos» with the reason", () => {
     const missing = evaluatePolicy([viaAmount], k, [amount(null)]);
     expect(missing.outcome).toBe("incomplete");
     expect(missing.results[0]).toMatchObject({ status: "no_data", limit: null, note: "Falta «Importe solicitado» en este caso." });
-    expect(missingCaseParameters([viaAmount], [amount(null), dscrMin]).map((p) => p.id)).toEqual([AMOUNT]);
+    expect(missingCaseParameters([viaAmount], [amount(null)]).map((p) => p.id)).toEqual([AMOUNT]);
+    expect(missingCaseParameters([viaAmount], [amount(5)])).toEqual([]);
     expect(evaluatePolicy([viaAmount], k, []).results[0]).toMatchObject({ status: "no_data", note: "El parámetro de este criterio ya no existe." });
   });
 
   it("the form refuses a parameter in another unit, an unknown one and a non-positive factor", () => {
     const lenderParams: PolicyParameter[] = [
-      { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR", scope: "case", value: null },
-      { id: DSCR, name: "DSCR mínimo", description: null, unit: "x", scope: "fixed", value: 1.25 },
+      { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR" },
+      { id: TERM, name: "Plazo", description: null, unit: "count" },
     ];
     const form = (rows: unknown[]) => parsePolicyForm({ name: "Circulante", criteria: JSON.stringify(rows) }, lenderParams);
     expect(form([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "4" }])).toMatchObject({ ok: true });
     expect(form([{ metric: "dscr", op: "gte", parameter_id: AMOUNT, factor: "1" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/misma unidad/) } });
     expect(form([{ metric: "revenue", op: "gte", parameter_id: "33333333-3333-4333-8333-333333333333", factor: "1" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/ya no existe/) } });
     expect(form([{ metric: "revenue", op: "gte", parameter_id: AMOUNT, factor: "0" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/factor/) } });
+  });
+});
+
+describe("thresholds from another KPI", () => {
+  const k = { closed, ytd: [] as Kpi[], bank };
+  const debt = closed.find((x) => x.key === "financialDebt")!.value!;
+  const ebitda = closed.find((x) => x.key === "ebitda")!.value!;
+  const debtVsEbitda = (factor: number): PolicyCriterion => ({ metric: "financialDebt", op: "lte", period: "base", against: { metric: "ebitda", factor } });
+
+  it("stores and reads it; only another KPI, in the same unit", () => {
+    expect(normalizeCriteria(criteriaToStored([debtVsEbitda(3)]))).toEqual([debtVsEbitda(3)]);
+    expect(normalizeCriteria([{ metric: "financialDebt", op: "lte", against_metric: "dscr", factor: 3 }])).toEqual([]); // € vs x
+    expect(normalizeCriteria([{ metric: "ebitda", op: "gte", against_metric: "ebitda", factor: 1 }])).toEqual([]);
+    expect(normalizeCriteria([{ metric: "financialDebt", op: "lte", against_metric: "nonsense", factor: 1 }])).toEqual([]);
+  });
+
+  it("compares with factor × the other KPI of the same period", () => {
+    const factor = (debt / ebitda) * 1.01; // just above the case's own ratio: met
+    expect(evaluatePolicy([debtVsEbitda(factor)], k).results[0]).toMatchObject({ status: "met", limit: factor * ebitda, against: { metric: "ebitda", factor, value: ebitda, source: "closed" } });
+    expect(evaluatePolicy([debtVsEbitda((debt / ebitda) * 0.99)], k).outcome).toBe("outside");
+  });
+
+  it("reads a bank KPI from its own window, and says when the other KPI has no figure", () => {
+    const r = evaluatePolicy([{ metric: "revenue", op: "gte", period: "base", against: { metric: "minBalance", factor: 1 } }], k).results[0];
+    expect(r).toMatchObject({ status: "no_data", limit: null, note: "Sin saldos en el extracto", against: { value: null, source: null } });
+    const none = evaluatePolicy([debtVsEbitda(3)], { closed: [], ytd: [], bank: null }).results[0];
+    expect(none.status).toBe("no_data");
+  });
+
+  it("the form refuses another KPI in a different unit, or the same KPI", () => {
+    const form = (rows: unknown[]) => parsePolicyForm({ name: "Endeudamiento", criteria: JSON.stringify(rows) });
+    expect(form([{ metric: "financialDebt", op: "lte", against_metric: "ebitda", factor: "3" }])).toMatchObject({ ok: true });
+    expect(form([{ metric: "financialDebt", op: "lte", against_metric: "dscr", factor: "3" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/misma unidad/) } });
+    expect(form([{ metric: "ebitda", op: "gte", against_metric: "ebitda", factor: "1" }])).toMatchObject({ ok: false, errors: { criteria: expect.stringMatching(/distinto/) } });
   });
 });

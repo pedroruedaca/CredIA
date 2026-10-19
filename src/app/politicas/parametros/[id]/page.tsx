@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireLender } from "@/lib/lender";
-import { parameterValueText } from "@/lib/policies/parameters";
 import { getParameter } from "@/lib/policies/parameter-store";
 import { listPolicies } from "@/lib/policies/store";
 import { createClient } from "@/lib/supabase/server";
@@ -42,10 +41,10 @@ export default async function ParametroPage({ params }: { params: Promise<{ id: 
           )}
         </p>
       </div>
-      <ParameterForm key={p.id} id={p.id} canEdit={canEdit} initial={{ name: p.name, description: p.description ?? "", unit: p.unit, scope: p.scope, value: parameterValueText(p.value) }} />
+      <ParameterForm key={p.id} id={p.id} canEdit={canEdit} initial={{ name: p.name, description: p.description ?? "", unit: p.unit }} />
       {canEdit && (
         <div className="mt-12">
-          <DeleteParameter id={p.id} scope={p.scope} />
+          <DeleteParameter id={p.id} />
         </div>
       )}
     </main>

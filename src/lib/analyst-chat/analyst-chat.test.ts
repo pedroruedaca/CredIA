@@ -213,18 +213,30 @@ describe("credit policy tool", () => {
     const P = "11111111-1111-4111-8111-111111111111";
     const revenue = data.kpis.closed.find((k) => k.key === "revenue")!.value!;
     const criteria = [{ metric: "revenue" as const, op: "gte" as const, period: "base" as const, parameter: { id: P, factor: 4 } }];
-    const param = (value: number | null) => [{ id: P, name: "Importe solicitado", unit: "EUR" as const, scope: "case" as const, value, sourceRef: value === null ? null : `case_param:c:${P}` }];
+    const param = (value: number | null) => [{ id: P, name: "Importe solicitado", unit: "EUR" as const, value, sourceRef: value === null ? null : `case_param:c:${P}` }];
     const ctxWith = (value: number | null): ToolContext => {
       const d = { ...data, policy: { id: "pol-3", name: "Circulante", description: null, criteria }, parameters: param(value) };
       return { data: d, pkg: buildPackage(d), registry: new RefRegistry(), bankRows: async () => [] };
     };
     const ctx = ctxWith(revenue / 8);
-    const r = (await ok(ctx, "get_credit_policy")) as { criteria: { status: string; threshold: { value: number; ref: string; parameter: { name: string; scope: string; factor: number; value: { value: number; ref: string } } } }[] };
+    const r = (await ok(ctx, "get_credit_policy")) as { criteria: { status: string; threshold: { value: number; ref: string; parameter: { name: string; factor: number; value: { value: number; ref: string } } } }[] };
     expect(r.criteria[0].status).toBe("met");
-    expect(r.criteria[0].threshold).toMatchObject({ value: revenue / 2, parameter: { name: "Importe solicitado", scope: "entered_for_this_case", factor: 4, value: { value: revenue / 8 } } });
+    expect(r.criteria[0].threshold).toMatchObject({ value: revenue / 2, parameter: { name: "Importe solicitado", factor: 4, value: { value: revenue / 8 } } });
     expect(ctx.registry.get(r.criteria[0].threshold.parameter.value.ref)).toMatchObject({ value: revenue / 8, label: "Parámetro «Importe solicitado» (de este caso)" });
     const missing = (await ok(ctxWith(null), "get_credit_policy")) as { criteria: { status: string; threshold: { value: null; missing: string } }[] };
     expect(missing.criteria[0]).toMatchObject({ status: "no_data", threshold: { value: null, missing: "Falta «Importe solicitado» en este caso." } });
+  });
+
+  it("a threshold from another KPI cites that KPI with the same ref get_kpis gives it", async () => {
+    const debt = data.kpis.closed.find((k) => k.key === "financialDebt")!.value!;
+    const ebitda = data.kpis.closed.find((k) => k.key === "ebitda")!.value!;
+    const d = { ...data, policy: { id: "pol-4", name: "Endeudamiento", description: null, criteria: [{ metric: "financialDebt" as const, op: "lte" as const, period: "base" as const, against: { metric: "ebitda" as const, factor: 3 } }] } };
+    const ctx: ToolContext = { data: d, pkg: buildPackage(d), registry: new RefRegistry(), bankRows: async () => [] };
+    const r = (await ok(ctx, "get_credit_policy")) as { criteria: { status: string; threshold: { value: number; ref: string; other_indicator: { indicator: string; factor: number; value: { value: number; ref: string } } } }[] };
+    expect(r.criteria[0].status).toBe(debt <= 3 * ebitda ? "met" : "not_met");
+    expect(r.criteria[0].threshold).toMatchObject({ value: 3 * ebitda, other_indicator: { indicator: "ebitda", factor: 3, value: { value: ebitda } } });
+    const kpis = (await ok(ctx, "get_kpis", { period: "closed_fy" })) as { closed_fy: { kpis: { key: string; ref: string }[] } };
+    expect(r.criteria[0].threshold.other_indicator.value.ref).toBe(kpis.closed_fy.kpis.find((k) => k.key === "ebitda")!.ref);
   });
 
   it("says so when no policy is applied, and the snapshot, prompt and suggestions know about it", async () => {

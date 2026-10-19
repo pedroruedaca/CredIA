@@ -4,10 +4,9 @@
 import { useState, useTransition } from "react";
 import { ErrorLine } from "@/components/states/ErrorLine";
 import { Button } from "@/components/ui/Button";
-import type { ParameterScope } from "@/lib/policies/parameters";
 import { deleteParameter } from "../actions";
 
-export function DeleteParameter({ id, scope }: { id: string; scope: ParameterScope }) {
+export function DeleteParameter({ id }: { id: string }) {
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -15,7 +14,7 @@ export function DeleteParameter({ id, scope }: { id: string; scope: ParameterSco
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[15px] text-ink-2">
-        {scope === "case" ? "Se borrarán también los valores introducidos en cada caso. " : ""}Solo se puede eliminar si ninguna política lo usa.
+        Se borrarán también los valores introducidos en cada caso. Solo se puede eliminar si ninguna política lo usa.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button

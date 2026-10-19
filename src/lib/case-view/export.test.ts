@@ -175,23 +175,36 @@ describe("exports", () => {
     expect(await pdfText(new Uint8Array(await packagePdf(sample, pkg, at)))).not.toContain("Conclusiones del analista");
   }, 30_000);
 
-  it("a threshold from a parameter says which, with its value for the case and source_ref, in every export", async () => {
+  it("a threshold from another KPI or a case parameter says which, with its value and source, in every export", async () => {
     const P = "11111111-1111-4111-8111-111111111111";
-    const withParam = {
+    const C = sample.kase.id;
+    const withRefs = {
       ...sample,
-      policy: { id: "pol-2", name: "Circulante", description: null, criteria: [{ metric: "dscr" as const, op: "gte" as const, period: "base" as const, parameter: { id: P, factor: 1 } }] },
-      parameters: [{ id: P, name: "DSCR mínimo", unit: "x" as const, scope: "fixed" as const, value: 1.25, sourceRef: `param:${P}` }],
+      policy: {
+        id: "pol-2",
+        name: "Circulante",
+        description: null,
+        criteria: [
+          { metric: "revenue" as const, op: "gte" as const, period: "base" as const, parameter: { id: P, factor: 4 } },
+          { metric: "financialDebt" as const, op: "lte" as const, period: "base" as const, against: { metric: "ebitda" as const, factor: 3 } },
+        ],
+      },
+      parameters: [{ id: P, name: "Importe solicitado", unit: "EUR" as const, value: 100_000, sourceRef: `case_param:${C}:${P}` }],
     };
-    const p = buildPackage(withParam);
-    const j = packageJson(withParam, p, at);
-    expect(j.credit_policy!.criteria[0]).toMatchObject({ threshold: 1.25, status: "met", threshold_from: { name: "DSCR mínimo", scope: "fixed", factor: 1, value: 1.25, source_ref: `param:${P}` } });
-    expect(j.policy_parameters).toEqual([{ id: P, name: "DSCR mínimo", unit: "x", scope: "fixed", value: 1.25, source_ref: `param:${P}` }]);
+    const p = buildPackage(withRefs);
+    const j = packageJson(withRefs, p, at);
+    expect(j.credit_policy!.criteria[0]).toMatchObject({ threshold: 400_000, threshold_from: { type: "parameter", name: "Importe solicitado", factor: 4, value: 100_000, source_ref: `case_param:${C}:${P}` } });
+    expect(j.credit_policy!.criteria[1]).toMatchObject({ threshold_from: { type: "kpi", metric: "ebitda", label: "EBITDA", factor: 3, kpi_ref: "kpis.closed_fy.ebitda" } });
+    expect(j.policy_parameters).toEqual([{ id: P, name: "Importe solicitado", unit: "EUR", value: 100_000, source_ref: `case_param:${C}:${P}` }]);
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await packageXlsx(withParam, p, at)) as unknown as ArrayBuffer);
-    expect(wb.getWorksheet("Política")!.getCell("B5").value).toBe("≥ DSCR mínimo (1,25x)");
+    await wb.xlsx.load((await packageXlsx(withRefs, p, at)) as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet("Política")!;
+    expect(ws.getCell("B5").value).toBe("≥ 4 × Importe solicitado (400.000 €)");
+    expect(String(ws.getCell("B6").value)).toMatch(/^≤ 3 × EBITDA \(/);
     const { pdfText } = await import("../borme/fetch.ts");
-    const text = await pdfText(new Uint8Array(await packagePdf(withParam, p, at, { version: 1, modules: [{ id: "kpis", width: "full" }] })));
-    expect(text).toContain("DSCR mínimo");
+    const text = await pdfText(new Uint8Array(await packagePdf(withRefs, p, at, { version: 1, modules: [{ id: "kpis", width: "full" }] })));
+    expect(text).toContain("Importe solicitado");
+    expect(text).toContain("3 × EBITDA");
   });
 
   it("the applied credit policy travels in the JSON, an Excel sheet and the PDF, above the modules", async () => {

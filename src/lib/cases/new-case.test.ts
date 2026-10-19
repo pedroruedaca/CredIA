@@ -72,15 +72,13 @@ describe("parseNewCase", () => {
 describe("per-case parameters on the new case", () => {
   const AMOUNT = "11111111-1111-4111-8111-111111111111";
   const TERM = "22222222-2222-4222-8222-222222222222";
-  const FIXED = "33333333-3333-4333-8333-333333333333";
   const params: PolicyParameter[] = [
-    { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR", scope: "case", value: null },
-    { id: TERM, name: "Plazo", description: null, unit: "count", scope: "case", value: null },
-    { id: FIXED, name: "DSCR mínimo", description: null, unit: "x", scope: "fixed", value: 1.25 },
+    { id: AMOUNT, name: "Importe solicitado", description: null, unit: "EUR" },
+    { id: TERM, name: "Plazo", description: null, unit: "count" },
   ];
 
-  it("reads Spanish amounts and skips empty optional ones and fixed parameters", () => {
-    const r = parseNewCase({ ...base, [`param_${AMOUNT}`]: "250.000", [`param_${TERM}`]: "", [`param_${FIXED}`]: "9" }, params);
+  it("reads Spanish amounts and skips empty optional ones", () => {
+    const r = parseNewCase({ ...base, [`param_${AMOUNT}`]: "250.000", [`param_${TERM}`]: "" }, params);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.parameterValues).toEqual([{ parameterId: AMOUNT, value: 250000 }]);
   });
